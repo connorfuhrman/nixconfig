@@ -14,7 +14,10 @@
     ] ++ (if !stdenv.isDarwin then [
       # Packages to include only on non-Darwin systems
       pkgs.emacs
-    ] else []);
+    ] else [
+      # Apple-specific packages
+      asitop  # TODO currently is specific to Apple Sillicon
+    ]);
   };
 
   programs = {
