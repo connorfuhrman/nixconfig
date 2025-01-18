@@ -27,7 +27,6 @@
     zsh = {
       enable = true;
       shellAliases = {
-        tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale";  # TODO MacOS/MAS specific
         ls = "ls --color";
         ll = "ls -alh";
       };

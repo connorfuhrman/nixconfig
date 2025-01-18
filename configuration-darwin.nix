@@ -74,8 +74,10 @@
       "Amazon Prime Video" = 545519333;
       "DaisyDisk" = 411643860;
       "Dark Reader for Safari " = 1438243180;
-      "Tailscale" = 1475387142;
+      # Better to install Tailscale via the package than the App Store
+      # "Tailscale" = 1475387142;
       "Amphetamine" = 937984704;
+      "Jump Desktop (RDP, VNC, Fluid)" = 524141863;
     };
   };
 
