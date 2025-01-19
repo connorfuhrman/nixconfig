@@ -29,6 +29,7 @@
       userEmail = "connormfuhrman@gmail.com";
       extraConfig = {
         init.defaultBranch = "main";
+        push.autoSetupRemote = true;
       };
     };
     zsh = {
