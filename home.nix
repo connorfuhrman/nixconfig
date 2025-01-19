@@ -7,10 +7,10 @@
       bat
       screen
       htop
-      direnv
       portal
       python3
       julia-bin
+      cmake
     ] ++ (if !stdenv.isDarwin then [
       # Packages to include only on non-Darwin systems
       pkgs.emacs
@@ -32,6 +32,11 @@
         ls = "ls --color";
         ll = "ls -alh";
       };
+    };
+    direnv = {
+      enable = true;
+      enableZshIntegration = true;
+      nix-direnv.enable = true;
     };
   };
 

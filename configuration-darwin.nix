@@ -69,6 +69,10 @@
           "with-modern-icon"
         ];
       }
+      # Install libvterm for emacs vterm package
+      {
+        name = "libvterm";
+      }
     ];
     masApps = {
       "Amazon Prime Video" = 545519333;
