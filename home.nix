@@ -25,6 +25,9 @@
       enable = true;
       userName = "Connor Fuhrman";
       userEmail = "connormfuhrman@gmail.com";
+      extraConfig = {
+        init.defaultBranch = "main";
+      };
     };
     zsh = {
       enable = true;
