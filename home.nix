@@ -8,11 +8,7 @@
       screen
       htop
       portal
-      python3
-      julia-bin
       cmake
-      xquartz
-      xorg.xeyes
     ] ++ (if !stdenv.isDarwin then [
       # Packages to include only on non-Darwin systems
       pkgs.emacs
