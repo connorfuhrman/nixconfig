@@ -63,10 +63,9 @@
     ];
     brews = [
       {
-        name = "emacs-plus@30";
+        name = "emacs-plus@29";
         args = [
           "with-native-comp"
-          "with-modern-icon"
         ];
       }
       # Install libvterm for emacs vterm package

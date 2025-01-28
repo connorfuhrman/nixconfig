@@ -9,6 +9,7 @@
       htop
       portal
       cmake
+      ispell
     ] ++ (if !stdenv.isDarwin then [
       # Packages to include only on non-Darwin systems
       pkgs.emacs
