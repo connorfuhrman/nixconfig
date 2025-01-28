@@ -1,21 +1,13 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, user, dockApps, masApps,  ... }: {
   # System-wide configuration
   system.defaults = {
     dock = {
-      tilesize = 36;
+      tilesize = 36;  # Size of dock icons when not magnified
       autohide = true;
       magnification = true;
-      largesize = 46;  # Size of dock icons when magnified (max: 128)
+      largesize = 46;  # Size of dock icons when magnified
       show-recents = false;
-      persistent-apps = [
-        "/System/Cryptexes/App/System/Applications/Safari.app"
-        "/Applications/TIDAL.app"
-        "/System/Applications/Messages.app"
-        "/System/Applications/Mail.app"
-        "/System/Applications/Calendar.app"
-        "/System/Applications/Maps.app"
-        "/System/Applications/Utilities/Terminal.app"
-      ];
+      persistent-apps = dockApps;
     };
     
     NSGlobalDomain = {
@@ -66,28 +58,17 @@
         name = "emacs-plus@29";
         args = [
           "with-native-comp"
+          "with-savchenkovaleriy-big-sur-3d-icon"
         ];
       }
-      # Install libvterm for emacs vterm package
-      {
-        name = "libvterm";
-      }
     ];
-    masApps = {
-      "Amazon Prime Video" = 545519333;
-      "DaisyDisk" = 411643860;
-      "Dark Reader for Safari " = 1438243180;
-      # Better to install Tailscale via the package than the App Store
-      # "Tailscale" = 1475387142;
-      "Amphetamine" = 937984704;
-      "Jump Desktop (RDP, VNC, Fluid)" = 524141863;
-    };
+    masApps = masApps;
   };
 
   # Define users
-  users.users.connorfuhrman = {
-    name = "connorfuhrman";
-    home = "/Users/connorfuhrman";
+  users.users.${user} = {
+    name = "${user}";
+    home = "/Users/${user}";
     shell = pkgs.zsh;
   };
 
