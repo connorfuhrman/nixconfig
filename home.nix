@@ -1,4 +1,4 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, gitConfig, ... }: {
   
   home = {
     stateVersion = "24.11";
@@ -15,15 +15,15 @@
       pkgs.emacs
     ] else [
       # Apple-specific packages
-      asitop  # TODO currently is specific to Apple Sillicon
+      asitop  # TODO currently is specific to Apple Silicon
     ]);
   };
 
   programs = {
     git = {
       enable = true;
-      userName = "Connor Fuhrman";
-      userEmail = "connormfuhrman@gmail.com";
+      userName = gitConfig.userName;
+      userEmail = gitConfig.userEmail;
       extraConfig = {
         init.defaultBranch = "main";
         push.autoSetupRemote = true;
@@ -34,6 +34,7 @@
       shellAliases = {
         ls = "ls --color";
         ll = "ls -alh";
+        atop = "sudo asitop --show_cores 1";
       };
     };
     direnv = {
