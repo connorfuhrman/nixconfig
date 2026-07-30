@@ -36,3 +36,5 @@ obsidian-nix-sync-plugins ~/nixconfig
 - `nix flake check .` — all 15 checks passed (incl. cm-go-test, opencode-config, skills, homes, darwin/nixos evals).
 - `nix build .#cm .#opencode .#opencode-config .#obsidian-plugins .#opencode-orchestration-test`
 - Live x86_64 build failed until rebuild: builder still only `aarch64-linux` on running system.
+
+| 2026-08-02 | Store-only opencode-nix-bundle v2; no mutable nono profile; no pack pull. |
