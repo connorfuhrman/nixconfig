@@ -127,14 +127,17 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   flake-managed profile `opencode-nix` (extends `nolabs-ai/opencode`, CWD
   readwrite via `workdir`, grants `~/.local/share/nix` so agents can
   `nix eval` / `flake check`). One-time per machine:
-  `nono pull nolabs-ai/opencode`. **Config, skills, agents, plugins, and tools
-  are store-backed** (`packages.opencode-config`); HM only symlinks into
-  `~/.config/opencode/`. Sessions/logs remain under XDG state (ephemeral OK).
-  Wrapper sets `OPENCODE_CONFIG` + `OPENCODE_ORCHESTRATION_MODELS`. Paid
-  OpenRouter MoE allowlist lives in `modules/home/opencode-models.nix`.
-  Skills: `orchestration`, `document-comments`, `document-review`. Agents:
-  `orchestrator` (default), `worker-free`, `moe-advisor`. CriticMarkup CLI:
-  `cm` (`packages.cm`). Restart opencode after HM switch.
+  `nono pull nolabs-ai/opencode`.   **Entire install is one store bundle** (`packages.opencode` =
+  `opencode-nix-bundle`): nono profile JSON, opencode.json, agents, skills,
+  plugins, models allowlist, and the `opencode` launcher. Wrapper always uses
+  `--profile /nix/store/…/nono-profile.json` (never mutable
+  `~/.config/nono/profiles/`). Profile extends built-in `default` only — **no
+  `nono pull` required**. HM activation only creates XDG state dirs and
+  discovery symlinks into the store; sessions/logs/cache stay ephemeral under
+  XDG. Paid OpenRouter MoE allowlist: `modules/home/_lib/opencode-models.nix`.
+  Skills: `orchestration`, `document-comments`, `document-review`,
+  `nono-sandbox`. Agents: `orchestrator` (default), `worker-free`,
+  `moe-advisor`. CriticMarkup: `cm`. Restart opencode after HM switch.
 - **Document review:** human instructions arrive as Obsidian Document Comments;
   resolve (do not delete) when acted on. Agent prose edits use CriticMarkup
   via `cm` / skill `document-review` (logical chunks for Track Changes).

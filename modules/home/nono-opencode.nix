@@ -2,8 +2,7 @@
 let
   models = import ./_lib/opencode-models.nix { inherit lib; };
 
-  # Shared with project-root opencode.json — keep them identical.
-  # nono owns real isolation; opencode interactive prompts are skipped.
+  # Shared with project-root opencode.json — keep permission surface identical.
   opencodePermission = {
     "*" = "allow";
     external_directory = "allow";
@@ -99,10 +98,7 @@ let
         cp -a . $out/share/opencode/skills/${name}/
         runHook postInstall
       '';
-      meta = {
-        description = "opencode skill: ${name}";
-        license = pkgs.lib.licenses.mit;
-      };
+      meta.description = "opencode skill: ${name}";
     };
 
   mkNpmPlugin = pkgs: { pname, version, url, hash }:
@@ -114,7 +110,6 @@ let
       installPhase = ''
         runHook preInstall
         mkdir -p $out/lib/node_modules/${pname}
-        # npm pack tarball has package/ prefix
         if [ -d package ]; then
           cp -a package/. $out/lib/node_modules/${pname}/
         else
@@ -122,36 +117,133 @@ let
         fi
         runHook postInstall
       '';
-      meta = {
-        description = "opencode plugin ${pname} (store-vendored npm)";
-      };
     };
 
-  # Entire opencode config tree in the Nix store — no ephemeral config writes.
-  mkOpencodeConfigRoot = pkgs: skills: agentsDir: plugins: modelsFile:
-    let
-      skillNames = builtins.attrNames skills;
-      # Plugin path as file:// URL for opencode
-      goalPlugin = plugins.goal;
-      goalPluginEntry = "file://${goalPlugin}/lib/node_modules/@prevalentware/opencode-goal-plugin";
+  mkCm = pkgs:
+    pkgs.buildGoModule {
+      pname = "cm";
+      version = "1.0.0";
+      src = ./_tools/criticmarkup;
+      vendorHash = null;
+      meta.mainProgram = "cm";
+      postInstall = ''
+        if [ ! -e $out/bin/cm ]; then
+          b="$(find $out/bin -type f -perm -111 | head -n1)"
+          mv "$b" $out/bin/cm
+        fi
+      '';
+    };
 
+  # Self-contained nono profile: extends built-in `default` only.
+  # Inlines the former nolabs-ai/opencode pack grants so `nono pull` is NOT required.
+  # NEVER grant "~/" or "~/.local/state/nono" (protected; breaks sandbox init).
+  mkProfile = pkgs: pkgs.writeText "opencode-nix.json" (builtins.toJSON {
+    extends = [ "default" ];
+    meta = {
+      name = "opencode-nix";
+      version = "2.0.0";
+      description = "Fully store-backed opencode profile (no registry pack dependency)";
+    };
+    interactive = false;
+    security = {
+      signal_mode = "isolated";
+      capability_elevation = false;
+    };
+    groups = {
+      include = [
+        "node_runtime"
+        "rust_runtime"
+        "python_runtime"
+        { name = "user_caches_macos"; when = "macos"; }
+        { name = "user_caches_linux"; when = "linux"; }
+        { name = "linux_sysfs_read"; when = "linux"; }
+        "nix_runtime"
+        "git_config"
+        "unlink_protection"
+        { name = "opencode_linux"; when = "linux"; }
+      ];
+    };
+    workdir = { access = "readwrite"; };
+    filesystem = {
+      # Ephemeral runtime state only under XDG — not configuration.
+      allow = [
+        "$HOME/.opencode"
+        "$HOME/.config/opencode"
+        "$HOME/.cache/opencode"
+        "$HOME/.local/share/opencode"
+        "$HOME/.local/share/opentui"
+        "$HOME/.local/state/opencode"
+        "$NONO_CONFIG/profile-drafts"
+        "$TMPDIR"
+        "$HOME/.local/share/nix"
+      ];
+      read = [
+        "/nix/store"
+        "$HOME/.agents"
+      ];
+      read_file = [
+        { path = "$HOME/Library/Keychains/login.keychain-db"; when = "macos"; }
+        "$HOME/.gitconfig"
+        "$HOME/.config/git/config"
+      ];
+      bypass_protection = [
+        { path = "$HOME/Library/Keychains/login.keychain-db"; when = "macos"; }
+      ];
+      suppress_save_prompt = [ "~/" "$HOME" ];
+    };
+    network = {
+      block = false;
+      allow_domain = [ ];
+      credentials = [ ];
+    };
+    open_urls = {
+      allow_origins = [
+        "https://auth.openai.com"
+        "https://claude.ai"
+        "https://github.com"
+      ];
+      allow_localhost = true;
+    };
+    allow_launch_services = true;
+  });
+
+  mkBundleFixed = pkgs: nono: opencode-bin: cm:
+    let
+      modelsFile = pkgs.writeText "orchestration-models.json" models.orchestrationModelsJson;
+      skills = {
+        document-comments = mkSkill pkgs "document-comments" ./_skills/document-comments;
+        document-review = mkSkill pkgs "document-review" ./_skills/document-review;
+        orchestration = mkSkill pkgs "orchestration" ./_skills/orchestration;
+        nono-sandbox = mkSkill pkgs "nono-sandbox" ./_skills/nono-sandbox;
+      };
+      agentsDir = ./_agents;
+      goalPlugin = mkNpmPlugin pkgs {
+        pname = "@prevalentware/opencode-goal-plugin";
+        version = "0.1.29";
+        url = "https://registry.npmjs.org/@prevalentware/opencode-goal-plugin/-/opencode-goal-plugin-0.1.29.tgz";
+        hash = "sha256-7kFgin0luOREk56fx8KsANEHcYp7rFcm/rQiJxJRj+I=";
+      };
+      nonoPlugin = pkgs.runCommand "opencode-plugin-nono-sandbox" { } ''
+        mkdir -p $out/share/opencode/plugins
+        cp ${./_plugins/nono-sandbox.ts} $out/share/opencode/plugins/nono-sandbox.ts
+      '';
+      profile = mkProfile pkgs;
+      skillNames = builtins.attrNames skills;
+      goalPluginEntry = "file://${goalPlugin}/lib/node_modules/@prevalentware/opencode-goal-plugin";
+      nonoPluginEntry = "file://${nonoPlugin}/share/opencode/plugins/nono-sandbox.ts";
       opencodeConfig = {
         "$schema" = "https://opencode.ai/config.json";
         permission = opencodePermission;
         autoupdate = false;
-        # Raise nesting so workers can spawn explore children.
         subagent_depth = 2;
         default_agent = "orchestrator";
         small_model = "openrouter/deepseek/deepseek-chat";
-        plugin = [ goalPluginEntry ];
-        skills = {
-          paths = map (n: "${skills.${n}}/share/opencode/skills") skillNames;
-        };
+        plugin = [ goalPluginEntry nonoPluginEntry ];
+        skills.paths = map (n: "${skills.${n}}/share/opencode/skills") skillNames;
         agent = {
           orchestrator = {
             description = "Primary orchestrator — leads free/cheap workers";
             mode = "primary";
-            # model left default (session / xAI grok)
           };
           worker-free = {
             description = "Implements one discrete free-model objective";
@@ -169,87 +261,65 @@ let
         };
         instructions = [ "AGENTS.md" ];
       };
+      configJson = pkgs.writeText "opencode.json" (builtins.toJSON opencodeConfig);
     in
-    pkgs.stdenvNoCC.mkDerivation {
-      pname = "opencode-config-root";
-      version = "1.0.0";
-      dontUnpack = true;
-      installPhase = ''
-        runHook preInstall
-        root=$out/share/opencode
-        mkdir -p $root/agent $root/skills $root/bin
+    pkgs.runCommand "opencode-nix-bundle-2.0.0"
+      {
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        passthru = {
+          inherit profile modelsFile skills configJson;
+          nono = nono;
+          opencode-bin = opencode-bin;
+          cm = cm;
+        };
+        meta = {
+          description = "Deterministic store-backed opencode+nono+skills+profile";
+          mainProgram = "opencode";
+        };
+      } ''
+      root=$out/share/opencode-nix
+      mkdir -p $root/agent $root/skills $root/plugins $out/bin
 
-        cp ${pkgs.writeText "opencode.json" (builtins.toJSON opencodeConfig)} $root/opencode.json
+      cp ${configJson} $root/opencode.json
+      cp ${profile} $root/nono-profile.json
+      cp ${modelsFile} $root/orchestration-models.json
+      cp -a ${agentsDir}/. $root/agent/
 
-        # Agents (markdown prompts) — store-backed
-        cp -a ${agentsDir}/. $root/agent/
+      ${pkgs.lib.concatMapStrings (n: ''
+        mkdir -p $root/skills/${n}
+        cp -a ${skills.${n}}/share/opencode/skills/${n}/. $root/skills/${n}/
+      '') skillNames}
 
-        # Skills mirrored for discovery + OPENCODE_CONFIG_DIR layouts
-        ${pkgs.lib.concatMapStrings (n: ''
-          mkdir -p $root/skills/${n}
-          cp -a ${skills.${n}}/share/opencode/skills/${n}/. $root/skills/${n}/
-        '') skillNames}
+      cp ${nonoPlugin}/share/opencode/plugins/nono-sandbox.ts $root/plugins/
 
-        cp ${modelsFile} $root/orchestration-models.json
-
-        # Convenience: path file for wrappers
-        echo "$root" > $out/share/opencode-root-path
-        runHook postInstall
-      '';
-      meta.description = "Fully store-backed opencode config, agents, skills";
-    };
-
-  # Profile is a pure store object. The wrapper passes its ABSOLUTE store path
-  # to `nono run --profile <path>` so runtime never depends on the mutable
-  # ~/.config/nono/profiles/ tree (nono can rewrite named profiles on deny).
-  # NEVER grant "~/" — overlaps protected ~/.local/state/nono.
-  mkProfile = pkgs: pkgs.writeText "opencode-nix.json" (builtins.toJSON {
-    extends = [ "nolabs-ai/opencode" ];
-    meta = {
-      name = "opencode-nix";
-      version = "1.4.0";
-      description = "store-backed nono profile for flake opencode wrapper";
-    };
-    workdir = {
-      access = "readwrite";
-    };
-    # Disable interactive save-profile flows when possible.
-    interactive = false;
-    filesystem = {
-      allow = [ "~/.local/share/nix" ];
-      read = [ "/nix/store" ];
-      read_file = [
-        "~/.gitconfig"
-        "~/.config/git/config"
-      ];
-      # Do not prompt to widen profile when $HOME itself is probed.
-      # Never grant "~/" or "~/.local/state/nono" — both are protected by nono.
-      suppress_save_prompt = [ "~/" ];
-    };
-  });
-
-  mkOpencode = pkgs: nono: opencode-bin: configRoot: modelsFile: cm: profile:
-    pkgs.writeShellScriptBin "opencode" ''
-      export NPM_CONFIG_CACHE="''${NPM_CONFIG_CACHE:-$HOME/.cache/opencode/npm}"
-      export BUN_INSTALL_CACHE_DIR="''${BUN_INSTALL_CACHE_DIR:-$HOME/.cache/opencode/bun}"
-      export OPENCODE_GOAL_STATE_PATH="''${OPENCODE_GOAL_STATE_PATH:-$HOME/.local/share/opencode/goal-plugin/goals.json}"
-      # Store-backed config (sessions/logs remain under XDG state — ephemeral OK)
-      export OPENCODE_CONFIG="${configRoot}/share/opencode/opencode.json"
-      export OPENCODE_CONFIG_DIR="${configRoot}/share/opencode"
-      export OPENCODE_ORCHESTRATION_MODELS="${modelsFile}"
-      export OPENCODE_AGENTS_DIR="${configRoot}/share/opencode/agent"
-      export PATH="${cm}/bin:$PATH"
-      # Immutable profile: absolute store path (not name lookup under ~/.config/nono).
-      # --allow-cwd: workdir already readwrite in profile; skip interactive CWD prompt.
-      # --suppress-save-prompt ~/: never offer to grant full home into a mutable profile.
-      # Profile path is pure store (immutable). Named ~/.config/nono/profiles/*
-      # is only a convenience symlink and is never consulted by this wrapper.
+      # Wrapper script (makeWrapper + dynamic $HOME for suppress-save-prompt)
+      cat > $out/bin/opencode <<EOF
+      #!${pkgs.runtimeShell}
+      set -euo pipefail
+      export PATH="${cm}/bin:${nono}/bin:\$PATH"
+      export OPENCODE_CONFIG="$root/opencode.json"
+      export OPENCODE_CONFIG_DIR="$root"
+      export OPENCODE_ORCHESTRATION_MODELS="$root/orchestration-models.json"
+      export OPENCODE_AGENTS_DIR="$root/agent"
+      export NPM_CONFIG_CACHE="\''${NPM_CONFIG_CACHE:-\$HOME/.cache/opencode/npm}"
+      export BUN_INSTALL_CACHE_DIR="\''${BUN_INSTALL_CACHE_DIR:-\$HOME/.cache/opencode/bun}"
+      export OPENCODE_GOAL_STATE_PATH="\''${OPENCODE_GOAL_STATE_PATH:-\$HOME/.local/share/opencode/goal-plugin/goals.json}"
+      # Ensure ephemeral state dirs exist (not config — OK to create at runtime)
+      mkdir -p "\$HOME/.cache/opencode" "\$HOME/.local/share/opencode" "\$HOME/.local/state/opencode" \
+               "\$HOME/.config/opencode" "\''${XDG_CONFIG_HOME:-\$HOME/.config}/nono/profile-drafts"
       exec ${nono}/bin/nono run \
-        --profile ${profile} \
+        --profile "$root/nono-profile.json" \
         --allow-cwd \
-        --suppress-save-prompt "$HOME" \
-        --suppress-save-prompt "$HOME/" \
-        -- ${opencode-bin}/bin/opencode "$@"
+        --suppress-save-prompt "\$HOME" \
+        --suppress-save-prompt "\$HOME/" \
+        -- ${opencode-bin}/bin/opencode "\$@"
+      EOF
+      chmod +x $out/bin/opencode
+
+      ln -s ${nono}/bin/nono $out/bin/nono
+      ln -s ${cm}/bin/cm $out/bin/cm
+      ln -s ${opencode-bin}/bin/opencode $out/bin/opencode-bin
+      echo "$root" > $out/share/opencode-nix-root
     '';
 
   mkOrchestrationTest = pkgs: modelsFile: agentsDir:
@@ -268,7 +338,6 @@ let
       buildPhase = ''
         mkdir -p $out/lib/test/node_modules/@opencode-ai
         tar -xzf ${sdk} -C $out/lib/test/node_modules/@opencode-ai
-        # tarball extracts to package/
         if [ -d $out/lib/test/node_modules/@opencode-ai/package ]; then
           mv $out/lib/test/node_modules/@opencode-ai/package $out/lib/test/node_modules/@opencode-ai/sdk
         fi
@@ -292,61 +361,33 @@ let
         export OPENCODE_AGENTS_DIR=${agentsDir}
         ${pkgs.nodejs}/bin/node $out/lib/test/test.mjs
       '';
-      meta.description = "SDK smoke test for orchestration allowlist + agents";
     };
 
 in
 {
-  # Run `opencode` inside nono with a flake-managed profile.
-  # Config, skills, agents, plugins, and tools are Nix store paths only.
-  # Ephemeral: session logs, goal-plugin state under XDG share/cache.
-
+  # Configuration is 100% Nix store. Ephemeral only: sessions, caches, logs under XDG.
   perSystem = { pkgs, ... }:
     let
       nono = mkNono pkgs;
       opencode-bin = mkOpencodeBin pkgs;
-      modelsFile = pkgs.writeText "orchestration-models.json" models.orchestrationModelsJson;
-      skills = {
-        document-comments = mkSkill pkgs "document-comments" ./_skills/document-comments;
-        document-review = mkSkill pkgs "document-review" ./_skills/document-review;
-        orchestration = mkSkill pkgs "orchestration" ./_skills/orchestration;
-      };
-      agentsDir = ./_agents;
-      goalPlugin = mkNpmPlugin pkgs {
-        pname = "@prevalentware/opencode-goal-plugin";
-        version = "0.1.29";
-        url = "https://registry.npmjs.org/@prevalentware/opencode-goal-plugin/-/opencode-goal-plugin-0.1.29.tgz";
-        hash = "sha256-7kFgin0luOREk56fx8KsANEHcYp7rFcm/rQiJxJRj+I=";
-      };
-      cm = pkgs.buildGoModule {
-        pname = "cm";
-        version = "1.0.0";
-        src = ./_tools/criticmarkup;
-        vendorHash = null;
-        meta.mainProgram = "cm";
-        postInstall = ''
-          if [ ! -e $out/bin/cm ]; then
-            b="$(find $out/bin -type f -perm -111 | head -n1)"
-            mv "$b" $out/bin/cm
-          fi
-        '';
-      };
-      profile = mkProfile pkgs;
-      configRoot = mkOpencodeConfigRoot pkgs skills agentsDir { goal = goalPlugin; } modelsFile;
-      orchTest = mkOrchestrationTest pkgs modelsFile agentsDir;
+      cm = mkCm pkgs;
+      bundle = mkBundleFixed pkgs nono opencode-bin cm;
+      modelsFile = bundle.passthru.modelsFile;
+      orchTest = mkOrchestrationTest pkgs modelsFile ./_agents;
     in
     {
       packages = {
         inherit nono;
         opencode-bin = opencode-bin;
-        opencode = mkOpencode pkgs nono opencode-bin configRoot modelsFile cm profile;
-        opencode-config = configRoot;
-        opencode-nix-profile = profile;
+        opencode = bundle;
+        opencode-config = bundle; # bundle root = full store config
+        opencode-nix-profile = bundle.passthru.profile;
         opencode-orchestration-models = modelsFile;
         opencode-orchestration-test = orchTest;
-        opencode-skill-document-comments = skills.document-comments;
-        opencode-skill-document-review = skills.document-review;
-        opencode-skill-orchestration = skills.orchestration;
+        opencode-skill-document-comments = bundle.passthru.skills.document-comments;
+        opencode-skill-document-review = bundle.passthru.skills.document-review;
+        opencode-skill-orchestration = bundle.passthru.skills.orchestration;
+        opencode-skill-nono-sandbox = bundle.passthru.skills.nono-sandbox;
       };
     };
 
@@ -354,73 +395,44 @@ in
     let
       nono = mkNono pkgs;
       opencode-bin = mkOpencodeBin pkgs;
-      modelsFile = pkgs.writeText "orchestration-models.json" models.orchestrationModelsJson;
-      skills = {
-        document-comments = mkSkill pkgs "document-comments" ./_skills/document-comments;
-        document-review = mkSkill pkgs "document-review" ./_skills/document-review;
-        orchestration = mkSkill pkgs "orchestration" ./_skills/orchestration;
-      };
-      agentsDir = ./_agents;
-      goalPlugin = mkNpmPlugin pkgs {
-        pname = "@prevalentware/opencode-goal-plugin";
-        version = "0.1.29";
-        url = "https://registry.npmjs.org/@prevalentware/opencode-goal-plugin/-/opencode-goal-plugin-0.1.29.tgz";
-        hash = "sha256-7kFgin0luOREk56fx8KsANEHcYp7rFcm/rQiJxJRj+I=";
-      };
-      cm = pkgs.buildGoModule {
-        pname = "cm";
-        version = "1.0.0";
-        src = ./_tools/criticmarkup;
-        vendorHash = null;
-        meta.mainProgram = "cm";
-        postInstall = ''
-          if [ ! -e $out/bin/cm ]; then
-            b="$(find $out/bin -type f -perm -111 | head -n1)"
-            mv "$b" $out/bin/cm
-          fi
-        '';
-      };
-      profile = mkProfile pkgs;
-      configRoot = mkOpencodeConfigRoot pkgs skills agentsDir { goal = goalPlugin; } modelsFile;
-      opencode = mkOpencode pkgs nono opencode-bin configRoot modelsFile cm profile;
+      cm = mkCm pkgs;
+      bundle = mkBundleFixed pkgs nono opencode-bin cm;
     in
     {
-      # Convenience symlink only — wrapper does NOT use this path.
-      # Activation forces store symlink if nono previously wrote a mutable file.
-      home.file.".config/nono/profiles/opencode-nix.json".source = profile;
-
-      home.activation.forceNonoProfileSymlink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        target="$HOME/.config/nono/profiles/opencode-nix.json"
-        desired="${profile}"
-        mkdir -p "$(dirname "$target")"
-        if [ -e "$target" ] && [ ! -L "$target" ]; then
-          rm -f "$target"
-        fi
-        ln -sfn "$desired" "$target"
-      '';
-
-      # Point HM at the store tree so ~/.config/opencode is not hand-edited.
-      home.file.".config/opencode/opencode.json".source =
-        "${configRoot}/share/opencode/opencode.json";
-      home.file.".config/opencode/orchestration-models.json".source =
-        "${configRoot}/share/opencode/orchestration-models.json";
-      home.file.".config/opencode/agent".source =
-        "${configRoot}/share/opencode/agent";
-      home.file.".config/opencode/skills".source =
-        "${configRoot}/share/opencode/skills";
-
-      home.packages = [
-        nono
-        opencode
-        cm
-        skills.document-comments
-        skills.document-review
-        skills.orchestration
-        configRoot
-      ];
+      # Only the store bundle on PATH — no hand-maintained config trees required.
+      home.packages = [ bundle ];
 
       home.sessionVariables = {
-        OPENCODE_ORCHESTRATION_MODELS = "${modelsFile}";
+        OPENCODE_ORCHESTRATION_MODELS = "${bundle}/share/opencode-nix/orchestration-models.json";
       };
+
+      # Ephemeral state dirs + remove any mutable nono profile that could shadow truth.
+      # Config is NOT installed under ~/.config/opencode — OPENCODE_CONFIG points at store.
+      home.activation.opencodeNixStoreOnly = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        mkdir -p \
+          "$HOME/.cache/opencode" \
+          "$HOME/.local/share/opencode" \
+          "$HOME/.local/state/opencode" \
+          "''${XDG_CONFIG_HOME:-$HOME/.config}/nono/profile-drafts"
+
+        # Kill mutable profile copies nono may have written (never use them).
+        prof="''${XDG_CONFIG_HOME:-$HOME/.config}/nono/profiles/opencode-nix.json"
+        if [ -e "$prof" ] && [ ! -L "$prof" ]; then
+          rm -f "$prof"
+        fi
+        # Optional discovery symlink → store (read-only); wrapper ignores this path.
+        mkdir -p "$(dirname "$prof")"
+        ln -sfn "${bundle}/share/opencode-nix/nono-profile.json" "$prof"
+
+        # Point ~/.config/opencode at store tree for tools that ignore OPENCODE_CONFIG.
+        # Replace any mixed HM/mutable tree with pure symlinks into the bundle.
+        oc="''${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+        mkdir -p "$oc"
+        ln -sfn "${bundle}/share/opencode-nix/opencode.json" "$oc/opencode.json"
+        ln -sfn "${bundle}/share/opencode-nix/orchestration-models.json" "$oc/orchestration-models.json"
+        ln -sfn "${bundle}/share/opencode-nix/agent" "$oc/agent"
+        ln -sfn "${bundle}/share/opencode-nix/skills" "$oc/skills"
+        ln -sfn "${bundle}/share/opencode-nix/plugins" "$oc/plugins"
+      '';
     };
 }
