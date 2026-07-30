@@ -1,1 +1,8 @@
-.DS_Store
+result
+result-*
+*.swp
+*.swo
+*~
+.fluke
+.direnv
+.entropy
