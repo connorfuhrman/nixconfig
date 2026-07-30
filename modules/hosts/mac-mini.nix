@@ -21,7 +21,7 @@
     modules = [ config.flake.modules.darwin.host-mac-mini ];
   };
 
-  flake.homeConfigurations."connor@mac-mini" = inputs.home-manager.lib.homeManagerConfiguration {
+  flake.homeConfigurations."connorfuhrman@mac-mini" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = inputs.nixpkgs.legacyPackages.aarch64-darwin;
     modules = [
       config.flake.modules.homeManager.base

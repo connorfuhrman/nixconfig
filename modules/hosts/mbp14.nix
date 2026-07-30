@@ -21,7 +21,7 @@
     modules = [ config.flake.modules.nixos.host-mbp14 ];
   };
 
-  flake.homeConfigurations."connor@mbp14" = inputs.home-manager.lib.homeManagerConfiguration {
+  flake.homeConfigurations."connorfuhrman@mbp14" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = inputs.nixpkgs.legacyPackages.aarch64-linux;
     modules = [
       config.flake.modules.homeManager.base

@@ -19,7 +19,7 @@
     modules = [ config.flake.modules.darwin.host-macbook ];
   };
 
-  flake.homeConfigurations."connor@macbook" = inputs.home-manager.lib.homeManagerConfiguration {
+  flake.homeConfigurations."connorfuhrman@macbook" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = inputs.nixpkgs.legacyPackages.aarch64-darwin;
     modules = [
       config.flake.modules.homeManager.base
