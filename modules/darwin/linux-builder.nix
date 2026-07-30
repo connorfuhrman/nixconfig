@@ -9,6 +9,6 @@
     };
 
     # Lets connor dispatch builds to the builder VM without sudo.
-    nix.settings.trusted-users = [ "connor" ];
+    nix.settings.trusted-users = [ "connorfuhrman" ];
   };
 }

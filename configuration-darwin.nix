@@ -58,7 +58,7 @@
         name = "emacs-plus@29";
         args = [
           "with-native-comp"
-          "with-savchenkovaleriy-big-sur-3d-icon"
+          # "with-savchenkovaleriy-big-sur-3d-icon"
         ];
       }
     ];

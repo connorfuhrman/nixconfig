@@ -9,9 +9,9 @@
     nix.enable = true;
 
     # Required by nix-darwin for user-scoped options; must be the macOS username.
-    system.primaryUser = "connor";
+    system.primaryUser = "connorfuhrman";
 
-    users.users.connor.home = "/Users/connor";
+    users.users.connorfuhrman.home = "/Users/connorfuhrman";
 
     programs.zsh.enable = true;
 

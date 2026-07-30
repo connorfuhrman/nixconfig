@@ -18,7 +18,7 @@
         hostName = "mac-mini";
         system = "aarch64-linux";
         protocol = "ssh";
-        sshUser = "connor";
+        sshUser = "connorfuhrman";
         sshKey = "/etc/nix/mac-mini-builder-key";
         maxJobs = 4;
         speedFactor = 2;

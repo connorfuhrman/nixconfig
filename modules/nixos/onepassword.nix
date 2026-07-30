@@ -21,7 +21,7 @@
   flake.modules.nixos.onepassword-gui = { ... }: {
     programs._1password-gui = {
       enable = true;
-      polkitPolicyOwners = [ "connor" ];
+      polkitPolicyOwners = [ "connorfuhrman" ];
     };
   };
 }

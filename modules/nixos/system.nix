@@ -7,9 +7,9 @@
     time.timeZone = "America/New_York";
     i18n.defaultLocale = "en_US.UTF-8";
 
-    users.users.connor = {
+    users.users.connorfuhrman = {
       isNormalUser = true;
-      description = "Connor";
+      description = "Connor Fuhrman";
       extraGroups = [ "wheel" "networkmanager" "video" "input" ];
       initialPassword = "changeme";
     };

@@ -17,10 +17,10 @@
         eval-nixos-nuc = evalOnly "nixos-nuc" self.nixosConfigurations.nuc.config.system.build.toplevel.drvPath;
         eval-darwin-macbook = evalOnly "darwin-macbook" self.darwinConfigurations.macbook.config.system.build.toplevel.drvPath;
         eval-darwin-mac-mini = evalOnly "darwin-mac-mini" self.darwinConfigurations.mac-mini.config.system.build.toplevel.drvPath;
-        eval-home-connor-mbp14 = evalOnly "home-connor-mbp14" self.homeConfigurations."connor@mbp14".activationPackage.drvPath;
-        eval-home-connor-nuc = evalOnly "home-connor-nuc" self.homeConfigurations."connor@nuc".activationPackage.drvPath;
-        eval-home-connor-macbook = evalOnly "home-connor-macbook" self.homeConfigurations."connor@macbook".activationPackage.drvPath;
-        eval-home-connor-mac-mini = evalOnly "home-connor-mac-mini" self.homeConfigurations."connor@mac-mini".activationPackage.drvPath;
+        eval-home-connor-mbp14 = evalOnly "home-connor-mbp14" self.homeConfigurations."connorfuhrman@mbp14".activationPackage.drvPath;
+        eval-home-connor-nuc = evalOnly "home-connor-nuc" self.homeConfigurations."connorfuhrman@nuc".activationPackage.drvPath;
+        eval-home-connor-macbook = evalOnly "home-connor-macbook" self.homeConfigurations."connorfuhrman@macbook".activationPackage.drvPath;
+        eval-home-connor-mac-mini = evalOnly "home-connor-mac-mini" self.homeConfigurations."connorfuhrman@mac-mini".activationPackage.drvPath;
       };
     };
 }
