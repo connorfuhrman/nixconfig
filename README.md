@@ -83,15 +83,9 @@ Standalone home-manager for user `connorfuhrman` on every host:
 ### Mac mini remote builder
 
 The mini runs `nix.linux-builder` (aarch64-linux). Clients (`macbook`, `mbp14`,
-`nuc`) use it over Tailscale via `generic.mac-mini-builder`. One-time per client:
-
-```sh
-sudo ssh-keygen -t ed25519 -f /etc/nix/mac-mini-builder-key -N ''
-ssh-copy-id -i /etc/nix/mac-mini-builder-key.pub connorfuhrman@mac-mini
-sudo ssh -i /etc/nix/mac-mini-builder-key connorfuhrman@mac-mini true
-```
-
-Builds `aarch64-linux` only; the entry is inert on the x86_64 NUC.
+`nuc`) offload via `generic.mac-mini-builder` over SSH host `mac-mini` (your
+existing key / SSH config as `connorfuhrman`). Builds `aarch64-linux` only; the
+entry is inert on the x86_64 NUC.
 
 ### Roon Core (mac-mini)
 
