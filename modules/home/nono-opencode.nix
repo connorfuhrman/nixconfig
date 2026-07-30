@@ -1,16 +1,21 @@
 { inputs, ... }: {
   # Run `opencode` inside the nono sandbox (https://github.com/nolabs-ai/nono)
-  # with the official least-privilege profile — read/write access to the
-  # current directory and nothing else. Works identically on macOS and Linux:
-  # both tools are pinned binary packages fetched from upstream releases, and
-  # `opencode` resolves to a wrapper that execs nono with the pinned opencode
-  # binary (absolute store paths — no PATH recursion).
+  # with a flake-managed profile that extends the official least-privilege pack
+  # and grants the nix user state dir (trusted-settings.json for flake nixConfig).
+  # Works identically on macOS and Linux: both tools are pinned binary packages
+  # fetched from upstream releases, and `opencode` resolves to a wrapper that
+  # execs nono with the pinned opencode binary (absolute store paths — no PATH
+  # recursion).
   #
   # To bump versions: update `version`, the url tag, and the three hashes
   # (nix store prefetch-file <url>).
   #
-  # One-time per machine (downloads the sandbox profile):
+  # One-time per machine (downloads the sandbox pack the profile extends):
   #   nono pull nolabs-ai/opencode
+  #
+  # The sandbox already enforces isolation; opencode's interactive permission
+  # prompts are skipped via ~/.config/opencode/opencode.json with
+  # permission."*" = "allow" (do not weaken the nono profile).
   flake.modules.homeManager.nono-opencode = { pkgs, ... }:
     let
       system = pkgs.stdenv.hostPlatform.system;
@@ -65,12 +70,45 @@
           runHook postInstall
         '';
       };
+
+      # Extends the pack profile; grants ~/.local/share/nix so `nix flake`
+      # can stat/write trusted-settings.json (flake nixConfig acceptance),
+      # and auto-shares CWD read+write (no interactive prompt).
+      opencode-profile = pkgs.writeText "opencode-nix.json" (builtins.toJSON {
+        extends = [ "nolabs-ai/opencode" ];
+        meta = {
+          name = "opencode-nix";
+          version = "1.0.0";
+          description = "opencode + CWD r/w + nix user-state for flake eval/check";
+        };
+        workdir = {
+          access = "readwrite";
+        };
+        filesystem = {
+          allow = [ "~/.local/share/nix" ];
+        };
+      });
     in
     {
+      # Installed as a named user profile; wrapper selects it by name.
+      home.file.".config/nono/profiles/opencode-nix.json".source = opencode-profile;
+
+      # Sandbox already enforces isolation; skip opencode's interactive
+      # permission prompts (do not weaken the nono profile).
+      home.file.".config/opencode/opencode.json".text = builtins.toJSON {
+        "$schema" = "https://opencode.ai/config.json";
+        permission = {
+          "*" = "allow";
+        };
+      };
+
       home.packages = [
         nono
         (pkgs.writeShellScriptBin "opencode" ''
-          exec ${nono}/bin/nono run --profile nolabs-ai/opencode -- ${opencode-bin}/bin/opencode "$@"
+          exec ${nono}/bin/nono run \
+            --profile opencode-nix \
+            --allow-cwd \
+            -- ${opencode-bin}/bin/opencode "$@"
         '')
       ];
     };

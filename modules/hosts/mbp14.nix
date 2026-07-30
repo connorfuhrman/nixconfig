@@ -25,7 +25,8 @@
     pkgs = inputs.nixpkgs.legacyPackages.aarch64-linux;
     modules = [
       config.flake.modules.homeManager.base
-      config.flake.modules.homeManager.emacs-gui
+      config.flake.modules.homeManager.emacs
+      config.flake.modules.homeManager.coreutils
       config.flake.modules.homeManager.nono-opencode
     ];
   };

@@ -20,11 +20,12 @@
     modules = [ config.flake.modules.nixos.host-nuc ];
   };
 
-  flake.homeConfigurations."connor@nuc" = inputs.home-manager.lib.homeManagerConfiguration {
+  flake.homeConfigurations."connorfuhrman@nuc" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
     modules = [
       config.flake.modules.homeManager.base
-      config.flake.modules.homeManager.emacs-nox
+      config.flake.modules.homeManager.emacs
+      config.flake.modules.homeManager.coreutils
       config.flake.modules.homeManager.nono-opencode
     ];
   };

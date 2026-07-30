@@ -1,5 +1,5 @@
 {
-  description = "Nix monorepo — NixOS (Asahi Linux M2 MacBook Pro, Intel Nuc) + nix-darwin — dendritic flake-parts";
+  description = "Multi-host Nix monorepo: NixOS, nix-darwin, and home-manager (dendritic flake-parts)";
 
   nixConfig = {
     extra-substituters = [ "https://nixos-apple-silicon.cachix.org" ];

@@ -2,6 +2,12 @@
   flake.modules.nixos.system = { ... }: {
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+    nix.gc = {
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 30d";
+    };
+
     zramSwap.enable = true;
 
     time.timeZone = "America/New_York";

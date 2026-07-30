@@ -23,7 +23,8 @@
     pkgs = inputs.nixpkgs.legacyPackages.aarch64-darwin;
     modules = [
       config.flake.modules.homeManager.base
-      config.flake.modules.homeManager.emacs-plus
+      config.flake.modules.homeManager.emacs
+      config.flake.modules.homeManager.coreutils
       config.flake.modules.homeManager.nono-opencode
     ];
   };

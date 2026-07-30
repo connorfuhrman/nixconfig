@@ -15,7 +15,7 @@ working in this repo.
 | `connor@mbp14` / `connor@nuc` / `connor@macbook` / `connor@mac-mini` | per host | home-manager | standalone; Emacs + nono-sandboxed opencode |
 
 All hosts run Tailscale and have 1Password installed (CLI everywhere; GUI on
-mbp14; brew casks on darwin).
+mbp14 and darwin via nixpkgs).
 
 ## Architecture (dendritic pattern — follow it)
 
@@ -51,14 +51,14 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager features: base, emacs (gui/nox/plus), nono-opencode
+modules/home/           homeManager features: base, emacs, coreutils, nono-opencode
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions (+ _hardware-configuration.nix per NixOS host)
 firmware/               vendored Asahi firmware — PRIVATE, never publish
-lib/                    legacy empty stub (pre-dendritic); ignore
-INSTALL.md              human-facing Asahi install runbook for mbp14 (CURRENT)
-PLAN.md                 Asahi hardware install runbook (historical)
-PLAN-MONOREPO.md        monorepo extension plan (historical)
+INSTALL.md              human-facing Asahi install runbook for mbp14
+README.md               human-facing overview (this repo is multi-host, not Asahi-only)
+PLAN.md / PLAN-MONOREPO.md   historical plans — ignore
+configuration-darwin.nix / home.nix / lib/   legacy pre-dendritic stubs — ignore
 ```
 
 ## Working in this repo
@@ -77,9 +77,9 @@ PLAN-MONOREPO.md        monorepo extension plan (historical)
 ### Standard validation suite (run after any structural change)
 
 ```sh
-cd /Users/connorfuhrman/asahi-linux
+cd /Users/connorfuhrman/nixconfig
 # primary gate: proves every configuration's derivations evaluate (8 closures).
-# Runs PURE (no --impure, no env vars) — unfree allowance is scoped in modules/nixos/onepassword.nix.
+# Runs PURE (no --impure, no env vars) — unfree allowance is scoped in onepassword modules.
 nix --extra-experimental-features 'nix-command flakes' flake check .
 # module registries:
 nix --extra-experimental-features 'nix-command flakes' eval .#modules.nixos --apply 'm: builtins.attrNames m'
@@ -101,18 +101,24 @@ nix --extra-experimental-features 'nix-command flakes' eval .#darwinConfiguratio
   they instantiate (fully evaluate) every closure but build nothing. Realizing
   closures happens on target hardware or the mac-mini builder. Check names must
   not contain `@` (invalid in store paths), hence `eval-home-connor-mbp14` etc.
-- **Unfree packages:** 1Password is unfree; `modules/nixos/onepassword.nix`
-  sets a scoped `nixpkgs.config.allowUnfreePredicate` (must appear exactly
-  once — multiple definitions of that option conflict). Do not add unfree
-  packages without extending the predicate; never work around it with
-  `--impure`/`NIXPKGS_ALLOW_UNFREE` in the validation suite.
+- **Unfree packages:** 1Password is unfree; each platform's onepassword
+  module sets a scoped `nixpkgs.config.allowUnfreePredicate` (must appear
+  exactly once per configuration — multiple definitions of that option
+  conflict). Do not add unfree packages without extending the predicate;
+  never work around it with `--impure`/`NIXPKGS_ALLOW_UNFREE` in the
+  validation suite.
 - **nono/opencode are NOT in nixpkgs.** `modules/home/nono-opencode.nix`
-  packages both from pinned upstream release binaries (nono v0.69.0,
-  nolabs-ai/nono; opencode v1.18.5, anomalyco/opencode — the repo moved from
-  sst/opencode). Bumping = new version + 3 hashes (`nix store prefetch-file`).
-  nono Linux builds are glibc-linked (autoPatchelfHook); opencode Linux builds
-  are musl (static). The `opencode` wrapper execs via absolute store paths —
-  no PATH recursion. One-time per machine: `nono pull nolabs-ai/opencode`.
+   packages both from pinned upstream release binaries (nono v0.69.0,
+   nolabs-ai/nono; opencode v1.18.5, anomalyco/opencode — the repo moved from
+   sst/opencode). Bumping = new version + 3 hashes (`nix store prefetch-file`).
+   nono Linux builds are glibc-linked (autoPatchelfHook); opencode Linux builds
+   are musl (static). The `opencode` wrapper execs via absolute store paths —
+   no PATH recursion, using flake-managed profile `opencode-nix` (extends
+   `nolabs-ai/opencode`, CWD readwrite via `workdir` + `--allow-cwd`, grants
+   `~/.local/share/nix` so agents can `nix eval` / `flake check`). One-time
+   per machine: `nono pull nolabs-ai/opencode`. The home-manager module also
+   ships `~/.config/opencode/opencode.json` with `permission."*" = "allow"`
+   because nono already sandboxes (do not weaken the nono profile).
 - **Relative paths are depth-sensitive.** `peripheralFirmwareDirectory` in
   `modules/nixos/asahi.nix` is `../../firmware` — correct only at its current
   depth. Eval does not force path options; verify with:
@@ -135,16 +141,8 @@ nix --extra-experimental-features 'nix-command flakes' eval .#darwinConfiguratio
   NOT on the tailnet — INSTALL.md correctly uses `mac-mini.local` there.
   On macOS the module runs headless tailscaled — do not also install the
   Tailscale.app cask.
-- **1Password:** CLI everywhere (`programs._1password`), GUI + polkit on mbp14,
-  brew casks (`1password`, `1password-cli`) on darwin — Homebrew required.
-- **Emacs:** mbp14 gets nixpkgs GUI, nuc gets nixpkgs nox (both wrapped by
-  `github:connorfuhrman/emacs`); the darwin hosts get emacs-plus-app via the
-  d12frosted Homebrew tap (one-time `brew trust d12frosted/emacs-plus`) and
-  their home config links `~/.config/emacs` to the flake's `emacs-config`
-  package (XDG init dir — works for GUI app and CLI, no wrapper flags).
-  The emacs flake names ALL wrapped variants `emacs` (symlinkJoin) — `emacs`
-  and `emacs-nox` are distinguishable only by drvPath, not by `p.name`.
-  It is consumed self-contained (does NOT follow our nixpkgs).
+- **1Password:** CLI everywhere (`programs._1password`), GUI via `programs._1password-gui` on NixOS and nixpkgs on darwin (same official 1Password.app as the Homebrew cask). On macOS, nixpkgs provides both CLI and GUI — no Homebrew cask needed.
+- **Emacs:** single `homeManager.emacs` module — Darwin links the XDG config dir (`~/.config/emacs`) to the flake's `emacs-config` package (binary supplied by brew emacs-plus-app via `darwin.emacs-plus`); Linux installs GUI Emacs from the emacs flake. No separate gui/nox/plus distinction for home modules. The emacs flake names ALL wrapped variants `emacs` (symlinkJoin) — variants are distinguishable only by drvPath, not by `p.name`. It is consumed self-contained (does NOT follow our nixpkgs).
 - **Remote builder:** `flake.modules.generic.mac-mini-builder` (client side)
   requires a one-time SSH key bootstrap per client (see README). The mini only
   builds `aarch64-linux`; on the x86_64 nuc the entry is inert.
@@ -170,3 +168,6 @@ nix --extra-experimental-features 'nix-command flakes' eval .#darwinConfiguratio
 - After delegation, the primary agent re-reads changed files and re-runs the
   validation suite itself. Never trust a subagent's report without verification.
 - New opencode config (agents, etc.) requires an opencode restart to load.
+- **Always work and commit on the `develop` branch.** Never commit directly to
+  `master`/`main`. Create or check out `develop` before staging commits; open
+  PRs from `develop` into the default branch when the user asks to merge.
