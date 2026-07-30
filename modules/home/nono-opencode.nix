@@ -292,23 +292,36 @@ let
 
       cp ${nonoPlugin}/share/opencode/plugins/nono-sandbox.ts $root/plugins/
 
-      # Wrapper script (makeWrapper + dynamic $HOME for suppress-save-prompt)
+      # OPENCODE_CONFIG_DIR must be writable (not the Nix store). Store holds
+      # immutable JSON/agents/skills; XDG config dir gets discovery symlinks.
       cat > $out/bin/opencode <<EOF
       #!${pkgs.runtimeShell}
       set -euo pipefail
       export PATH="${cm}/bin:${nono}/bin:\$PATH"
-      export OPENCODE_CONFIG="$root/opencode.json"
-      export OPENCODE_CONFIG_DIR="$root"
-      export OPENCODE_ORCHESTRATION_MODELS="$root/orchestration-models.json"
-      export OPENCODE_AGENTS_DIR="$root/agent"
+      root="$root"
+      xdg_cfg="\''${XDG_CONFIG_HOME:-\$HOME/.config}"
+      oc_dir="\$xdg_cfg/opencode"
+      export OPENCODE_CONFIG="\$root/opencode.json"
+      # Writable runtime config dir — NEVER the store (read-only → server crash).
+      export OPENCODE_CONFIG_DIR="\$oc_dir"
+      export OPENCODE_ORCHESTRATION_MODELS="\$root/orchestration-models.json"
       export NPM_CONFIG_CACHE="\''${NPM_CONFIG_CACHE:-\$HOME/.cache/opencode/npm}"
       export BUN_INSTALL_CACHE_DIR="\''${BUN_INSTALL_CACHE_DIR:-\$HOME/.cache/opencode/bun}"
       export OPENCODE_GOAL_STATE_PATH="\''${OPENCODE_GOAL_STATE_PATH:-\$HOME/.local/share/opencode/goal-plugin/goals.json}"
-      # Ensure ephemeral state dirs exist (not config — OK to create at runtime)
-      mkdir -p "\$HOME/.cache/opencode" "\$HOME/.local/share/opencode" "\$HOME/.local/state/opencode" \
-               "\$HOME/.config/opencode" "\''${XDG_CONFIG_HOME:-\$HOME/.config}/nono/profile-drafts"
+      mkdir -p \
+        "\$HOME/.cache/opencode" \
+        "\$HOME/.local/share/opencode" \
+        "\$HOME/.local/state/opencode" \
+        "\$oc_dir" \
+        "\$xdg_cfg/nono/profile-drafts"
+      # Discovery symlinks into the immutable bundle (safe to re-run).
+      ln -sfn "\$root/opencode.json" "\$oc_dir/opencode.json"
+      ln -sfn "\$root/orchestration-models.json" "\$oc_dir/orchestration-models.json"
+      ln -sfn "\$root/agent" "\$oc_dir/agent"
+      ln -sfn "\$root/skills" "\$oc_dir/skills"
+      ln -sfn "\$root/plugins" "\$oc_dir/plugins"
       exec ${nono}/bin/nono run \
-        --profile "$root/nono-profile.json" \
+        --profile "\$root/nono-profile.json" \
         --allow-cwd \
         --suppress-save-prompt "\$HOME" \
         --suppress-save-prompt "\$HOME/" \
