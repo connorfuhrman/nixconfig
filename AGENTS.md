@@ -63,8 +63,8 @@ configuration-darwin.nix / home.nix / lib/   legacy pre-dendritic stubs — igno
 
 ## Working in this repo
 
-- **Nix on the dev machine (macOS) has flakes disabled by default.** Every
-  command needs: `nix --extra-experimental-features 'nix-command flakes' ...`
+- **Flakes and `nix-command` are enabled** in system config
+  (`nix.settings.experimental-features`). Use plain `nix flake` / `nix eval`.
 - **Evaluation only — never build system closures.** No `nixos-rebuild`,
   `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
   and `nix eval` are the validation tools; building the small pinned binary
@@ -80,18 +80,18 @@ configuration-darwin.nix / home.nix / lib/   legacy pre-dendritic stubs — igno
 cd /Users/connorfuhrman/nixconfig
 # primary gate: proves every configuration's derivations evaluate (8 closures).
 # Runs PURE (no --impure, no env vars) — unfree allowance is scoped in onepassword modules.
-nix --extra-experimental-features 'nix-command flakes' flake check .
+nix flake check .
 # module registries:
-nix --extra-experimental-features 'nix-command flakes' eval .#modules.nixos --apply 'm: builtins.attrNames m'
-nix --extra-experimental-features 'nix-command flakes' eval .#modules.darwin --apply 'm: builtins.attrNames m'
-nix --extra-experimental-features 'nix-command flakes' eval .#modules.homeManager --apply 'm: builtins.attrNames m'
-nix --extra-experimental-features 'nix-command flakes' eval .#modules.generic --apply 'm: builtins.attrNames m'
+nix eval .#modules.nixos --apply 'm: builtins.attrNames m'
+nix eval .#modules.darwin --apply 'm: builtins.attrNames m'
+nix eval .#modules.homeManager --apply 'm: builtins.attrNames m'
+nix eval .#modules.generic --apply 'm: builtins.attrNames m'
 # per-host spot checks (when touching the implicated option):
-nix --extra-experimental-features 'nix-command flakes' eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # true
-nix --extra-experimental-features 'nix-command flakes' eval .#nixosConfigurations.mbp14.config.services.tailscale.enable    # true
-nix --extra-experimental-features 'nix-command flakes' eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
-nix --extra-experimental-features 'nix-command flakes' eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
-nix --extra-experimental-features 'nix-command flakes' eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
+nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # true
+nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable    # true
+nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
+nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
+nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
 ```
 
 ## Gotchas (learned the hard way)

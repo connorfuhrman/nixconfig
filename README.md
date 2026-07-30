@@ -32,7 +32,7 @@ Each host has a matching standalone home-manager config: `connorfuhrman@<host>`.
 
 ```sh
 # Validate every configuration evaluates (no full system builds)
-nix --extra-experimental-features 'nix-command flakes' flake check
+nix flake check
 
 # NixOS
 sudo nixos-rebuild switch --flake .#mbp14

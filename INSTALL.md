@@ -41,7 +41,7 @@ system closure later.
    run on the dev machine:
 
    ```sh
-   rsync -a --exclude '.opencode' ~/asahi-linux/ connor@mac-mini:~/asahi-linux/
+   rsync -a --exclude '.opencode' ~/nixconfig/ connor@mac-mini:~/nixconfig/
    (`mac-mini` is the Tailscale name; before Tailscale is set up on both machines, use `mac-mini.local` or the mini's LAN IP.)
    ```
 
@@ -49,15 +49,15 @@ system closure later.
    linux-builder VM), on the Mac mini:
 
    ```sh
-   cd ~/asahi-linux
-   nix --extra-experimental-features 'nix-command flakes' run nix-darwin -- switch --flake .#mac-mini
-   ```
+    cd ~/nixconfig
+    nix run nix-darwin -- switch --flake .#mac-mini
+    ```
 
-5. **Smoke-test the builder** — this compiles a Linux binary inside the VM:
+ 5. **Smoke-test the builder** — this compiles a Linux binary inside the VM:
 
-   ```sh
-   nix --extra-experimental-features 'nix-command flakes' build --system aarch64-linux nixpkgs#hello
-   ```
+    ```sh
+    nix build --system aarch64-linux nixpkgs#hello
+    ```
 
    If that prints a store path, the Mac mini can build anything for
    `aarch64-linux`.
@@ -75,8 +75,8 @@ flake). Unzip it if necessary.
 **Option B — build the ISO on the Mac mini** (uses the builder from step 1):
 
 ```sh
-cd ~/asahi-linux
-nix --extra-experimental-features 'nix-command flakes' build \
+cd ~/nixconfig
+nix build \
   'github:nix-community/nixos-apple-silicon/release-2025-11-18#packages.aarch64-linux.installer-bootstrap' \
   -o installer -L
 ```
@@ -173,9 +173,9 @@ Still on the installer, as root:
 
    ```sh
 # from the Mac mini (over the LAN — the installer is not on the tailnet):
-    scp -r connor@mac-mini.local:~/asahi-linux /root/asahi-linux
+    scp -r connor@mac-mini.local:~/nixconfig /root/nixconfig
    # or: copy it to a second USB stick on the Mac mini, plug it in,
-   #     then: mkdir /media && mount /dev/sdX1 /media && cp -r /media/asahi-linux /root/
+   #     then: mkdir /media && mount /dev/sdX1 /media && cp -r /media/nixconfig /root/
    ```
 
 3. **Replace the placeholder firmware with the real files.** The Asahi
@@ -183,30 +183,24 @@ Still on the installer, as root:
    reference the ESP impurely, so they are vendored into the repo:
 
    ```sh
-   rm /root/asahi-linux/firmware/firmware.cpio   # placeholder
-   cp /mnt/boot/asahi/all_firmware.tar.gz /mnt/boot/asahi/kernelcache* /root/asahi-linux/firmware/
+   rm /root/nixconfig/firmware/firmware.cpio   # placeholder
+   cp /mnt/boot/asahi/all_firmware.tar.gz /mnt/boot/asahi/kernelcache* /root/nixconfig/firmware/
    ```
 
 4. **Generate the real hardware configuration** and replace the template:
 
    ```sh
    nixos-generate-config --root /mnt
-   cp /mnt/etc/nixos/hardware-configuration.nix /root/asahi-linux/modules/hosts/mbp14/_hardware-configuration.nix
+   cp /mnt/etc/nixos/hardware-configuration.nix /root/nixconfig/modules/hosts/mbp14/_hardware-configuration.nix
    ```
 
    No edits are needed: the bootloader, firmware path, and Apple Silicon
    support all come from this flake's modules.
 
-5. Enable flakes for the install commands:
-
-   ```sh
-   export NIX_CONFIG="experimental-features = nix-command flakes"
-   ```
-
 ## 7. Install NixOS
 
 ```sh
-cd /root/asahi-linux
+cd /root/nixconfig
 nixos-install --flake .#mbp14
 ```
 
@@ -250,8 +244,8 @@ From the dev machine or the Mac mini, pre-build the laptop's full system
 (for example to test changes without touching the laptop):
 
 ```sh
-cd ~/asahi-linux
-nix --extra-experimental-features 'nix-command flakes' build \
+cd ~/nixconfig
+nix build \
   --system aarch64-linux .#nixosConfigurations.mbp14.config.system.build.toplevel
 ```
 
