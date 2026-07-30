@@ -1,7 +1,8 @@
 { ... }: {
-  flake.modules.nixos.asahi = { lib, pkgs, config, ... }: {
+  flake.modules.nixos.asahi = { ... }: {
     hardware.asahi.enable = true;
 
+    # Depth-sensitive relative path (this file lives at modules/nixos/).
     hardware.asahi.peripheralFirmwareDirectory = ../../firmware;
 
     boot.loader.systemd-boot.enable = true;

@@ -4,6 +4,10 @@
   # includes Emacs.app + Emacs Client.app). The tap is trusted declaratively
   # (Homebrew 6.0+ requires trust for third-party taps).
   flake.modules.darwin.emacs-plus = { ... }: {
+    # nix-darwin only runs brew when homebrew.enable is set; without this,
+    # taps/casks are inert (macbook was broken; mac-mini only worked because
+    # roon-server also enables Homebrew).
+    homebrew.enable = true;
     homebrew.taps = [
       { name = "d12frosted/emacs-plus"; trusted = true; }
     ];

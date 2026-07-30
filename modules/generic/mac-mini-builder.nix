@@ -9,6 +9,9 @@
   # access must work for root as well (system ssh_config IdentityFile, or a
   # key root can read).
   flake.modules.generic.mac-mini-builder = { ... }: {
+    # Without this, buildMachines is ignored (builders= empty in nix.conf).
+    nix.distributedBuilds = true;
+
     nix.buildMachines = [
       {
         hostName = "mac-mini";

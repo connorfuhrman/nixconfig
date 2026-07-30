@@ -1,5 +1,5 @@
 # TEMPLATE — overwritten by nixos-generate-config during installation.
-# Do NOT hand-edit UUIDs; follow the runbook in PLAN.md Phase C.
+# Do NOT hand-edit UUIDs; follow the runbook in INSTALL.md.
 { config, lib, pkgs, modulesPath, ... }:
 
 {

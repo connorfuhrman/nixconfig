@@ -1,5 +1,5 @@
 { ... }: {
-  # Shared base for all standalone home-manager configurations (user connor).
+  # Shared base for all standalone home-manager configurations.
   flake.modules.homeManager.base = { pkgs, lib, ... }: {
     home.username = "connorfuhrman";
     home.homeDirectory = if pkgs.stdenv.isDarwin then "/Users/connorfuhrman" else "/home/connorfuhrman";
