@@ -199,22 +199,35 @@ let
       meta.description = "Fully store-backed opencode config, agents, skills";
     };
 
+  # Profile is a pure store object. The wrapper passes its ABSOLUTE store path
+  # to `nono run --profile <path>` so runtime never depends on the mutable
+  # ~/.config/nono/profiles/ tree (nono can rewrite named profiles on deny).
+  # NEVER grant "~/" — overlaps protected ~/.local/state/nono.
   mkProfile = pkgs: pkgs.writeText "opencode-nix.json" (builtins.toJSON {
     extends = [ "nolabs-ai/opencode" ];
     meta = {
       name = "opencode-nix";
-      version = "1.3.0";
-      description = "opencode + CWD r/w + nix user-state for flake eval/check";
+      version = "1.4.0";
+      description = "store-backed nono profile for flake opencode wrapper";
     };
     workdir = {
       access = "readwrite";
     };
+    # Disable interactive save-profile flows when possible.
+    interactive = false;
     filesystem = {
       allow = [ "~/.local/share/nix" ];
+      read = [ "/nix/store" ];
+      read_file = [
+        "~/.gitconfig"
+        "~/.config/git/config"
+      ];
+      # Do not prompt to widen profile when $HOME itself is probed.
+      suppress_save_prompt = [ "~/" ];
     };
   });
 
-  mkOpencode = pkgs: nono: opencode-bin: configRoot: modelsFile: cm:
+  mkOpencode = pkgs: nono: opencode-bin: configRoot: modelsFile: cm: profile:
     pkgs.writeShellScriptBin "opencode" ''
       export NPM_CONFIG_CACHE="''${NPM_CONFIG_CACHE:-$HOME/.cache/opencode/npm}"
       export BUN_INSTALL_CACHE_DIR="''${BUN_INSTALL_CACHE_DIR:-$HOME/.cache/opencode/bun}"
@@ -225,8 +238,14 @@ let
       export OPENCODE_ORCHESTRATION_MODELS="${modelsFile}"
       export OPENCODE_AGENTS_DIR="${configRoot}/share/opencode/agent"
       export PATH="${cm}/bin:$PATH"
+      # Immutable profile: absolute store path (not name lookup under ~/.config/nono).
+      # --allow-cwd: workdir already readwrite in profile; skip interactive CWD prompt.
+      # --suppress-save-prompt ~/: never offer to grant full home into a mutable profile.
       exec ${nono}/bin/nono run \
-        --profile opencode-nix \
+        --profile ${profile} \
+        --allow-cwd \
+        --suppress-save-prompt "$HOME" \
+        --suppress-save-prompt "$HOME/" \
         -- ${opencode-bin}/bin/opencode "$@"
     '';
 
@@ -309,6 +328,7 @@ in
           fi
         '';
       };
+      profile = mkProfile pkgs;
       configRoot = mkOpencodeConfigRoot pkgs skills agentsDir { goal = goalPlugin; } modelsFile;
       orchTest = mkOrchestrationTest pkgs modelsFile agentsDir;
     in
@@ -316,8 +336,9 @@ in
       packages = {
         inherit nono;
         opencode-bin = opencode-bin;
-        opencode = mkOpencode pkgs nono opencode-bin configRoot modelsFile cm;
+        opencode = mkOpencode pkgs nono opencode-bin configRoot modelsFile cm profile;
         opencode-config = configRoot;
+        opencode-nix-profile = profile;
         opencode-orchestration-models = modelsFile;
         opencode-orchestration-test = orchTest;
         opencode-skill-document-comments = skills.document-comments;
@@ -326,7 +347,7 @@ in
       };
     };
 
-  flake.modules.homeManager.nono-opencode = { pkgs, ... }:
+  flake.modules.homeManager.nono-opencode = { pkgs, lib, ... }:
     let
       nono = mkNono pkgs;
       opencode-bin = mkOpencodeBin pkgs;
@@ -356,14 +377,26 @@ in
           fi
         '';
       };
+      profile = mkProfile pkgs;
       configRoot = mkOpencodeConfigRoot pkgs skills agentsDir { goal = goalPlugin; } modelsFile;
-      opencode = mkOpencode pkgs nono opencode-bin configRoot modelsFile cm;
+      opencode = mkOpencode pkgs nono opencode-bin configRoot modelsFile cm profile;
     in
     {
-      home.file.".config/nono/profiles/opencode-nix.json".source = mkProfile pkgs;
+      # Convenience symlink only — wrapper does NOT use this path.
+      # Activation forces store symlink if nono previously wrote a mutable file.
+      home.file.".config/nono/profiles/opencode-nix.json".source = profile;
+
+      home.activation.forceNonoProfileSymlink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        target="$HOME/.config/nono/profiles/opencode-nix.json"
+        desired="${profile}"
+        mkdir -p "$(dirname "$target")"
+        if [ -e "$target" ] && [ ! -L "$target" ]; then
+          rm -f "$target"
+        fi
+        ln -sfn "$desired" "$target"
+      '';
 
       # Point HM at the store tree so ~/.config/opencode is not hand-edited.
-      # Individual files are symlinks into the config root derivation.
       home.file.".config/opencode/opencode.json".source =
         "${configRoot}/share/opencode/opencode.json";
       home.file.".config/opencode/orchestration-models.json".source =
@@ -383,7 +416,6 @@ in
         configRoot
       ];
 
-      # Expose allowlist path for non-wrapper tools
       home.sessionVariables = {
         OPENCODE_ORCHESTRATION_MODELS = "${modelsFile}";
       };
