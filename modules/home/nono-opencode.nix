@@ -216,17 +216,14 @@ let
     # Disable interactive save-profile flows when possible.
     interactive = false;
     filesystem = {
-      allow = [
-        "~/.local/share/nix"
-        # nono audit/session snapshots (pack may omit; required for clean start)
-        "~/.local/state/nono"
-      ];
+      allow = [ "~/.local/share/nix" ];
       read = [ "/nix/store" ];
       read_file = [
         "~/.gitconfig"
         "~/.config/git/config"
       ];
       # Do not prompt to widen profile when $HOME itself is probed.
+      # Never grant "~/" or "~/.local/state/nono" — both are protected by nono.
       suppress_save_prompt = [ "~/" ];
     };
   });
@@ -250,6 +247,7 @@ let
         --allow-cwd \
         --suppress-save-prompt "$HOME" \
         --suppress-save-prompt "$HOME/" \
+        --no-rollback \
         -- ${opencode-bin}/bin/opencode "$@"
     '';
 
