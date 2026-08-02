@@ -59,12 +59,15 @@ NixOS/home-manager can set this via `programs.ssh.extraConfig` once the agent pa
 
 **Nix remote builders / root daemon:** this is the hard part. The Nix daemon runs as root and does **not** see your user GUI agent by default. Options:
 
-| Approach | Pros | Cons |
-|---|---|---|
-| **A. Dedicated builder key** still as file under `/etc/nix/` (or root-readable) | Works today for `mac-mini` builder | Not 1Password-backed |
-| **B. User-level nix builds only** (`nix` as your user with agent) | Agent works | Daemon multi-user builds need extra setup |
-| **C. 1Password service account / CLI in headless** | Automatable | Different security model; careful with tokens |
-| **D. Keep agent for interactive SSH; separate machine key for nix daemon** | Pragmatic split | Two key classes |
+| Approach                                                                        | Pros                               | Cons                                          |
+| ------------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------- |
+| **A. Dedicated builder key** still as file under `/etc/nix/` (or root-readable) | Works today for `mac-mini` builder | Not 1Password-backed                          |
+| **<!--c:gf9fq-->B. User-level nix builds only** (`nix` as your user with agent)<!--/c:gf9fq-->               | Agent works                        | Daemon multi-user builds need extra setup     |
+| **C. 1Password service account / CLI in headless**                              | Automatable                        | Different security model; careful with tokens |
+| **D. Keep agent for interactive SSH; separate machine key for nix daemon**      | Pragmatic split                    | Two key classes                               |
+<!--co:gf9fq by:Connor_Fuhr at:2026-08-02T07:39:38.312Z status:open quote:"B. User-level nix builds only** (`nix` as your user with agent)"
+Connor Fuhr (2026-08-02T07:39:38.312Z): this is fine with me. I am the only user of my computers. \n\nwhen headless how can I log in?
+-->
 
 Recommendation: **D** — human SSH + git via 1Password agent; **nix-daemon builder auth** stays a small dedicated key (or Tailscale SSH) until a clean headless story exists.
 

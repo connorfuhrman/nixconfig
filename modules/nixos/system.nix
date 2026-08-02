@@ -1,5 +1,8 @@
-{ ... }: {
+{ self, ... }: {
   flake.modules.nixos.system = { pkgs, ... }: {
+    # Custom monorepo packages (pkgs/ via flake.overlays.default).
+    nixpkgs.overlays = [ self.overlays.default ];
+
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
     nix.gc = {

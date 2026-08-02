@@ -5,10 +5,18 @@ description: >
   track-changes. Use when editing plans/ADRs/markdown the human reviews in
   Obsidian, when acting on Document Comments instructions, or when applying
   track-changes / CriticMarkup / cm CLI edits. Always use for collaborative
-  markdown in this monorepo.
+  markdown in this monorepo. Also applies whenever long-form human-facing
+  output is written under docs/ (fleet rule: research and multi-section
+  answers go to Obsidian files, not chat).
 ---
 
 # Document review protocol
+
+## Fleet rule (all agents)
+
+Long-form answers for humans are **files under `docs/`**, not chat walls.
+Chat reply = path + 1–3 line summary. Use Document Comments for decisions;
+use CriticMarkup (`cm`) for prose edits the human reviews in Obsidian.
 
 ## Human → agent (Document Comments)
 

@@ -8,5 +8,5 @@
   "autoupdate": false,
   "subagent_depth": 2,
   "default_agent": "orchestrator",
-  "instructions": ["AGENTS.md"]
+  "instructions": ["AGENTS.md"],
 }

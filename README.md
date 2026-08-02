@@ -73,7 +73,7 @@ Standalone home-manager for user `connorfuhrman` on every host:
 
 | | Linux | macOS |
 |---|---|---|
-| **Emacs** | GUI from [connorfuhrman/emacs](https://github.com/connorfuhrman/emacs) | [Emacs Plus](https://github.com/d12frosted/homebrew-emacs-plus) (Homebrew) + same XDG config |
+| **Emacs** | GUI from [connorfuhrman/emacs](https://github.com/connorfuhrman/emacs) | same flake (emacs-macport + packages + `--init-directory`) |
 | **Shell / CLI** | zsh, eza, bat, fzf, ydiff, dust, jq, gtop, gping | same |
 | **Git** | name/email, `master` default branch, auto upstream on push, ydiff pager | same |
 | **opencode** | Runs inside [nono](https://github.com/nolabs-ai/nono); one-time `nono pull nolabs-ai/opencode` | same |

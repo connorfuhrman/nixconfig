@@ -1,6 +1,1 @@
-[
-  "document-comments",
-  "track-changes",
-  "remote-ssh",
-  "ghostty-terminal"
-]
+["document-comments","track-changes","remote-ssh","ghostty-terminal"]
