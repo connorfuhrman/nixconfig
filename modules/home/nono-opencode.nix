@@ -248,6 +248,7 @@ let
         --suppress-save-prompt "$HOME" \
         --suppress-save-prompt "$HOME/" \
         --no-rollback \
+        --no-audit \
         -- ${opencode-bin}/bin/opencode "$@"
     '';
 
