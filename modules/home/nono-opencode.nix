@@ -216,7 +216,11 @@ let
     # Disable interactive save-profile flows when possible.
     interactive = false;
     filesystem = {
-      allow = [ "~/.local/share/nix" ];
+      allow = [
+        "~/.local/share/nix"
+        # nono audit/session snapshots (pack may omit; required for clean start)
+        "~/.local/state/nono"
+      ];
       read = [ "/nix/store" ];
       read_file = [
         "~/.gitconfig"
