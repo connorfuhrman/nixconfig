@@ -50,6 +50,8 @@ everywhere.
 
 ```
 flake.nix               nixConfig (binary cache) + inputs + mkFlake only
+pkgs/                   custom packages (callPackage); overlay = pkgs/default.nix
+modules/pkgs.nix        flake.overlays.default + packages.* + lib.pkgsFor
 modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwin
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
@@ -59,10 +61,27 @@ modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions (+ _hardware-configuration.nix per NixOS host)
 opencode.json           project opencode permissions (keep in sync with nono-opencode.nix)
 .opencode/              project agents (e.g. ling-implementer)
+docs/                   human-facing notes (plans/, rfcs/, research/) — long answers go here
 firmware/               vendored Asahi firmware — PRIVATE, never publish
 INSTALL.md              human-facing Asahi install runbook for mbp14
 README.md               human-facing overview (this repo is multi-host, not Asahi-only)
 ```
+
+### Custom packages (`pkgs/` + overlay)
+
+- **Package bodies** live in top-level `pkgs/<name>.nix` (callPackage style).
+  Do **not** put `mkDerivation` builders inside home/system modules.
+- **`pkgs/default.nix`** is the overlay (`final: prev: { … callPackage … }`).
+- **`modules/pkgs.nix`** (flake-parts) exposes:
+  - `flake.overlays.default`
+  - `flake.lib.pkgsFor <system>` — nixpkgs + overlay (used by home configs)
+  - `packages.<system>.*` — same attrs for `nix build .#…`
+- **HM hosts** use `pkgs = config.flake.lib.pkgsFor "<system>"` (not bare
+  `legacyPackages`) so modules can `home.packages = [ pkgs.opencode ]`.
+- **NixOS/darwin** apply `nixpkgs.overlays = [ self.overlays.default ]` in
+  `modules/{nixos,darwin}/system.nix`.
+- Content trees for the opencode bundle stay under `modules/home/_…`
+  (agents/skills/plugins/instructions/tools); packages reference those paths.
 
 ## Working in this repo
 
@@ -116,28 +135,24 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   conflict). Do not add unfree packages without extending the predicate;
   never work around it with `--impure`/`NIXPKGS_ALLOW_UNFREE` in the
   validation suite.
-- **nono/opencode are NOT in nixpkgs.** `modules/home/nono-opencode.nix`
-  packages both from pinned upstream release binaries (nono v0.69.0,
-  nolabs-ai/nono; opencode v1.18.5, anomalyco/opencode — the repo moved from
-  sst/opencode) and exposes `packages.nono` / `opencode-bin` / `opencode` for
-  the current system. Bumping = new version + 3 hashes
-  (`nix store prefetch-file`). nono Linux builds are glibc-linked
-  (autoPatchelfHook); opencode Linux builds are musl (static). The `opencode`
-  wrapper execs via absolute store paths — no PATH recursion — using
-  flake-managed profile `opencode-nix` (extends `nolabs-ai/opencode`, CWD
-  readwrite via `workdir`, grants `~/.local/share/nix` so agents can
-  `nix eval` / `flake check`). One-time per machine:
-  `nono pull nolabs-ai/opencode`.   **Entire install is one store bundle** (`packages.opencode` =
-  `opencode-nix-bundle`): nono profile JSON, opencode.json, agents, skills,
-  plugins, models allowlist, and the `opencode` launcher. Wrapper always uses
+- **nono/opencode are NOT in nixpkgs.** Package bodies: `pkgs/nono.nix`,
+  `pkgs/opencode-bin.nix`, `pkgs/opencode-nix-bundle.nix` (via
+  `flake.overlays.default`). HM module `modules/home/nono-opencode.nix` only
+  installs `pkgs.opencode` + activation. Pinned upstream binaries: nono
+  v0.69.0 (nolabs-ai/nono), opencode v1.18.5 (anomalyco/opencode). Bumping =
+  new version + 3 hashes (`nix store prefetch-file`). nono Linux =
+  glibc/`autoPatchelfHook`; opencode Linux = musl static. **Entire install is
+  one store bundle** (`packages.opencode`): profile JSON, opencode.json,
+  agents, skills, plugins, models allowlist, **fleet instructions**
+  (`modules/home/_instructions/fleet.md`), launcher. Wrapper always uses
   `--profile /nix/store/…/nono-profile.json` (never mutable
   `~/.config/nono/profiles/`). Profile extends built-in `default` only — **no
   `nono pull` required**. HM activation only creates XDG state dirs and
-  discovery symlinks into the store; sessions/logs/cache stay ephemeral under
-  XDG. Paid OpenRouter MoE allowlist: `modules/home/_lib/opencode-models.nix`.
-  Skills: `orchestration`, `document-comments`, `document-review`,
-  `nono-sandbox`. Agents: `orchestrator` (default), `worker-free`,
-  `moe-advisor`. CriticMarkup: `cm`. Restart opencode after HM switch.
+  discovery symlinks into the store. Paid OpenRouter MoE allowlist:
+  `modules/home/_lib/opencode-models.nix`. Skills: `orchestration`,
+  `document-comments`, `document-review`, `nono-sandbox`. Agents:
+  `orchestrator` (default), `worker-free`, `moe-advisor`. CriticMarkup:
+  `pkgs/cm.nix` → `pkgs.cm`. Restart opencode after HM switch.
 - **Document review:** human instructions arrive as Obsidian Document Comments;
   resolve (do not delete) when acted on. Agent prose edits use CriticMarkup
   via `cm` / skill `document-review` (logical chunks for Track Changes).
@@ -150,7 +165,8 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   (qemu-user binfmt in the builder VM). Clients use
   `generic.mac-mini-builder` with both systems.
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
-  taps/casks otherwise. `darwin.emacs-plus` and `darwin.roon-server` both enable it.
+  taps/casks otherwise. `darwin.roon-server` enables it (and any other
+  host that needs brew).
 - **Remote builder clients need `nix.distributedBuilds = true`.** Setting only
   `nix.buildMachines` leaves `builders =` empty in nix.conf.
   `generic.mac-mini-builder` sets both.
@@ -178,7 +194,13 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   On macOS the module runs headless tailscaled — do not also install the
   Tailscale.app cask.
 - **1Password:** CLI everywhere (`programs._1password`), GUI via `programs._1password-gui` on NixOS and nixpkgs on darwin (same official 1Password.app as the Homebrew cask). On macOS, nixpkgs provides both CLI and GUI — no Homebrew cask needed.
-- **Emacs:** single `homeManager.emacs` module — Darwin links the XDG config dir (`~/.config/emacs`) to the flake's `emacs-config` package (binary supplied by brew emacs-plus-app via `darwin.emacs-plus`); Linux installs GUI Emacs from the emacs flake. No separate gui/nox/plus distinction for home modules. The emacs flake names ALL wrapped variants `emacs` (symlinkJoin) — variants are distinguishable only by drvPath, not by `p.name`. It is consumed self-contained (does NOT follow our nixpkgs).
+- **Emacs:** single `homeManager.emacs` module on every host — installs the
+  flake-wrapped `emacs` (emacsWithPackages + `--init-directory`) and links
+  `~/.config/emacs` to `emacs-config`. Darwin uses emacs-macport under that
+  wrapper; do **not** rely on brew emacs-plus (package.el installs are
+  disabled in the Nix prelude config). The emacs flake names ALL wrapped
+  variants `emacs` (symlinkJoin) — distinguishable only by drvPath, not
+  `p.name`. Consumed self-contained (does NOT follow our nixpkgs).
 - **Remote builder:** `flake.modules.generic.mac-mini-builder` (client side)
   assumes existing passwordless SSH to host `mac-mini` as `connorfuhrman`
   (including for root / the Nix daemon). No dedicated `/etc/nix/*` key. The
@@ -200,6 +222,26 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
 - Keep this repo **private**: `firmware/` contains extracted Apple firmware.
   (README badges notwithstanding — exclude `firmware/` if ever publishing.)
 
+## Branch & commit discipline
+
+- **Always work on a side branch.** Never commit directly to `master` or `main`.
+  If the human does not specify a branch name, ask before creating one.
+  Default to `develop` for general work; create feature branches (`feat/<name>`)
+  for larger changes. Open PRs from your branch into the default branch when
+  the human asks to merge.
+- **Commit at discrete milestones.** Each commit should represent a complete,
+  coherent unit of work — not half-finished edits. Resist the urge to commit
+  after every tiny change; batch related changes together.
+- **Attribute authorship correctly.** When committing, set your author identity
+  to match the model you are, using an email at your organization's domain:
+  - Claude → `Claude <claude@anthropic.com>`
+  - Grok → `Grok <grok@xai.com>`
+  - Qwen → `Qwen <qwen@alibaba-inc.com>`
+  - Ling → `Ling <ling@inclusionai.com>`
+  - Kimi → `Kimi <kimi@moonshot.cn>`
+  Use `--author="Name <slug@org-domain>"` with `git commit --amend` when fixing
+  prior commits that have wrong authorship.
+
 ## Workflow convention (user preference)
 
 - Primary agent **plans and verifies**; mechanical implementation is delegated
@@ -211,3 +253,11 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
 - **Always work and commit on the `develop` branch.** Never commit directly to
   `master`/`main`. Create or check out `develop` before staging commits; open
   PRs from `develop` into the default branch when the user asks to merge.
+- **Long-form human output → Obsidian doc, not chat.** If the answer is more
+  than a short paragraph / a few bullets (research, comparisons, runbooks,
+  architecture notes, multi-section explanations), write a Markdown file under
+  `docs/` (use `docs/plans/` for actionable workplans, `docs/rfcs/` for
+  decisions, `docs/research/` for surveys and deep-dives) and reply in chat
+  with **only** the path plus a 1–3 line summary. Use Document Comments
+  (skill `document-comments`) when the human must decide or approve. Do **not**
+  paste the full document body into the chat.
