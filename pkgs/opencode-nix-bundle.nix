@@ -161,7 +161,7 @@ let
     autoupdate = false;
     subagent_depth = 2;
     default_agent = "orchestrator";
-    small_model = "openrouter/deepseek/deepseek-chat";
+    small_model = "openrouter/openai/gpt-oss-20b:free";
     plugin = [
       goalPluginEntry
       nonoPluginEntry
@@ -175,6 +175,9 @@ let
       worker-free = {
         description = "Implements one discrete free-model objective";
         mode = "subagent";
+        # Pinned free model — without this the subagent inherits the
+        # orchestrator's session model (cost + diversity regression).
+        model = models.workerFreeModel;
       };
       moe-advisor = {
         description = "Paid MoE decomposition advisor (allowlist only)";

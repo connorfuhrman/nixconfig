@@ -21,6 +21,18 @@ Cheap/free OpenRouter models **execute** discrete work packages.
 | **Free OpenRouter** | **Any** free model is allowed anytime (DeepSeek free, NVIDIA Nemotron free, etc.). Prefer these for implementation workers. |
 | **Nested subagents** | Workers may spawn explore/general children when the task tool allows (`subagent_depth`). Keep depth shallow (≤2) unless the human raises it. |
 
+### Worker model routing (enforced, not advisory)
+
+The `worker-free` agent **pins** `model: openrouter/poolside/laguna-s-2.1:free`
+in its frontmatter AND in the bundle's `opencode.json`. An agent without an
+explicit `model` **inherits the orchestrator's session model** — which would
+silently burn the primary (paid) model on grunt work and destroy vendor
+diversity. Never strip the pin. To rotate the worker model, change
+`workerFreeModel` in `modules/opencode/_lib/opencode-models.nix` (must stay a
+real free-tier id ending in `:free`; the build-time test
+`opencode-orchestration-test` fails otherwise). Override per-task only with a
+free model from `preferred_free_openrouter` in the same file.
+
 Read the allowlist:
 
 ```bash

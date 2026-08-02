@@ -19,11 +19,20 @@ rec {
   ];
 
   # Default worker / small tasks — free tier preference (not enforced as allowlist).
+  # MUST carry the OpenRouter ":free" suffix — unsuffixed ids are paid.
   preferredFreeOpenRouter = [
-    "openrouter/deepseek/deepseek-r1"
-    "openrouter/deepseek/deepseek-chat"
-    "openrouter/nvidia/llama-3.3-nemotron-super-49b-v1"
+    "openrouter/poolside/laguna-s-2.1:free"
+    "openrouter/cohere/north-mini-code:free"
+    "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
+    "openrouter/inclusionai/ling-3.0-flash:free"
+    "openrouter/openai/gpt-oss-20b:free"
   ];
+
+  # Pinned model for the worker-free agent. Without an explicit pin, subagents
+  # inherit the orchestrator's session model (defeats cost + diversity goals).
+  # Laguna S 2.1: coding-agent MoE (118B), free tier, vendor-diverse from the
+  # orchestrator (Kimi) and ling-implementer (Ling 3.0 Flash).
+  workerFreeModel = "openrouter/poolside/laguna-s-2.1:free";
 
   defaultMoeTestModel = "openrouter/moonshotai/kimi-k2";
 
@@ -36,6 +45,7 @@ rec {
     };
     paid_openrouter = paidOpenRouterModels;
     preferred_free_openrouter = preferredFreeOpenRouter;
+    worker_free_model = workerFreeModel;
     default_moe_test_model = defaultMoeTestModel;
   };
 

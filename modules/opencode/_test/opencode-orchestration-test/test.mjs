@@ -73,7 +73,31 @@ if (agentDir) {
   }
   const orch = readFileSync(join(agentDir, "orchestrator.md"), "utf8");
   must(/orchestration/i.test(orch), "orchestrator mentions orchestration");
+
+  // Regression guard: worker-free MUST pin an explicit free model, otherwise
+  // subagents silently inherit the orchestrator's (paid) session model.
+  const worker = readFileSync(join(agentDir, "worker-free.md"), "utf8");
+  const workerModel = worker.match(/^model:\s*(\S+)\s*$/m)?.[1];
+  must(!!workerModel, "worker-free pins an explicit model");
+  must(workerModel.endsWith(":free"), `worker-free model is free tier (${workerModel})`);
+  must(workerModel.startsWith("openrouter/"), `worker-free model is on openrouter (${workerModel})`);
 }
+
+// Free preference list must contain real free-tier ids (":free" suffix —
+// unsuffixed ids are PAID on OpenRouter).
+must(
+  Array.isArray(models.preferred_free_openrouter) &&
+    models.preferred_free_openrouter.length > 0,
+  "preferred free list non-empty",
+);
+must(
+  models.preferred_free_openrouter.every((m) => m.endsWith(":free")),
+  "preferred free ids all carry :free suffix",
+);
+must(
+  models.preferred_free_openrouter.includes(models.worker_free_model),
+  "worker_free_model is on the preferred free list",
+);
 
 console.log("PASS orchestration sdk package + allowlist + agents smoke test");
 console.log(`sdk@${sdkPkg.version} paid_models=${models.paid_openrouter.length}`);

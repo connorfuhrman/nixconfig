@@ -1,6 +1,7 @@
 ---
 description: Cheap/free worker — implements one discrete objective from the orchestrator
 mode: subagent
+model: openrouter/poolside/laguna-s-2.1:free
 color: secondary
 ---
 
