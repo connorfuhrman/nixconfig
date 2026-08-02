@@ -1,6 +1,6 @@
 # RFC 0001: Dual-NUC compute scaling for agent workloads
 
-- **Status:** Draft  
+- **Status:** Implemented (eval-complete; hardware bring-up pending)  
 - **Author:** grok  
 - **Created:** 2026-08-01  
 - **Hosts:** 2× ASUS NUC (x86_64-Linux NixOS),  high-speed private LAN (Thunderbolt as L2/L3 path; tools are LAN-agnostic)  

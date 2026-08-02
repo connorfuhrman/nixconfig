@@ -9,7 +9,8 @@ working in this repo.
 | Host | Platform | Type | Notes |
 |---|---|---|---|
 | `mbp14` | `aarch64-linux` | NixOS | Asahi Linux, MacBook Pro 14" M2 Pro/Max (KDE Plasma 6) |
-| `nuc` | `x86_64-linux` | NixOS | Intel Nuc, headless server |
+| `nuc` | `x86_64-linux` | NixOS | Intel Nuc, headless server, Ray head node |
+| `nuc2` | `x86_64-linux` | NixOS | Second Nuc, compute peer, Ray worker (RFC 0001) |
 | `macbook` | `aarch64-darwin` | nix-darwin | macOS device |
 | `mac-mini` | `aarch64-darwin` | nix-darwin | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
 | `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | standalone via `homeManager.standard` |
@@ -103,7 +104,7 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 
 ```sh
 cd /Users/connorfuhrman/nixconfig
-# primary gate: proves every configuration's derivations evaluate (8 closures).
+# primary gate: proves every configuration's derivations evaluate (10 closures).
 # Runs PURE (no --impure, no env vars) — unfree allowance is scoped in onepassword modules.
 nix flake check .
 # module registries:
@@ -116,6 +117,7 @@ nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # tru
 nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # true
 nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
+nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["10.200.0.2" "nuc2" "mac-mini"]
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
@@ -124,6 +126,20 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
 
 ## Gotchas (learned the hard way)
 
+- **Flakes only see git-tracked files.** New files created by subagents are
+  invisible to `nix flake check`/`nix eval` (import-tree runs against the
+  store copy) until staged. Symptom: `attribute 'foo' missing` even though
+  the file exists on disk. Always `git add` new files before validating.
+- **Never force `config` in a top-level `assert` of a module.** A module whose
+  attrset is gated behind `assert lib.assertMsg (config.x == …)` recurses
+  infinitely: the assert forces `config.x` while the module fixpoint that
+  defines it is still being computed. Use the lazy `assertions` option
+  instead (checked after the fixpoint). See `modules/nixos/nuc-cluster.nix`.
+- **nuc/nuc2 cluster modules branch on `networking.hostName`.**
+  `nixos.nuc-cluster` (private /30 LAN + mutual builders) and
+  `nixos.ray-cluster` (head vs worker systemd units + podman) are only valid
+  on `nuc`/`nuc2`; they fail assertions anywhere else. The Thunderbolt iface
+  is assumed `thunderbolt0` — verify on hardware with `ip link`.
 - **`flake check` asserts evaluation, not buildability.** The checks in
   `modules/checks.nix` embed each configuration's `.drvPath` in a text file —
   they instantiate (fully evaluate) every closure but build nothing. Realizing
