@@ -10,7 +10,7 @@ let
     url = "https://registry.npmjs.org/@opencode-ai/sdk/-/sdk-1.18.11.tgz";
     hash = "sha256-EmHTx2xUJpc1tP6bYOrEpnz5SC8ZpvIIWL+LnjQCCeE=";
   };
-  testSrc = ../modules/home/_test/opencode-orchestration-test;
+  testSrc = ../modules/opencode/_test/opencode-orchestration-test;
   modelsFile = opencode.passthru.modelsFile;
   agentsDir = opencode.passthru.agentsDir;
 in

@@ -2,7 +2,7 @@
 buildGoModule {
   pname = "cm";
   version = "1.0.0";
-  src = ../modules/home/_tools/criticmarkup;
+  src = ../modules/opencode/_tools/criticmarkup;
   vendorHash = null;
   meta = {
     description = "CriticMarkup CLI (cm) for agent/human markdown review";

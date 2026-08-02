@@ -13,7 +13,7 @@
   callPackage,
 }:
 let
-  models = import ../modules/home/_lib/opencode-models.nix { inherit lib; };
+  models = import ../modules/opencode/_lib/opencode-models.nix { inherit lib; };
 
   opencodePermission = {
     "*" = "allow";
@@ -24,7 +24,7 @@ let
   modelsFile = writeText "orchestration-models.json" models.orchestrationModelsJson;
   # Absolute store path — loaded for every session on every host (not cwd-dependent).
   fleetInstructions = writeText "opencode-fleet-instructions.md" (
-    builtins.readFile ../modules/home/_instructions/fleet.md
+    builtins.readFile ../modules/opencode/_instructions/fleet.md
   );
 
   mkSkill =
@@ -34,17 +34,17 @@ let
     };
 
   skills = {
-    document-comments = mkSkill "document-comments" ../modules/home/_skills/document-comments;
-    document-review = mkSkill "document-review" ../modules/home/_skills/document-review;
-    orchestration = mkSkill "orchestration" ../modules/home/_skills/orchestration;
-    nono-sandbox = mkSkill "nono-sandbox" ../modules/home/_skills/nono-sandbox;
+    document-comments = mkSkill "document-comments" ../modules/opencode/_skills/document-comments;
+    document-review = mkSkill "document-review" ../modules/opencode/_skills/document-review;
+    orchestration = mkSkill "orchestration" ../modules/opencode/_skills/orchestration;
+    nono-sandbox = mkSkill "nono-sandbox" ../modules/opencode/_skills/nono-sandbox;
   };
 
-  agentsDir = ../modules/home/_agents;
+  agentsDir = ../modules/opencode/_agents;
 
   nonoPlugin = runCommand "opencode-plugin-nono-sandbox" { } ''
     mkdir -p $out/share/opencode/plugins
-    cp ${../modules/home/_plugins/nono-sandbox.ts} $out/share/opencode/plugins/nono-sandbox.ts
+    cp ${../modules/opencode/_plugins/nono-sandbox.ts} $out/share/opencode/plugins/nono-sandbox.ts
   '';
 
   # Self-contained nono profile: extends built-in `default` only.

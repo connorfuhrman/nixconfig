@@ -56,7 +56,8 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager: base, emacs, coreutils, nono-opencode, standard
+modules/home/           homeManager: base, emacs, coreutils, obsidian-config, standard
+modules/opencode/        opencode feature: nono-opencode, criticmarkup + content trees (_agents/_skills/_instructions/_lib/_plugins/_test/_tools)
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions (+ _hardware-configuration.nix per NixOS host)
 opencode.json           project opencode permissions (keep in sync with nono-opencode.nix)
@@ -80,7 +81,7 @@ README.md               human-facing overview (this repo is multi-host, not Asah
   `legacyPackages`) so modules can `home.packages = [ pkgs.opencode ]`.
 - **NixOS/darwin** apply `nixpkgs.overlays = [ self.overlays.default ]` in
   `modules/{nixos,darwin}/system.nix`.
-- Content trees for the opencode bundle stay under `modules/home/_…`
+- Content trees for the opencode bundle stay under `modules/opencode/_…`
   (agents/skills/plugins/instructions/tools); packages reference those paths.
 
 ## Working in this repo
@@ -137,19 +138,19 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   validation suite.
 - **nono/opencode are NOT in nixpkgs.** Package bodies: `pkgs/nono.nix`,
   `pkgs/opencode-bin.nix`, `pkgs/opencode-nix-bundle.nix` (via
-  `flake.overlays.default`). HM module `modules/home/nono-opencode.nix` only
+  `flake.overlays.default`). HM module `modules/opencode/nono-opencode.nix` only
   installs `pkgs.opencode` + activation. Pinned upstream binaries: nono
   v0.69.0 (nolabs-ai/nono), opencode v1.18.5 (anomalyco/opencode). Bumping =
   new version + 3 hashes (`nix store prefetch-file`). nono Linux =
   glibc/`autoPatchelfHook`; opencode Linux = musl static. **Entire install is
   one store bundle** (`packages.opencode`): profile JSON, opencode.json,
   agents, skills, plugins, models allowlist, **fleet instructions**
-  (`modules/home/_instructions/fleet.md`), launcher. Wrapper always uses
+  (`modules/opencode/_instructions/fleet.md`), launcher. Wrapper always uses
   `--profile /nix/store/…/nono-profile.json` (never mutable
   `~/.config/nono/profiles/`). Profile extends built-in `default` only — **no
   `nono pull` required**. HM activation only creates XDG state dirs and
   discovery symlinks into the store. Paid OpenRouter MoE allowlist:
-  `modules/home/_lib/opencode-models.nix`. Skills: `orchestration`,
+  `modules/opencode/_lib/opencode-models.nix`. Skills: `orchestration`,
   `document-comments`, `document-review`, `nono-sandbox`. Agents:
   `orchestrator` (default), `worker-free`, `moe-advisor`. CriticMarkup:
   `pkgs/cm.nix` → `pkgs.cm`. Restart opencode after HM switch.
