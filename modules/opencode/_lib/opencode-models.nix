@@ -34,6 +34,12 @@ rec {
   # orchestrator (Kimi) and ling-implementer (Ling 3.0 Flash).
   workerFreeModel = "openrouter/poolside/laguna-s-2.1:free";
 
+  # Strong free tier (worker-free-strong) — for tasks the orchestrator judges
+  # too hard for the default worker (subtle debugging, cross-file refactors,
+  # tricky Nix). Nemotron 3 Super: 120B hybrid reasoning MoE, free tier.
+  # Beyond this tier: moe-advisor (paid allowlist).
+  workerFreeStrongModel = "openrouter/nvidia/nemotron-3-super-120b-a12b:free";
+
   defaultMoeTestModel = "openrouter/moonshotai/kimi-k2";
 
   orchestrationModelsJson = builtins.toJSON {
@@ -46,6 +52,7 @@ rec {
     paid_openrouter = paidOpenRouterModels;
     preferred_free_openrouter = preferredFreeOpenRouter;
     worker_free_model = workerFreeModel;
+    worker_free_strong_model = workerFreeStrongModel;
     default_moe_test_model = defaultMoeTestModel;
   };
 

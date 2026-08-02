@@ -173,8 +173,12 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   discovery symlinks into the store. Paid OpenRouter MoE allowlist:
   `modules/opencode/_lib/opencode-models.nix`. Skills: `orchestration`,
   `document-comments`, `document-review`, `nono-sandbox`. Agents:
-  `orchestrator` (default), `worker-free`, `moe-advisor`. CriticMarkup:
-  `pkgs/cm.nix` → `pkgs.cm`. Restart opencode after HM switch.
+  `orchestrator` (default), `worker-free`, `worker-free-strong`, `moe-advisor`
+  — worker tiers pin explicit `:free` models (Task tool has NO per-spawn model
+  override; pick the tier, not a model); all agents run allow-all permissions
+  (nono is the boundary). The wrapper refreshes `$OPENCODE_FREE_MODELS` from
+  OpenRouter at every startup (fallback: `modules/opencode/_lib/free-models-snapshot.json`).
+  CriticMarkup: `pkgs/cm.nix` → `pkgs.cm`. Restart opencode after HM switch.
 - **Document review:** human instructions arrive as Obsidian Document Comments;
   resolve (do not delete) when acted on. Agent prose edits use CriticMarkup
   via `cm` / skill `document-review` (logical chunks for Track Changes).

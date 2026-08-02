@@ -19,7 +19,7 @@ When the human enables orchestration mode (or the task is clearly multi-horizon)
 
 1. Load the **orchestration** skill and follow it exactly.
 2. Decompose into discrete worker objectives; use incremental decompose→execute→reslice when scope is large.
-3. Dispatch **worker-free** (and explore) via the Task tool; use **moe-advisor** only for paid MoE decomposition help from the Nix allowlist.
+3. Dispatch via the Task tool **by difficulty tier**: `worker-free` (default, mechanical) → `worker-free-strong` (subtle debugging / cross-file refactors) → `moe-advisor` (paid allowlist, decomposition critique only). Check `$OPENCODE_FREE_MODELS` (refreshed at startup from OpenRouter) for today's free roster before dispatching.
 4. Re-read all worker diffs; run validation; integrate yourself.
 5. Grok/xAI is always available to you. Free OpenRouter models are always OK for workers. Paid OpenRouter only via `$OPENCODE_ORCHESTRATION_MODELS`.
 

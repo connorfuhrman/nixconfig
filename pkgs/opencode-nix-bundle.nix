@@ -27,6 +27,11 @@ let
     builtins.readFile ../modules/opencode/_instructions/fleet.md
   );
 
+  # Curated fallback for the live free-model catalog. The wrapper refreshes
+  # this from the OpenRouter API at every startup; the snapshot only serves
+  # when the network is unreachable on first run.
+  freeModelsSnapshot = ../modules/opencode/_lib/free-models-snapshot.json;
+
   mkSkill =
     name: src:
     callPackage ./opencode-skill.nix {
@@ -183,6 +188,13 @@ let
         # nono sandbox is the boundary — never prompt for tool use.
         permission = opencodePermission;
       };
+      worker-free-strong = {
+        description = "Hard objectives — strong free-model worker";
+        mode = "subagent";
+        # Strong free tier for tasks too hard for worker-free.
+        model = models.workerFreeStrongModel;
+        permission = opencodePermission;
+      };
       moe-advisor = {
         description = "Paid MoE decomposition advisor (allowlist only)";
         mode = "subagent";
@@ -212,6 +224,7 @@ runCommand "opencode-nix-bundle-2.1.0"
         configJson
         fleetInstructions
         agentsDir
+        freeModelsSnapshot
         ;
       inherit nono opencode-bin cm;
     };
@@ -228,6 +241,7 @@ runCommand "opencode-nix-bundle-2.1.0"
     cp ${profile} $root/nono-profile.json
     cp ${modelsFile} $root/orchestration-models.json
     cp ${fleetInstructions} $root/instructions/fleet.md
+    cp ${freeModelsSnapshot} $root/free-models.json
     cp -a ${agentsDir}/. $root/agent/
 
     ${lib.concatMapStrings (n: ''
@@ -265,6 +279,21 @@ runCommand "opencode-nix-bundle-2.1.0"
     ln -sfn "\$root/agent" "\$oc_dir/agent"
     ln -sfn "\$root/skills" "\$oc_dir/skills"
     ln -sfn "\$root/plugins" "\$oc_dir/plugins"
+
+    # Live free-model catalog: refresh from OpenRouter at every startup so
+    # orchestrators plan worker dispatch against what is free TODAY.
+    # Best-effort: offline runs keep the last good copy, or the curated
+    # bundle snapshot on first run.
+    fm_state="\$HOME/.local/state/opencode/free-models.json"
+    if command -v curl >/dev/null 2>&1; then
+      fresh="\$(curl -fsSL --max-time 10 https://openrouter.ai/api/v1/models 2>/dev/null | ${agent-tools}/bin/jq -c '[.data[] | select(.id | endswith(":free")) | {id, context_length}]' 2>/dev/null)" || fresh=""
+      if [ -n "\$fresh" ] && [ "\$fresh" != "[]" ]; then
+        printf '%s\n' "\$fresh" > "\$fm_state"
+      fi
+    fi
+    [ -f "\$fm_state" ] || cp "\$root/free-models.json" "\$fm_state"
+    export OPENCODE_FREE_MODELS="\$fm_state"
+
     exec ${nono}/bin/nono run \
       --profile "\$root/nono-profile.json" \
       --allow-cwd \

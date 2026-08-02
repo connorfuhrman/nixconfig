@@ -33,6 +33,30 @@ real free-tier id ending in `:free`; the build-time test
 `opencode-orchestration-test` fails otherwise). Override per-task only with a
 free model from `preferred_free_openrouter` in the same file.
 
+### Worker tiers — pick by task difficulty
+
+The Task tool has **no per-spawn model override** (verified against opencode
+source) — tiering is done by choosing which pinned agent to dispatch:
+
+| Tier | Agent | Model | Use for |
+|---|---|---|---|
+| Default | `worker-free` | `poolside/laguna-s-2.1:free` (118B coding MoE) | Mechanical implementation, single-file edits, prescribed specs |
+| Strong | `worker-free-strong` | `nvidia/nemotron-3-super-120b-a12b:free` (120B reasoning MoE) | Subtle debugging, cross-file refactors, tricky Nix/module interactions |
+| Paid | `moe-advisor` | `moonshotai/kimi-k2` (allowlist) | Decomposition critique, architecture review — never bulk code |
+
+Escalate one tier when a worker reports blocked twice on the same issue.
+Drop a tier when the task is smaller than it first looked.
+
+### Live free-model catalog
+
+The wrapper refreshes `$OPENCODE_FREE_MODELS` (JSON array of `{id,
+context_length}`) from the OpenRouter API **at every startup**; offline runs
+fall back to the last good copy or the curated bundle snapshot. **Read it when
+planning dispatch** (`cat "$OPENCODE_FREE_MODELS"`). If a pinned worker model
+is missing from the live list, say so in chat and prefer another free id from
+the catalog in the same tier until the pin is updated in
+`modules/opencode/_lib/opencode-models.nix`.
+
 Read the allowlist:
 
 ```bash

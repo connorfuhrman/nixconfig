@@ -34,6 +34,7 @@ stdenvNoCC.mkDerivation {
     export NODE_PATH=$out/lib/test/node_modules
     export OPENCODE_ORCHESTRATION_MODELS=${modelsFile}
     export OPENCODE_AGENTS_DIR=${agentsDir}
+    export OPENCODE_FREE_MODELS_SNAPSHOT=${opencode.passthru.freeModelsSnapshot}
     exec ${nodejs}/bin/node $out/lib/test/test.mjs
     EOF
     chmod +x $out/bin/opencode-orchestration-test
@@ -43,6 +44,7 @@ stdenvNoCC.mkDerivation {
     export NODE_PATH=$out/lib/test/node_modules
     export OPENCODE_ORCHESTRATION_MODELS=${modelsFile}
     export OPENCODE_AGENTS_DIR=${agentsDir}
+    export OPENCODE_FREE_MODELS_SNAPSHOT=${opencode.passthru.freeModelsSnapshot}
     ${nodejs}/bin/node $out/lib/test/test.mjs
   '';
   meta.mainProgram = "opencode-orchestration-test";

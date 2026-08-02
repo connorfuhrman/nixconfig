@@ -64,7 +64,7 @@ must(
 // Agents
 const agentDir = process.env.OPENCODE_AGENTS_DIR || process.argv[3];
 if (agentDir) {
-  for (const name of ["orchestrator.md", "worker-free.md", "moe-advisor.md"]) {
+  for (const name of ["orchestrator.md", "worker-free.md", "worker-free-strong.md", "moe-advisor.md"]) {
     const p = join(agentDir, name);
     must(existsSync(p), `agent ${name}`);
     const body = readFileSync(p, "utf8");
@@ -74,13 +74,21 @@ if (agentDir) {
   const orch = readFileSync(join(agentDir, "orchestrator.md"), "utf8");
   must(/orchestration/i.test(orch), "orchestrator mentions orchestration");
 
-  // Regression guard: worker-free MUST pin an explicit free model, otherwise
+  // Regression guard: worker agents MUST pin explicit free models, otherwise
   // subagents silently inherit the orchestrator's (paid) session model.
-  const worker = readFileSync(join(agentDir, "worker-free.md"), "utf8");
-  const workerModel = worker.match(/^model:\s*(\S+)\s*$/m)?.[1];
-  must(!!workerModel, "worker-free pins an explicit model");
-  must(workerModel.endsWith(":free"), `worker-free model is free tier (${workerModel})`);
-  must(workerModel.startsWith("openrouter/"), `worker-free model is on openrouter (${workerModel})`);
+  for (const name of ["worker-free.md", "worker-free-strong.md"]) {
+    const body = readFileSync(join(agentDir, name), "utf8");
+    const workerModel = body.match(/^model:\s*(\S+)\s*$/m)?.[1];
+    must(!!workerModel, `${name} pins an explicit model`);
+    must(workerModel.endsWith(":free"), `${name} model is free tier (${workerModel})`);
+    must(workerModel.startsWith("openrouter/"), `${name} model is on openrouter (${workerModel})`);
+  }
+
+  // No agent may prompt for permissions (nono is the boundary).
+  for (const name of ["orchestrator.md", "worker-free.md", "worker-free-strong.md", "moe-advisor.md"]) {
+    const body = readFileSync(join(agentDir, name), "utf8");
+    must(!/:\s*ask\s*$/m.test(body), `${name} has no 'ask' permission`);
+  }
 }
 
 // Free preference list must contain real free-tier ids (":free" suffix —
@@ -98,6 +106,33 @@ must(
   models.preferred_free_openrouter.includes(models.worker_free_model),
   "worker_free_model is on the preferred free list",
 );
+must(
+  models.preferred_free_openrouter.includes(models.worker_free_strong_model),
+  "worker_free_strong_model is on the preferred free list",
+);
+
+// Free-model snapshot (offline fallback for the live catalog): every id must
+// be free-tier, and both pinned worker models must be present (stale-pin
+// guard against the checked-in snapshot).
+const snapshotPath = process.env.OPENCODE_FREE_MODELS_SNAPSHOT;
+if (snapshotPath) {
+  must(existsSync(snapshotPath), `free-models snapshot exists: ${snapshotPath}`);
+  const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+  must(Array.isArray(snapshot) && snapshot.length > 0, "snapshot non-empty array");
+  must(
+    snapshot.every((m) => typeof m.id === "string" && m.id.endsWith(":free")),
+    "snapshot ids all carry :free suffix",
+  );
+  const ids = snapshot.map((m) => m.id);
+  must(
+    ids.includes(models.worker_free_model.replace(/^openrouter\//, "")),
+    "snapshot contains worker_free_model",
+  );
+  must(
+    ids.includes(models.worker_free_strong_model.replace(/^openrouter\//, "")),
+    "snapshot contains worker_free_strong_model",
+  );
+}
 
 console.log("PASS orchestration sdk package + allowlist + agents smoke test");
 console.log(`sdk@${sdkPkg.version} paid_models=${models.paid_openrouter.length}`);

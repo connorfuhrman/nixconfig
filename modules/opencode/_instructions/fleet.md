@@ -64,6 +64,20 @@ If `op` fails inside the sandbox, say so and name the exact denial (see skill
 merging PRs you didn't just create, editing branch protection, anything under
 `gh repo delete` / `gh release delete`.
 
+## Subagents: tiers, models, permissions
+
+- **Never inherit the orchestrator's model.** Worker agents pin explicit free
+  OpenRouter models (`:free` suffix). If you spawn subagents, use the pinned
+  tiers: `worker-free` (default mechanical) → `worker-free-strong` (harder
+  reasoning) → `moe-advisor` (paid, critique only).
+- **`$OPENCODE_FREE_MODELS`** is refreshed from OpenRouter at every opencode
+  startup (offline → last good copy or bundle snapshot). Read it before
+  planning subagent dispatch; flag stale pins to the human.
+- **Permissions:** all agents run allow-all (`"*" = allow`) — the nono sandbox
+  is the security boundary, so never ask the human for tool approval. Denies
+  that still exist (e.g. moe-advisor `edit: deny`) are role boundaries, not
+  prompts.
+
 ## Why
 
 Chat is for control-plane messages. Long prose is reviewed in Obsidian (margin
