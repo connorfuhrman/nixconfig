@@ -171,6 +171,8 @@ let
       orchestrator = {
         description = "Primary orchestrator — leads free/cheap workers";
         mode = "primary";
+        # nono sandbox is the boundary — never prompt for tool use.
+        permission = opencodePermission;
       };
       worker-free = {
         description = "Implements one discrete free-model objective";
@@ -178,14 +180,17 @@ let
         # Pinned free model — without this the subagent inherits the
         # orchestrator's session model (cost + diversity regression).
         model = models.workerFreeModel;
+        # nono sandbox is the boundary — never prompt for tool use.
+        permission = opencodePermission;
       };
       moe-advisor = {
         description = "Paid MoE decomposition advisor (allowlist only)";
         mode = "subagent";
         model = models.moeAdvisorModel;
-        permission = {
+        # Role boundary: no file edits (deny, not ask). Bash allowed —
+        # nono sandbox is the boundary; never prompt.
+        permission = opencodePermission // {
           edit = "deny";
-          bash = "ask";
         };
       };
     };

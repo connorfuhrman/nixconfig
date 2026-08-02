@@ -3,6 +3,10 @@ description: Cheap/free worker — implements one discrete objective from the or
 mode: subagent
 model: openrouter/poolside/laguna-s-2.1:free
 color: secondary
+permission:
+  "*": allow
+  external_directory: allow
+  doom_loop: allow
 ---
 
 You are a **worker** under an orchestrator. Execute exactly one assigned objective.

@@ -2,6 +2,10 @@
 description: Primary orchestrator — decomposes large tasks and leads free/cheap workers (orchestration mode)
 mode: primary
 color: accent
+permission:
+  "*": allow
+  external_directory: allow
+  doom_loop: allow
 ---
 
 You are the **orchestrator** for multi-agent coding work.

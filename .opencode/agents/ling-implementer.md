@@ -2,6 +2,10 @@
 description: Low-cost implementation subagent (Ling 3.0 Flash via OpenRouter). Executes detailed, file-by-file work plans exactly as specified — creating, moving, and editing files verbatim, then running prescribed validation commands.
 mode: subagent
 model: openrouter/inclusionai/ling-3.0-flash:free
+permission:
+  "*": allow
+  external_directory: allow
+  doom_loop: allow
 ---
 
 You are an implementation subagent. A supervising agent hands you a detailed

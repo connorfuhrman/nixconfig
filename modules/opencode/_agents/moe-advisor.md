@@ -4,7 +4,9 @@ mode: subagent
 color: warning
 permission:
   edit: deny
-  bash: ask
+  bash: allow
+  external_directory: allow
+  doom_loop: allow
 ---
 
 You are a **mixture-of-experts advisor**. You do **not** implement bulk code.
