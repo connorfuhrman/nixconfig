@@ -1,5 +1,6 @@
 [
-  "remote-ssh",
   "document-comments",
-  "track-changes"
+  "track-changes",
+  "remote-ssh",
+  "ghostty-terminal"
 ]

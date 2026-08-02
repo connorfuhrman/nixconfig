@@ -28,6 +28,7 @@
       git
       vim
       htop
+      mosh
     ];
   };
 }

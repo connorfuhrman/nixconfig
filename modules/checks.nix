@@ -12,6 +12,7 @@
     let
       evalOnly = name: drvPath:
         pkgs.writeText "eval-${name}" (builtins.unsafeDiscardStringContext drvPath + "\n");
+      sys = pkgs.stdenv.hostPlatform.system;
     in
     {
       checks = {
@@ -23,6 +24,12 @@
         eval-home-connorfuhrman-nuc = evalOnly "home-connorfuhrman-nuc" self.homeConfigurations."connorfuhrman@nuc".activationPackage.drvPath;
         eval-home-connorfuhrman-macbook = evalOnly "home-connorfuhrman-macbook" self.homeConfigurations."connorfuhrman@macbook".activationPackage.drvPath;
         eval-home-connorfuhrman-mac-mini = evalOnly "home-connorfuhrman-mac-mini" self.homeConfigurations."connorfuhrman@mac-mini".activationPackage.drvPath;
+        eval-opencode-skill-document-comments = evalOnly "opencode-skill-document-comments" self.packages.${sys}.opencode-skill-document-comments.drvPath;
+        eval-opencode-skill-orchestration = evalOnly "opencode-skill-orchestration" self.packages.${sys}.opencode-skill-orchestration.drvPath;
+        eval-opencode-skill-document-review = evalOnly "opencode-skill-document-review" self.packages.${sys}.opencode-skill-document-review.drvPath;
+        eval-opencode-config = evalOnly "opencode-config" self.packages.${sys}.opencode-config.drvPath;
+        eval-obsidian-plugins = evalOnly "obsidian-plugins" self.packages.${sys}.obsidian-plugins.drvPath;
+        eval-cm = evalOnly "cm" self.packages.${sys}.cm.drvPath;
       };
     };
 }

@@ -127,10 +127,25 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   flake-managed profile `opencode-nix` (extends `nolabs-ai/opencode`, CWD
   readwrite via `workdir`, grants `~/.local/share/nix` so agents can
   `nix eval` / `flake check`). One-time per machine:
-  `nono pull nolabs-ai/opencode`. HM ships `~/.config/opencode/opencode.json`
-  with broad `permission` allow + `autoupdate = false` because nono already
-  sandboxes (do not weaken the nono profile). Keep repo-root `opencode.json`
-  identical to that config object.
+  `nono pull nolabs-ai/opencode`. **Config, skills, agents, plugins, and tools
+  are store-backed** (`packages.opencode-config`); HM only symlinks into
+  `~/.config/opencode/`. Sessions/logs remain under XDG state (ephemeral OK).
+  Wrapper sets `OPENCODE_CONFIG` + `OPENCODE_ORCHESTRATION_MODELS`. Paid
+  OpenRouter MoE allowlist lives in `modules/home/opencode-models.nix`.
+  Skills: `orchestration`, `document-comments`, `document-review`. Agents:
+  `orchestrator` (default), `worker-free`, `moe-advisor`. CriticMarkup CLI:
+  `cm` (`packages.cm`). Restart opencode after HM switch.
+- **Document review:** human instructions arrive as Obsidian Document Comments;
+  resolve (do not delete) when acted on. Agent prose edits use CriticMarkup
+  via `cm` / skill `document-review` (logical chunks for Track Changes).
+- **Obsidian:** system package on all hosts; plugins (document-comments,
+  track-changes, remote-ssh, ghostty-terminal) are Nix-pinned —
+  `obsidian-nix-sync-plugins <vault>` or HM activation into `~/nixconfig`.
+- **mosh:** client on all systems; `programs.mosh.enable` on NixOS servers
+  (nuc); package on darwin server (mac-mini).
+- **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
+  (qemu-user binfmt in the builder VM). Clients use
+  `generic.mac-mini-builder` with both systems.
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.emacs-plus` and `darwin.roon-server` both enable it.
 - **Remote builder clients need `nix.distributedBuilds = true`.** Setting only
@@ -164,7 +179,10 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
 - **Remote builder:** `flake.modules.generic.mac-mini-builder` (client side)
   assumes existing passwordless SSH to host `mac-mini` as `connorfuhrman`
   (including for root / the Nix daemon). No dedicated `/etc/nix/*` key. The
-  mini only builds `aarch64-linux`; on the x86_64 nuc the entry is inert.
+  mini builds `aarch64-linux` and `x86_64-linux` (linux-builder + binfmt).
+  Interactive SSH keys → 1Password agent long-term; see
+  `docs/plans/1password-ssh-workplan.md`. Dual-NUC scale-out:
+  `docs/rfcs/0001-dual-nuc-cluster.md`.
 - **Roon on macOS:** nixpkgs `roon-server` is x86_64-linux only and Roon ships
   no standalone headless macOS server — Roon.app (brew cask) IS the Core and
   manages its own `RoonServer` login item. No nix launchd unit; autostart =

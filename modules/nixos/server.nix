@@ -18,6 +18,10 @@
       htop
       curl
       wget
+      mosh
     ];
+
+    # mosh-server: opens UDP 60000-61000 when the firewall is on.
+    programs.mosh.enable = true;
   };
 }
