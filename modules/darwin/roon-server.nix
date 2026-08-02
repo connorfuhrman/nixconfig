@@ -12,7 +12,7 @@
   #   2. Open Roon.app, sign in, and choose to use this Mac as the Roon
   #      Server (Core). Enable Roon's "launch at login" option.
   #   3. For start-on-boot without logging in: System Settings →
-  #      Users & Groups → Automatic login → connor.
+  #      Users & Groups → Automatic login → connorfuhrman.
   #   (The darwin `server` module already keeps the machine awake and
   #   restarts it after power failures.)
   flake.modules.darwin.roon-server = { ... }: {

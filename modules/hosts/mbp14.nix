@@ -7,6 +7,7 @@
       config.flake.modules.nixos.asahi
       config.flake.modules.nixos.onepassword
       config.flake.modules.nixos.onepassword-gui
+      config.flake.modules.nixos.obsidian
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
       ./mbp14/_hardware-configuration.nix
@@ -23,11 +24,6 @@
 
   flake.homeConfigurations."connorfuhrman@mbp14" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = inputs.nixpkgs.legacyPackages.aarch64-linux;
-    modules = [
-      config.flake.modules.homeManager.base
-      config.flake.modules.homeManager.emacs
-      config.flake.modules.homeManager.coreutils
-      config.flake.modules.homeManager.nono-opencode
-    ];
+    modules = [ config.flake.modules.homeManager.standard ];
   };
 }

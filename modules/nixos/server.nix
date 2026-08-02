@@ -6,7 +6,7 @@
       enable = true;
       settings = {
         # Password auth stays enabled until SSH keys are deployed
-        # (users.users.connor.initialPassword in system.nix is the bootstrap path).
+        # (users.users.connorfuhrman.initialPassword in system.nix is the bootstrap path).
         PasswordAuthentication = true;
         KbdInteractiveAuthentication = false;
       };

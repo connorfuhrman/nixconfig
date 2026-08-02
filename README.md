@@ -55,7 +55,7 @@ modules/
   checks.nix              eval-only checks for all configs
   nixos/                  NixOS features (system, desktop, server, asahi, …)
   darwin/                 nix-darwin features (system, linux-builder, roon, …)
-  home/                   home-manager features (base, emacs, coreutils, …)
+  home/                   home-manager (standard = base+emacs+coreutils+nono-opencode)
   generic/                shared features (tailscale, mac-mini-builder)
   hosts/<name>.nix        per-host composition + home config
   hosts/<name>/_*.nix     generated hardware (NixOS; not auto-imported)

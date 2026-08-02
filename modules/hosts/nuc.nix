@@ -4,6 +4,7 @@
       config.flake.modules.nixos.system
       config.flake.modules.nixos.server
       config.flake.modules.nixos.onepassword
+      config.flake.modules.nixos.obsidian
       config.flake.modules.generic.tailscale
       # Inert on x86_64-linux today (the mini only builds aarch64-linux);
       # kept so a future x86_64-capable builder on the mini is used automatically.
@@ -22,11 +23,6 @@
 
   flake.homeConfigurations."connorfuhrman@nuc" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
-    modules = [
-      config.flake.modules.homeManager.base
-      config.flake.modules.homeManager.emacs
-      config.flake.modules.homeManager.coreutils
-      config.flake.modules.homeManager.nono-opencode
-    ];
+    modules = [ config.flake.modules.homeManager.standard ];
   };
 }

@@ -11,6 +11,7 @@
         "1password-gui"
         "_1password"
         "_1password-cli"
+        "obsidian"
       ];
 
     programs._1password.enable = true;

@@ -12,10 +12,11 @@ working in this repo.
 | `nuc` | `x86_64-linux` | NixOS | Intel Nuc, headless server |
 | `macbook` | `aarch64-darwin` | nix-darwin | macOS device |
 | `mac-mini` | `aarch64-darwin` | nix-darwin | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
-| `connor@mbp14` / `connor@nuc` / `connor@macbook` / `connor@mac-mini` | per host | home-manager | standalone; Emacs + nono-sandboxed opencode |
+| `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | standalone via `homeManager.standard` |
 
 All hosts run Tailscale and have 1Password installed (CLI everywhere; GUI on
-mbp14 and darwin via nixpkgs).
+mbp14 and darwin via nixpkgs). System and home username is **`connorfuhrman`**
+everywhere.
 
 ## Architecture (dendritic pattern — follow it)
 
@@ -34,7 +35,9 @@ mbp14 and darwin via nixpkgs).
   imported by any configuration class.
 - Configurations live in `modules/hosts/<name>.nix`: a `host-<name>` module that
   composes features by name, plus the `<name>` configuration (and
-  `connor@<name>` home configuration) built from it.
+  `connorfuhrman@<name>` home configuration) built from it.
+- Home hosts import **`homeManager.standard`** (base + emacs + coreutils +
+  nono-opencode) — do not re-list those four modules per host.
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
   through the top-level module system; lower-level modules close over `inputs`
   lexically where needed.
@@ -51,14 +54,14 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager features: base, emacs, coreutils, nono-opencode
+modules/home/           homeManager: base, emacs, coreutils, nono-opencode, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions (+ _hardware-configuration.nix per NixOS host)
+opencode.json           project opencode permissions (keep in sync with nono-opencode.nix)
+.opencode/              project agents (e.g. ling-implementer)
 firmware/               vendored Asahi firmware — PRIVATE, never publish
 INSTALL.md              human-facing Asahi install runbook for mbp14
 README.md               human-facing overview (this repo is multi-host, not Asahi-only)
-PLAN.md / PLAN-MONOREPO.md   historical plans — ignore
-configuration-darwin.nix / home.nix / lib/   legacy pre-dendritic stubs — ignore
 ```
 
 ## Working in this repo
@@ -68,8 +71,10 @@ configuration-darwin.nix / home.nix / lib/   legacy pre-dendritic stubs — igno
 - **Evaluation only — never build system closures.** No `nixos-rebuild`,
   `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
   and `nix eval` are the validation tools; building the small pinned binary
-  packages (nono, opencode) for the CURRENT system is allowed for validation.
-- **Not a git repo.** No git commands. Do not `git init`.
+  packages (nono, opencode) for the CURRENT system is allowed for validation
+  (`nix build .#nono`, `nix build .#opencode`).
+- This **is** a git repo. Prefer `develop` for commits (see Workflow). Do not
+  force-push or commit secrets / `firmware/` blobs to a public remote.
 - `flake show` displays `darwinConfigurations`, `homeConfigurations`,
   `homeModules`, and `modules` as type "unknown" — normal Nix behavior, not an
   error. Verify those outputs with `nix eval` instead.
@@ -88,9 +93,12 @@ nix eval .#modules.homeManager --apply 'm: builtins.attrNames m'
 nix eval .#modules.generic --apply 'm: builtins.attrNames m'
 # per-host spot checks (when touching the implicated option):
 nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # true
-nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable    # true
+nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # true
+nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
+nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
+nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
 ```
 
@@ -100,7 +108,8 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   `modules/checks.nix` embed each configuration's `.drvPath` in a text file —
   they instantiate (fully evaluate) every closure but build nothing. Realizing
   closures happens on target hardware or the mac-mini builder. Check names must
-  not contain `@` (invalid in store paths), hence `eval-home-connor-mbp14` etc.
+  not contain `@` (invalid in store paths), hence `eval-home-connorfuhrman-mbp14`
+  etc.
 - **Unfree packages:** 1Password is unfree; each platform's onepassword
   module sets a scoped `nixpkgs.config.allowUnfreePredicate` (must appear
   exactly once per configuration — multiple definitions of that option
@@ -108,22 +117,31 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   never work around it with `--impure`/`NIXPKGS_ALLOW_UNFREE` in the
   validation suite.
 - **nono/opencode are NOT in nixpkgs.** `modules/home/nono-opencode.nix`
-   packages both from pinned upstream release binaries (nono v0.69.0,
-   nolabs-ai/nono; opencode v1.18.5, anomalyco/opencode — the repo moved from
-   sst/opencode). Bumping = new version + 3 hashes (`nix store prefetch-file`).
-   nono Linux builds are glibc-linked (autoPatchelfHook); opencode Linux builds
-   are musl (static). The `opencode` wrapper execs via absolute store paths —
-   no PATH recursion, using flake-managed profile `opencode-nix` (extends
-   `nolabs-ai/opencode`, CWD readwrite via `workdir` + `--allow-cwd`, grants
-   `~/.local/share/nix` so agents can `nix eval` / `flake check`). One-time
-   per machine: `nono pull nolabs-ai/opencode`. The home-manager module also
-   ships `~/.config/opencode/opencode.json` with `permission."*" = "allow"`
-   because nono already sandboxes (do not weaken the nono profile).
+  packages both from pinned upstream release binaries (nono v0.69.0,
+  nolabs-ai/nono; opencode v1.18.5, anomalyco/opencode — the repo moved from
+  sst/opencode) and exposes `packages.nono` / `opencode-bin` / `opencode` for
+  the current system. Bumping = new version + 3 hashes
+  (`nix store prefetch-file`). nono Linux builds are glibc-linked
+  (autoPatchelfHook); opencode Linux builds are musl (static). The `opencode`
+  wrapper execs via absolute store paths — no PATH recursion — using
+  flake-managed profile `opencode-nix` (extends `nolabs-ai/opencode`, CWD
+  readwrite via `workdir`, grants `~/.local/share/nix` so agents can
+  `nix eval` / `flake check`). One-time per machine:
+  `nono pull nolabs-ai/opencode`. HM ships `~/.config/opencode/opencode.json`
+  with broad `permission` allow + `autoupdate = false` because nono already
+  sandboxes (do not weaken the nono profile). Keep repo-root `opencode.json`
+  identical to that config object.
+- **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
+  taps/casks otherwise. `darwin.emacs-plus` and `darwin.roon-server` both enable it.
+- **Remote builder clients need `nix.distributedBuilds = true`.** Setting only
+  `nix.buildMachines` leaves `builders =` empty in nix.conf.
+  `generic.mac-mini-builder` sets both.
 - **Relative paths are depth-sensitive.** `peripheralFirmwareDirectory` in
   `modules/nixos/asahi.nix` is `../../firmware` — correct only at its current
   depth. Eval does not force path options; verify with:
   `nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.peripheralFirmwareDirectory`
-  (must print a `/nix/store/...-firmware` path).
+  (must print a `/nix/store/...-firmware` path under `--json`, or a path into
+  the flake source).
 - **Every NixOS host module must import its `_hardware-configuration.nix`** or
   the root-filesystem assertion fails at eval time.
 - **Asahi boot:** `boot.loader.efi.canTouchEfiVariables = false` is mandatory;

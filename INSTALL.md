@@ -41,7 +41,7 @@ system closure later.
    run on the dev machine:
 
    ```sh
-   rsync -a --exclude '.opencode' ~/nixconfig/ connor@mac-mini:~/nixconfig/
+   rsync -a --exclude '.opencode' ~/nixconfig/ connorfuhrman@mac-mini:~/nixconfig/
    (`mac-mini` is the Tailscale name; before Tailscale is set up on both machines, use `mac-mini.local` or the mini's LAN IP.)
    ```
 
@@ -173,7 +173,7 @@ Still on the installer, as root:
 
    ```sh
 # from the Mac mini (over the LAN — the installer is not on the tailnet):
-    scp -r connor@mac-mini.local:~/nixconfig /root/nixconfig
+    scp -r connorfuhrman@mac-mini.local:~/nixconfig /root/nixconfig
    # or: copy it to a second USB stick on the Mac mini, plug it in,
    #     then: mkdir /media && mount /dev/sdX1 /media && cp -r /media/nixconfig /root/
    ```
@@ -217,7 +217,7 @@ Remove the USB drive. The machine now boots NixOS by default.
 
 ## 8. First boot and post-install
 
-1. Log in as **connor** with password **changeme**, then immediately run
+1. Log in as **connorfuhrman** with password **changeme**, then immediately run
    `passwd` and set a real password.
 2. WiFi: `nmtui` (or the KDE Network applet). KDE Plasma 6 starts via SDDM.
 3. Copy this repo to the laptop (from the Mac mini again, or git-init it
@@ -230,9 +230,9 @@ Remove the USB drive. The machine now boots NixOS by default.
 4. Install the home configuration (Emacs + user env):
 
    ```sh
-   nix run home-manager/master -- switch --flake .#connor@mbp14
+   nix run home-manager/master -- switch --flake .#connorfuhrman@mbp14
    # thereafter:
-   home-manager switch --flake .#connor@mbp14
+   home-manager switch --flake .#connorfuhrman@mbp14
    ```
 
 5. To boot macOS: shut down, hold the power button for the boot picker,

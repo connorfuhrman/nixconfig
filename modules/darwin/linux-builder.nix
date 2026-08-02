@@ -8,7 +8,7 @@
       maxJobs = 4;
     };
 
-    # Lets connor dispatch builds to the builder VM without sudo.
+    # Let the primary user dispatch builds to the builder VM without sudo.
     nix.settings.trusted-users = [ "connorfuhrman" ];
   };
 }
