@@ -13,8 +13,9 @@
   #
   # Real deployments should evaluate github:NixOS/nixos-hardware
   # (raspberry-pi-4 module) as a flake input instead of the hand template in
-  # ./rpi-cluster-head/_hardware-configuration.nix — not vendored yet to keep
-  # flake.nix input-stable.
+  # ./rpi/_hardware-configuration.nix — not vendored yet to keep flake.nix
+  # input-stable. The template is generalized: any RPi-based host closure
+  # (head or worker) imports the same file.
   flake.modules.nixos.host-rpi-cluster-head = {
     imports = [
       config.flake.modules.nixos.system
@@ -25,7 +26,7 @@
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
       config.flake.modules.nixos.ray-head
-      ./rpi-cluster-head/_hardware-configuration.nix
+      ./rpi/_hardware-configuration.nix
     ];
 
     networking.hostName = "rpi-cluster-head";

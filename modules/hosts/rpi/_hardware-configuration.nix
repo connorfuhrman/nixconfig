@@ -1,6 +1,8 @@
-# TEMPLATE — Raspberry Pi 4 (prototype). extlinux/u-boot boot, single SD
-# partition labeled NIXOS_SD (standard aarch64 SD image layout). Prefer the
-# nixos-hardware raspberry-pi-4 module when it becomes a flake input.
+# GENERALIZED TEMPLATE — Raspberry Pi (4/5-class) hardware for ANY RPi-based
+# host closure (rpi-cluster-head today; future rpi workers import the same
+# file). extlinux/u-boot boot, single SD partition labeled NIXOS_SD (standard
+# aarch64 SD image layout). Prefer the nixos-hardware raspberry-pi module when
+# it becomes a flake input.
 { config, lib, pkgs, modulesPath, ... }:
 
 {

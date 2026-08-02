@@ -9,8 +9,10 @@ working in this repo.
 | Host | Platform | Type | Notes |
 |---|---|---|---|
 | `mbp14` | `aarch64-linux` | NixOS | Asahi Linux, MacBook Pro 14" M2 Pro/Max (KDE Plasma 6) |
-| `nuc` | `x86_64-linux` | NixOS | Intel Nuc, headless server, Ray head node |
-| `nuc2` | `x86_64-linux` | NixOS | Second Nuc, compute peer, Ray worker (RFC 0001) |
+| `nuc` | `x86_64-linux` | NixOS | Intel Nuc, headless server (plain — no clustering) |
+| `nuc-cluster-head` | `x86_64-linux` | NixOS | Role closure on the nuc hardware — Ray head node |
+| `nuc-cluster-worker` | `x86_64-linux` | NixOS | Role closure on the second Nuc — Ray worker |
+| `rpi-cluster-head` | `aarch64-linux` | NixOS | Prototype Raspberry Pi head node (generalized `hosts/rpi/` template) |
 | `macbook` | `aarch64-darwin` | nix-darwin | macOS device |
 | `mac-mini` | `aarch64-darwin` | nix-darwin | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
 | `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | standalone via `homeManager.standard` |
@@ -104,7 +106,7 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 
 ```sh
 cd /Users/connorfuhrman/nixconfig
-# primary gate: proves every configuration's derivations evaluate (10 closures).
+# primary gate: proves every configuration's derivations evaluate (14 closures).
 # Runs PURE (no --impure, no env vars) — unfree allowance is scoped in onepassword modules.
 nix flake check .
 # module registries:
@@ -117,7 +119,8 @@ nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # tru
 nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # true
 nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
-nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["10.200.0.2" "nuc2" "mac-mini"]
+nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["mac-mini"]
+nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 's: builtins.filter (n: builtins.match "ray.*" n != null) (builtins.attrNames s)'  # ["ray-head"]
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
@@ -141,7 +144,7 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   Tailscale MagicDNS — change that one string to promote a different head.
   Pairwise LAN IPs and `nix.buildMachines` live in the role *host* closures
   (`nuc-cluster-head`, `nuc-cluster-worker`), not in the role modules. Plain
-  `nuc`/`nuc2` have NO clustering; booting a role closure on the same box is
+  `nuc` has NO clustering; booting a role closure on the same box is
   mutually exclusive with the plain closure (distinct hostName/Tailscale
   identity). The Thunderbolt iface is assumed `thunderbolt0` — verify on
   hardware with `ip link`.

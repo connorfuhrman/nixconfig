@@ -15,12 +15,17 @@ pattern: features are modules under `modules/`, composed by name per host.
 | Host | System | Role |
 |---|---|---|
 | `mbp14` | `aarch64-linux` (NixOS / Asahi) | MacBook Pro 14" M2 — desktop (KDE Plasma 6) |
-| `nuc` | `x86_64-linux` (NixOS) | Intel NUC — headless server, Ray head node |
-| `nuc2` | `x86_64-linux` (NixOS) | Second Intel NUC — compute peer, Ray worker |
+| `nuc` | `x86_64-linux` (NixOS) | Intel NUC — headless server (plain, no clustering) |
+| `nuc-cluster-head` | `x86_64-linux` (NixOS) | Role closure on the NUC — Ray head node |
+| `nuc-cluster-worker` | `x86_64-linux` (NixOS) | Role closure on the second NUC — Ray worker |
+| `rpi-cluster-head` | `aarch64-linux` (NixOS) | Prototype Raspberry Pi 4 — alternate Ray head |
 | `macbook` | `aarch64-darwin` (nix-darwin) | macOS laptop |
 | `mac-mini` | `aarch64-darwin` (nix-darwin) | Always-on Mac mini — Linux builder + Roon Core |
 
 Each host has a matching standalone home-manager config: `connorfuhrman@<host>`.
+Cluster role closures are **mutually exclusive** with the plain closure on the
+same hardware (distinct `networking.hostName` / Tailscale identity) — boot
+`nuc` *or* `nuc-cluster-head` on the first NUC, never both.
 
 **Shared across hosts**
 
@@ -38,7 +43,9 @@ nix flake check
 # NixOS
 sudo nixos-rebuild switch --flake .#mbp14
 sudo nixos-rebuild switch --flake .#nuc
-sudo nixos-rebuild switch --flake .#nuc2
+sudo nixos-rebuild switch --flake .#nuc-cluster-head
+sudo nixos-rebuild switch --flake .#nuc-cluster-worker
+sudo nixos-rebuild switch --flake .#rpi-cluster-head
 
 # nix-darwin (first bootstraps with `nix run nix-darwin -- …`)
 darwin-rebuild switch --flake .#macbook
@@ -98,22 +105,26 @@ credentials are pulled from 1Password at call time via `op`.
 
 ## Infrastructure notes
 
-### Dual-NUC cluster (`nuc` + `nuc2`)
+### Dual-NUC cluster (`nuc-cluster-head` + `nuc-cluster-worker`)
 
 Per [RFC 0001](./docs/rfcs/0001-dual-nuc-cluster.md): the two NUCs form a
 generalized compute pool. A point-to-point Thunderbolt link carries a /30
 private LAN (`10.200.0.1`/`10.200.0.2`, LAN-agnostic — any fast link works);
 each NUC builds for the other (`nix.buildMachines`, LAN preferred, Tailscale
-fallback). `nuc` runs the **Ray head** (GCS 6379, dashboard 8265, client
-10001), `nuc2` runs a **Ray worker**; both run Podman (dockerCompat) for task
-isolation. Jobs declare all dependencies via Nix — no host-global packages.
-Secrets come from 1Password at runtime, never baked into job environments.
+fallback). `nuc-cluster-head` runs the **Ray head** (GCS 6379, dashboard 8265,
+client 10001), `nuc-cluster-worker` runs a **Ray worker**; both run Podman
+(dockerCompat) for task isolation. Jobs declare all dependencies via Nix — no
+host-global packages. Secrets come from 1Password at runtime, never baked into
+job environments. The head role is a single switch point
+(`flake.cluster.headName` in `modules/nixos/cluster.nix`) — e.g. promote the
+`rpi-cluster-head` prototype by changing one string; workers repoint on rebuild.
 
 ### Mac mini remote builder
 
 The mini runs `nix.linux-builder` (aarch64-linux VM with qemu-user binfmt, so
 it advertises **both** `aarch64-linux` and `x86_64-linux`). Clients (`macbook`,
-`mbp14`, `nuc`, `nuc2`) offload via `generic.mac-mini-builder` over SSH host
+`mbp14`, `nuc`, the cluster role closures) offload via
+`generic.mac-mini-builder` over SSH host
 `mac-mini` (existing key / SSH config as `connorfuhrman`).
 
 ### Roon Core (mac-mini)

@@ -1,4 +1,5 @@
-# TEMPLATE — replace with `nixos-generate-config` output on nuc2.
+# TEMPLATE — replace with `nixos-generate-config` output on the worker NUC
+# (the second machine, which boots the nuc-cluster-worker closure).
 { config, lib, pkgs, modulesPath, ... }:
 
 {

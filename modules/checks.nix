@@ -18,7 +18,6 @@
       checks = {
         eval-nixos-mbp14 = evalOnly "nixos-mbp14" self.nixosConfigurations.mbp14.config.system.build.toplevel.drvPath;
         eval-nixos-nuc = evalOnly "nixos-nuc" self.nixosConfigurations.nuc.config.system.build.toplevel.drvPath;
-        eval-nixos-nuc2 = evalOnly "nixos-nuc2" self.nixosConfigurations.nuc2.config.system.build.toplevel.drvPath;
         eval-nixos-nuc-cluster-head = evalOnly "nixos-nuc-cluster-head" self.nixosConfigurations.nuc-cluster-head.config.system.build.toplevel.drvPath;
         eval-nixos-nuc-cluster-worker = evalOnly "nixos-nuc-cluster-worker" self.nixosConfigurations.nuc-cluster-worker.config.system.build.toplevel.drvPath;
         eval-nixos-rpi-cluster-head = evalOnly "nixos-rpi-cluster-head" self.nixosConfigurations.rpi-cluster-head.config.system.build.toplevel.drvPath;
@@ -26,7 +25,6 @@
         eval-darwin-mac-mini = evalOnly "darwin-mac-mini" self.darwinConfigurations.mac-mini.config.system.build.toplevel.drvPath;
         eval-home-connorfuhrman-mbp14 = evalOnly "home-connorfuhrman-mbp14" self.homeConfigurations."connorfuhrman@mbp14".activationPackage.drvPath;
         eval-home-connorfuhrman-nuc = evalOnly "home-connorfuhrman-nuc" self.homeConfigurations."connorfuhrman@nuc".activationPackage.drvPath;
-        eval-home-connorfuhrman-nuc2 = evalOnly "home-connorfuhrman-nuc2" self.homeConfigurations."connorfuhrman@nuc2".activationPackage.drvPath;
         eval-home-connorfuhrman-nuc-cluster-head = evalOnly "home-connorfuhrman-nuc-cluster-head" self.homeConfigurations."connorfuhrman@nuc-cluster-head".activationPackage.drvPath;
         eval-home-connorfuhrman-nuc-cluster-worker = evalOnly "home-connorfuhrman-nuc-cluster-worker" self.homeConfigurations."connorfuhrman@nuc-cluster-worker".activationPackage.drvPath;
         eval-home-connorfuhrman-rpi-cluster-head = evalOnly "home-connorfuhrman-rpi-cluster-head" self.homeConfigurations."connorfuhrman@rpi-cluster-head".activationPackage.drvPath;

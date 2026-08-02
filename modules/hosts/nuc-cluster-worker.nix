@@ -1,9 +1,8 @@
 { config, inputs, ... }: {
-  # Cluster worker role closure running on the nuc2 hardware. Boot this INSTEAD
-  # of the plain `nuc2` closure when the machine should act as a Ray worker —
-  # mutually exclusive with `nuc2` (different networking.hostName / Tailscale
-  # identity). The head it joins is flake.cluster.headName (single switch
-  # point, see modules/nixos/cluster.nix).
+  # Cluster worker role closure running on the second NUC. This is the ONLY
+  # closure for that machine (the plain `nuc2` host was removed when cluster
+  # roles were generalized). The head it joins is flake.cluster.headName
+  # (single switch point, see modules/nixos/cluster.nix).
   flake.modules.nixos.host-nuc-cluster-worker = {
     imports = [
       config.flake.modules.nixos.system
@@ -13,7 +12,7 @@
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
       config.flake.modules.nixos.ray-worker
-      ./nuc2/_hardware-configuration.nix
+      ./nuc-cluster-worker/_hardware-configuration.nix
     ];
 
     networking.hostName = "nuc-cluster-worker";
