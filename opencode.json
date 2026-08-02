@@ -6,5 +6,7 @@
     "doom_loop": "allow"
   },
   "autoupdate": false,
-  "plugin": ["@prevalentware/opencode-goal-plugin"]
+  "subagent_depth": 2,
+  "default_agent": "orchestrator",
+  "instructions": ["AGENTS.md"],
 }

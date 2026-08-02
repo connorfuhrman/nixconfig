@@ -4,7 +4,6 @@
       config.flake.modules.darwin.system
       config.flake.modules.darwin.onepassword
       config.flake.modules.darwin.obsidian
-      config.flake.modules.darwin.emacs-plus
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
     ];
@@ -21,7 +20,8 @@
   };
 
   flake.homeConfigurations."connorfuhrman@macbook" = inputs.home-manager.lib.homeManagerConfiguration {
-    pkgs = inputs.nixpkgs.legacyPackages.aarch64-darwin;
+    pkgs = config.flake.lib.pkgsFor "aarch64-darwin";
     modules = [ config.flake.modules.homeManager.standard ];
   };
 }
+

@@ -1,6 +1,9 @@
-{ ... }: {
+{ self, ... }: {
   flake.modules.darwin.system = { pkgs, ... }: {
     # Shared nix-darwin baseline for all macOS hosts.
+
+    # Custom monorepo packages (pkgs/ via flake.overlays.default).
+    nixpkgs.overlays = [ self.overlays.default ];
 
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
@@ -28,6 +31,7 @@
       git
       vim
       htop
+      mosh
     ];
   };
 }

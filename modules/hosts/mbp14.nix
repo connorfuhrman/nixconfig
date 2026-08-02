@@ -23,7 +23,8 @@
   };
 
   flake.homeConfigurations."connorfuhrman@mbp14" = inputs.home-manager.lib.homeManagerConfiguration {
-    pkgs = inputs.nixpkgs.legacyPackages.aarch64-linux;
+    pkgs = config.flake.lib.pkgsFor "aarch64-linux";
     modules = [ config.flake.modules.homeManager.standard ];
   };
 }
+

@@ -7,7 +7,6 @@
       config.flake.modules.darwin.roon-server
       config.flake.modules.darwin.onepassword
       config.flake.modules.darwin.obsidian
-      config.flake.modules.darwin.emacs-plus
       config.flake.modules.generic.tailscale
     ];
 
@@ -23,7 +22,8 @@
   };
 
   flake.homeConfigurations."connorfuhrman@mac-mini" = inputs.home-manager.lib.homeManagerConfiguration {
-    pkgs = inputs.nixpkgs.legacyPackages.aarch64-darwin;
+    pkgs = config.flake.lib.pkgsFor "aarch64-darwin";
     modules = [ config.flake.modules.homeManager.standard ];
   };
 }
+

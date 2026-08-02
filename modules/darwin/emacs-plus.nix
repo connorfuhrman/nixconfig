@@ -1,12 +1,10 @@
 { ... }: {
-  # Mac-friendly Emacs (Emacs Plus) via the d12frosted/emacs-plus Homebrew
-  # tap. The cask is a prebuilt, native-compiled Emacs.app (~1 min install,
-  # includes Emacs.app + Emacs Client.app). The tap is trusted declaratively
-  # (Homebrew 6.0+ requires trust for third-party taps).
+  # OPTIONAL legacy module — not imported by any host.
+  # Darwin Emacs comes from homeManager.emacs (flake-wrapped emacs-macport
+  # with packages + --init-directory). Brew emacs-plus cannot see the Nix
+  # package set, and prelude package.el installs are disabled in emacs-config.
+  # Kept only if you deliberately want a parallel Homebrew Emacs.app.
   flake.modules.darwin.emacs-plus = { ... }: {
-    # nix-darwin only runs brew when homebrew.enable is set; without this,
-    # taps/casks are inert (macbook was broken; mac-mini only worked because
-    # roon-server also enables Homebrew).
     homebrew.enable = true;
     homebrew.taps = [
       { name = "d12frosted/emacs-plus"; trusted = true; }
