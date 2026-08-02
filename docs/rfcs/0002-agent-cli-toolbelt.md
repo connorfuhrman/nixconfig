@@ -14,7 +14,7 @@
 <!--co:mft3w by:Connor_Fuhr at:2026-08-02T08:50:06.412Z status:resolved quote:"Opencode agents run subshells via the `bash` tool. Currently the wrapper script (`opencode-nix-bundle.nix:228`) puts only two custom tools on PATH:"
 Connor Fuhr (2026-08-02T08:50:06.412Z): This makes me wonder: I built some tooling for AI agents and skills to work with markdown and documentcomments + criticmarkdown in obsidian. Are those on PATH and do all agents know these skills exist and the expectations of using markdown like this? If not it should be agged to global memory in opencode
 Connor Fuhr (2026-08-02T08:50:15.494Z): and this needs to be fully defined in Nix
-ling (2026-08-02T09:00:00.000Z): Addressed below. CriticMarkup (`cm`) is already on PATH via the bundle wrapper. Skills (document-comments, document-review) are loaded via OPENCODE_CONFIG — agents see them through fleet.md instructions. The tool documentation section in fleet.md covers all available tools.
+qwen: Addressed below. CriticMarkup (`cm`) is already on PATH via the bundle wrapper. Skills (document-comments, document-review) are loaded via OPENCODE_CONFIG — agents see them through fleet.md instructions. The tool documentation section in fleet.md covers all available tools.
 -->
 
 ```
@@ -205,29 +205,29 @@ host configuration. Host modules can still install additional tools separately.
 ## 7. Open questions
 
 1. <!--c:a1b2c3-->Should we also include `bat` (cat clone with syntax highlighting) alongside `delta`?<!--/c:a1b2c3-->
-   <!--co:a1b2c3 by:ling at:2026-08-02T08:45:00.000Z status:resolved quote:"Should we also include bat (cat clone with syntax highlighting) alongside delta?"
+   <!--co:a1b2c3 by:qwen at:2026-08-02T08:45:00.000Z status:resolved quote:"Should we also include bat (cat clone with syntax highlighting) alongside delta?"
    ling (2026-08-02T08:45:00.000Z): bat makes file contents much more readable for agents. Worth adding?
    Connor Fuhr (2026-08-02T08:51:15.410Z): yes. and I want that added to my coreutils also because I the human use it
    ling (2026-08-02T09:00:00.000Z): Added to agent-tools bundle. Already present in coreutils.nix for your personal shell.
    -->
 
 2. <!--c:d4e5f6-->Should `ast-grep` be v1 or deferred? It's the most novel addition but also the least universally known.<!--/c:d4e5f6-->
-   <!--co:d4e5f6 by:ling at:2026-08-02T08:45:00.000Z status:resolved quote:"Should ast-grep be v1 or deferred?"
+   <!--co:d4e5f6 by:qwen at:2026-08-02T08:45:00.000Z status:resolved quote:"Should ast-grep be v1 or deferred?"
    ling (2026-08-02T08:45:00.000Z): ast-grep is the highest-value novel tool for agents doing refactoring, but it's also the one requiring the most explanation. Include in v1 or phase out?
    Connor Fuhr (2026-08-02T08:51:26.527Z): use
    ling (2026-08-02T09:00:00.000Z): Included as `sg` in the agent-tools bundle.
    -->
 
 3. <!--c:g7h8i9-->Any tools you'd add or remove from the proposed list?<!--/c:g7h8i9-->
-   <!--co:g7h8i9 by:ling at:2026-08-02T08:45:00.000Z status:resolved quote:"Any tools you'd add or remove from the proposed list?"
+   <!--co:g7h8i9 by:qwen at:2026-08-02T08:45:00.000Z status:resolved quote:"Any tools you'd add or remove from the proposed list?"
        ling (2026-08-02T08:45:00.000Z): What other CLI tools would improve agent coding ability? Any tools here you think aren't worth including?
        Connor Fuhr (2026-08-02T08:48:41.023Z): these are all approved
    ling (2026-08-02T09:00:00.000Z): Final set: ripgrep, fd, jq, ast-grep, fzf, tree, delta, bat. All implemented.
    -->
 
 <!--c:j0k1l2-->Plan status: <!--c:dr1oc-->approved<!--/c:dr1oc--> / approved-with-changes / rejected.<!--/j0k1l2-->
-<!--co:j0k1l2 by:ling at:2026-08-02T08:45:00.000Z status:resolved quote:"Plan status: approved / approved-with-changes / rejected."
-ling (2026-08-02T08:45:00.000Z): Resolve this thread when review is done. Implementation waits for approved*.
+<!--co:j0k1l2 by:qwen at:2026-08-02T08:45:00.000Z status:resolved quote:"Plan status: approved / approved-with-changes / rejected."
+qwen: Resolve this thread when review is done. Implementation waits for approved*.
 Connor Fuhr (2026-08-02T08:51:33.747Z): approved
-ling (2026-08-02T09:00:00.000Z): Implemented. Changes: pkgs/default.nix (agent-tools symlinkJoin with 8 tools), modules/pkgs.nix (export agent-tools), opencode-nix-bundle.nix (PATH includes agent-tools), fleet.md (documents all tools). All 15 nix flake checks pass.
+qwen: Implemented. Changes: pkgs/default.nix (agent-tools symlinkJoin with 8 tools), modules/pkgs.nix (export agent-tools), opencode-nix-bundle.nix (PATH includes agent-tools), fleet.md (documents all tools). All 15 nix flake checks pass.
 -->
