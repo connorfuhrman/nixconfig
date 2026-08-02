@@ -1,7 +1,7 @@
 # RFC 0002: Agent CLI toolbelt — store-backed tools on opencode PATH
 
 - **Status:** Implemented  
-- **Author:** ling  
+- **Author:** qwen  
 - **Created:** 2026-08-02  
 - **Scope:** opencode bundle (`pkgs/opencode-nix-bundle.nix`), overlay (`pkgs/default.nix`), package exports (`modules/pkgs.nix`)
 
