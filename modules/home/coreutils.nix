@@ -8,6 +8,7 @@
       jq
       gtop
       gping
+      gh
     ];
 
     programs.eza.enable = true;

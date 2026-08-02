@@ -26,7 +26,7 @@ final: prev: {
   agent-tools = final.symlinkJoin {
     name = "agent-tools";
     paths = with final; [
-      ripgrep fd jq ast-grep fzf tree delta bat
+      ripgrep fd jq ast-grep fzf tree delta bat gh
     ];
   };
 }

@@ -103,6 +103,14 @@ let
         "$NONO_CONFIG/profile-drafts"
         "$TMPDIR"
         "$HOME/.local/share/nix"
+        # gh CLI: auth token (hosts.yml), config, and state.
+        "$HOME/.config/gh"
+        "$HOME/.local/share/gh"
+        # 1Password CLI (op): agent socket + CLI config, for
+        # `GH_TOKEN="$(op read …)" gh …` / `op run -- gh …`.
+        "$HOME/.1password"
+        "$HOME/.config/op"
+        "$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t"
       ];
       read = [
         "/nix/store"

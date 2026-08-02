@@ -38,8 +38,31 @@ These tools are always on PATH inside opencode subshells:
 - **tree** — directory tree visualization
 - **delta** — syntax-highlighted git diff
 - **bat** — cat clone with syntax highlighting
+- **gh** — GitHub CLI (PRs, issues, repo queries)
 
 Prefer these over generic `grep`/`find`/`sed` when doing code work.
+
+## GitHub CLI (`gh`)
+
+`gh` is on PATH for nondestructive GitHub work: creating PRs, reading issues
+and PRs, posting review comments, checking status. GitHub credentials live in
+**1Password** — never ask the human to paste a token. Get one at call time:
+
+```sh
+GH_TOKEN="$(op read 'op://Private/GitHub/token')" gh pr create …
+# or wrap the whole command:
+op run -- gh pr view 123
+```
+
+If `op` fails inside the sandbox, say so and name the exact denial (see skill
+`nono-sandbox`) — do not work around it.
+
+**Allowed without asking:** `gh pr create`, `gh pr status`, `gh pr view`,
+`gh issue *` (read/comment), `gh repo view`, `gh api` GETs, `gh pr checks`.
+
+**Ask the human first:** force-push, deleting branches/repos, closing or
+merging PRs you didn't just create, editing branch protection, anything under
+`gh repo delete` / `gh release delete`.
 
 ## Why
 
