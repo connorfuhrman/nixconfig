@@ -242,13 +242,13 @@ let
       # Immutable profile: absolute store path (not name lookup under ~/.config/nono).
       # --allow-cwd: workdir already readwrite in profile; skip interactive CWD prompt.
       # --suppress-save-prompt ~/: never offer to grant full home into a mutable profile.
+      # Profile path is pure store (immutable). Named ~/.config/nono/profiles/*
+      # is only a convenience symlink and is never consulted by this wrapper.
       exec ${nono}/bin/nono run \
         --profile ${profile} \
         --allow-cwd \
         --suppress-save-prompt "$HOME" \
         --suppress-save-prompt "$HOME/" \
-        --no-rollback \
-        --no-audit \
         -- ${opencode-bin}/bin/opencode "$@"
     '';
 
