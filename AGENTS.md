@@ -144,8 +144,9 @@ nix --extra-experimental-features 'nix-command flakes' eval .#darwinConfiguratio
 - **1Password:** CLI everywhere (`programs._1password`), GUI via `programs._1password-gui` on NixOS and nixpkgs on darwin (same official 1Password.app as the Homebrew cask). On macOS, nixpkgs provides both CLI and GUI — no Homebrew cask needed.
 - **Emacs:** single `homeManager.emacs` module — Darwin links the XDG config dir (`~/.config/emacs`) to the flake's `emacs-config` package (binary supplied by brew emacs-plus-app via `darwin.emacs-plus`); Linux installs GUI Emacs from the emacs flake. No separate gui/nox/plus distinction for home modules. The emacs flake names ALL wrapped variants `emacs` (symlinkJoin) — variants are distinguishable only by drvPath, not by `p.name`. It is consumed self-contained (does NOT follow our nixpkgs).
 - **Remote builder:** `flake.modules.generic.mac-mini-builder` (client side)
-  requires a one-time SSH key bootstrap per client (see README). The mini only
-  builds `aarch64-linux`; on the x86_64 nuc the entry is inert.
+  assumes existing passwordless SSH to host `mac-mini` as `connorfuhrman`
+  (including for root / the Nix daemon). No dedicated `/etc/nix/*` key. The
+  mini only builds `aarch64-linux`; on the x86_64 nuc the entry is inert.
 - **Roon on macOS:** nixpkgs `roon-server` is x86_64-linux only and Roon ships
   no standalone headless macOS server — Roon.app (brew cask) IS the Core and
   manages its own `RoonServer` login item. No nix launchd unit; autostart =
