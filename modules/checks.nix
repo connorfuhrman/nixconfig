@@ -21,6 +21,7 @@
         eval-nixos-nuc2 = evalOnly "nixos-nuc2" self.nixosConfigurations.nuc2.config.system.build.toplevel.drvPath;
         eval-nixos-nuc-cluster-head = evalOnly "nixos-nuc-cluster-head" self.nixosConfigurations.nuc-cluster-head.config.system.build.toplevel.drvPath;
         eval-nixos-nuc-cluster-worker = evalOnly "nixos-nuc-cluster-worker" self.nixosConfigurations.nuc-cluster-worker.config.system.build.toplevel.drvPath;
+        eval-nixos-rpi-cluster-head = evalOnly "nixos-rpi-cluster-head" self.nixosConfigurations.rpi-cluster-head.config.system.build.toplevel.drvPath;
         eval-darwin-macbook = evalOnly "darwin-macbook" self.darwinConfigurations.macbook.config.system.build.toplevel.drvPath;
         eval-darwin-mac-mini = evalOnly "darwin-mac-mini" self.darwinConfigurations.mac-mini.config.system.build.toplevel.drvPath;
         eval-home-connorfuhrman-mbp14 = evalOnly "home-connorfuhrman-mbp14" self.homeConfigurations."connorfuhrman@mbp14".activationPackage.drvPath;
@@ -28,6 +29,7 @@
         eval-home-connorfuhrman-nuc2 = evalOnly "home-connorfuhrman-nuc2" self.homeConfigurations."connorfuhrman@nuc2".activationPackage.drvPath;
         eval-home-connorfuhrman-nuc-cluster-head = evalOnly "home-connorfuhrman-nuc-cluster-head" self.homeConfigurations."connorfuhrman@nuc-cluster-head".activationPackage.drvPath;
         eval-home-connorfuhrman-nuc-cluster-worker = evalOnly "home-connorfuhrman-nuc-cluster-worker" self.homeConfigurations."connorfuhrman@nuc-cluster-worker".activationPackage.drvPath;
+        eval-home-connorfuhrman-rpi-cluster-head = evalOnly "home-connorfuhrman-rpi-cluster-head" self.homeConfigurations."connorfuhrman@rpi-cluster-head".activationPackage.drvPath;
         eval-home-connorfuhrman-macbook = evalOnly "home-connorfuhrman-macbook" self.homeConfigurations."connorfuhrman@macbook".activationPackage.drvPath;
         eval-home-connorfuhrman-mac-mini = evalOnly "home-connorfuhrman-mac-mini" self.homeConfigurations."connorfuhrman@mac-mini".activationPackage.drvPath;
         eval-opencode-skill-document-comments = evalOnly "opencode-skill-document-comments" self.packages.${sys}.opencode-skill-document-comments.drvPath;
