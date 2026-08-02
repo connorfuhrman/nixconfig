@@ -6,11 +6,7 @@
       config.flake.modules.nixos.onepassword
       config.flake.modules.nixos.obsidian
       config.flake.modules.generic.tailscale
-      # Inert on x86_64-linux today (the mini only builds aarch64-linux);
-      # kept so a future x86_64-capable builder on the mini is used automatically.
       config.flake.modules.generic.mac-mini-builder
-      config.flake.modules.nixos.nuc-cluster
-      config.flake.modules.nixos.ray-cluster
       ./nuc2/_hardware-configuration.nix
     ];
 

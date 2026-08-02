@@ -135,11 +135,16 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   infinitely: the assert forces `config.x` while the module fixpoint that
   defines it is still being computed. Use the lazy `assertions` option
   instead (checked after the fixpoint). See `modules/nixos/nuc-cluster.nix`.
-- **nuc/nuc2 cluster modules branch on `networking.hostName`.**
-  `nixos.nuc-cluster` (private /30 LAN + mutual builders) and
-  `nixos.ray-cluster` (head vs worker systemd units + podman) are only valid
-  on `nuc`/`nuc2`; they fail assertions anywhere else. The Thunderbolt iface
-  is assumed `thunderbolt0` — verify on hardware with `ip link`.
+- **Cluster roles are generalized; topology is one switch point.**
+  `nixos.ray-head` / `nixos.ray-worker` (in `modules/nixos/cluster.nix`) are
+  importable by ANY host; the worker joins `flake.cluster.headName` over
+  Tailscale MagicDNS — change that one string to promote a different head.
+  Pairwise LAN IPs and `nix.buildMachines` live in the role *host* closures
+  (`nuc-cluster-head`, `nuc-cluster-worker`), not in the role modules. Plain
+  `nuc`/`nuc2` have NO clustering; booting a role closure on the same box is
+  mutually exclusive with the plain closure (distinct hostName/Tailscale
+  identity). The Thunderbolt iface is assumed `thunderbolt0` — verify on
+  hardware with `ip link`.
 - **`flake check` asserts evaluation, not buildability.** The checks in
   `modules/checks.nix` embed each configuration's `.drvPath` in a text file —
   they instantiate (fully evaluate) every closure but build nothing. Realizing
