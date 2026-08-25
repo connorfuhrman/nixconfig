@@ -4,7 +4,16 @@
 # package files as modules.
 { self, inputs, ... }:
 let
-  overlay = import ../pkgs;
+  baseOverlay = import ../pkgs;
+  overlay = final: prev:
+    (baseOverlay final prev)
+    // {
+      hermes-unwrapped =
+        let
+          ha = inputs.hermes-agent.packages.${final.stdenv.hostPlatform.system};
+        in
+        ha.messaging or ha.default;
+    };
 
   # Shared helper: nixpkgs for a system with our overlay applied.
   pkgsFor =
@@ -30,6 +39,7 @@ let
     "obsidian-plugins"
     "obsidian-nix-sync-plugins"
     "agent-tools"
+    "hermes"
   ];
 in
 {

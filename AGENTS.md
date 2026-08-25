@@ -14,7 +14,7 @@ working in this repo.
 | `nuc-cluster-worker` | `x86_64-linux` | NixOS | Role closure on the second Nuc — Ray worker |
 | `rpi-cluster-head` | `aarch64-linux` | NixOS | Prototype Raspberry Pi head node (generalized `hosts/rpi/` template) |
 | `macbook` | `aarch64-darwin` | nix-darwin | macOS device |
-| `mac-mini` | `aarch64-darwin` | nix-darwin | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
+| `mac-mini` | `aarch64-darwin` | nix-darwin | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server + Nono-wrapped Hermes concierge |
 | `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | standalone via `homeManager.standard` |
 
 All hosts run Tailscale and have 1Password installed (CLI everywhere; GUI on
@@ -28,6 +28,7 @@ everywhere.
   `home-manager.flakeModules.home-manager`,
   `nix-darwin.flakeModules.default`, and `(inputs.import-tree ./modules)`.
   **It only changes when inputs (or the cache config) change.**
+  `hermes-agent` is an input (no `inputs.nixpkgs.follows` — uv2nix lock).
 - **Every `.nix` file under `modules/` is a flake-parts module**, auto-imported
   by [import-tree](https://github.com/denful/import-tree). Adding a file = adding
   a feature. No wiring anywhere.
@@ -61,6 +62,7 @@ modules/nixos/          NixOS features: system, desktop, server, asahi, onepassw
 modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
 modules/home/           homeManager: base, emacs, coreutils, obsidian-config, standard
 modules/opencode/        opencode feature: nono-opencode, criticmarkup + content trees (_agents/_skills/_instructions/_lib/_plugins/_test/_tools)
+modules/hermes/          hermes feature: nono-hermes, gateway + content trees (_profiles/_lib/_test)
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions (+ _hardware-configuration.nix per NixOS host)
 opencode.json           project opencode permissions (keep in sync with nono-opencode.nix)
@@ -95,7 +97,7 @@ README.md               human-facing overview (this repo is multi-host, not Asah
   `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
   and `nix eval` are the validation tools; building the small pinned binary
   packages (nono, opencode) for the CURRENT system is allowed for validation
-  (`nix build .#nono`, `nix build .#opencode`).
+  (`nix build .#nono`, `nix build .#opencode`, `nix build .#hermes`).
 - This **is** a git repo. Prefer `develop` for commits (see Workflow). Do not
   force-push or commit secrets / `firmware/` blobs to a public remote.
 - `flake show` displays `darwinConfigurations`, `homeConfigurations`,
@@ -160,6 +162,16 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   conflict). Do not add unfree packages without extending the predicate;
   never work around it with `--impure`/`NIXPKGS_ALLOW_UNFREE` in the
   validation suite.
+- **Hermes is Nono-wrapped, always.** Inner CLI: flake input `hermes-agent`
+  (`packages.messaging`). Wrapper: `pkgs/hermes-nix-bundle.nix` → `pkgs.hermes`.
+  HM module `modules/hermes/nono-hermes.nix` on darwin homes (mac-mini, macbook);
+  gateway launchd `nono-hermes-gateway` on mac-mini only. **Every** agent
+  (`concierge`, `food`, `travel`, `hermes-tutor`, gateway) execs
+  `nono run --profile /nix/store/…/nono-profile.json`. There is no supported
+  unsandboxed `hermes` on PATH. Profiles live under `~/.hermes/profiles/<name>/`.
+  Model: SuperGrok OAuth (`xai-oauth` / `grok-4.6`). Docs: `docs/hermes.md`.
+  Tests: `modules/hermes/_test/test-nono-hermes.sh`. Do not resurrect the QEMU
+  Hermes VM from branch `hermes-agent`.
 - **nono/opencode are NOT in nixpkgs.** Package bodies: `pkgs/nono.nix`,
   `pkgs/opencode-bin.nix`, `pkgs/opencode-nix-bundle.nix` (via
   `flake.overlays.default`). HM module `modules/opencode/nono-opencode.nix` only

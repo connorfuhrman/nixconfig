@@ -1,0 +1,13 @@
+model:
+  default: grok-4.6
+  provider: xai-oauth
+  base_url: https://api.x.ai/v1
+terminal:
+  backend: local
+  cwd: "."
+  home_mode: profile
+agent:
+  bot_mode_protocol: true
+memory:
+  memory_enabled: true
+  user_profile_enabled: true

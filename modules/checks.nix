@@ -36,6 +36,7 @@
         eval-opencode-config = evalOnly "opencode-config" self.packages.${sys}.opencode-config.drvPath;
         eval-obsidian-plugins = evalOnly "obsidian-plugins" self.packages.${sys}.obsidian-plugins.drvPath;
         eval-cm = evalOnly "cm" self.packages.${sys}.cm.drvPath;
+        eval-hermes = evalOnly "hermes" self.packages.${sys}.hermes.drvPath;
       };
     };
 }

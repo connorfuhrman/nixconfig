@@ -23,6 +23,8 @@
     # Self-contained flake providing wrapped Emacs packages (pinned own
     # nixpkgs + emacs-overlay); deliberately does NOT follow our nixpkgs.
     emacs.url = "github:connorfuhrman/emacs";
+    # uv2nix lock — do not follow our nixpkgs (same reason as emacs).
+    hermes-agent.url = "github:NousResearch/hermes-agent";
     flake-parts.url = "github:hercules-ci/flake-parts";
     import-tree.url = "github:denful/import-tree";
   };

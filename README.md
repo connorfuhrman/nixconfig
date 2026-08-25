@@ -33,6 +33,7 @@ same hardware (distinct `networking.hostName` / Tailscale identity) — boot
 - [1Password](https://1password.com/) CLI everywhere; GUI on `mbp14` and Darwin (nixpkgs)
 - Weekly Nix garbage collection (store paths older than 30 days)
 - Common CLI tools, git, gh (GitHub CLI), zsh, Emacs, and sandboxed [opencode](https://opencode.ai)
+- Darwin homes: Nono-wrapped [Hermes](https://hermes-agent.nousresearch.com) concierge (`docs/hermes.md`)
 
 ## Quick start
 
@@ -70,6 +71,7 @@ modules/
   home/                   home-manager (standard = base+emacs+coreutils+nono-opencode)
   opencode/               opencode feature: nono-opencode, criticmarkup + content
                           trees (_agents/_skills/_instructions/_lib/_plugins/_test/_tools)
+  hermes/                 Nono-wrapped Hermes concierge (profiles, gateway)
   generic/                shared features (tailscale, mac-mini-builder)
   hosts/<name>.nix        per-host composition + home config
   hosts/<name>/_*.nix     generated hardware (NixOS; not auto-imported)

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "home_base": "Aliso Viejo, Orange County, CA",
+  "preferences": {
+    "cuisines_like": [],
+    "cuisines_dislike": [],
+    "dietary": [],
+    "price": null,
+    "ambiance": [],
+    "avoids": []
+  },
+  "places": {},
+  "rounds": []
+}

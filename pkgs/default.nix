@@ -29,4 +29,6 @@ final: prev: {
       ripgrep fd jq ast-grep fzf tree delta bat gh
     ];
   };
+
+  hermes = final.callPackage ./hermes-nix-bundle.nix { };
 }
