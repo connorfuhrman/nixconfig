@@ -13,6 +13,9 @@
         config = {
           Label = "ai.x.hermes.concierge-gateway";
           ProgramArguments = [ "${pkgs.hermes}/bin/hermes-gateway" ];
+          EnvironmentVariables = {
+            HERMES_OP_VAULT = "op://Private/hermes";
+          };
           RunAtLoad = true;
           KeepAlive = true;
           ThrottleInterval = 30;

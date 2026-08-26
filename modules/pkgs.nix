@@ -39,6 +39,9 @@ let
     "obsidian-plugins"
     "obsidian-nix-sync-plugins"
     "agent-tools"
+    "hermes-share"
+    "hermes-cli"
+    "hermes-gateway"
     "hermes"
   ];
 in

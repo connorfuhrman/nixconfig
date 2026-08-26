@@ -163,15 +163,14 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   never work around it with `--impure`/`NIXPKGS_ALLOW_UNFREE` in the
   validation suite.
 - **Hermes is Nono-wrapped, always.** Inner CLI: flake input `hermes-agent`
-  (`packages.messaging`). Wrapper: `pkgs/hermes-nix-bundle.nix` → `pkgs.hermes`.
-  HM module `modules/hermes/nono-hermes.nix` on darwin homes (mac-mini, macbook);
-  gateway launchd `nono-hermes-gateway` on mac-mini only. **Every** agent
-  (`concierge`, `food`, `travel`, `hermes-tutor`, gateway) execs
-  `nono run --profile /nix/store/…/nono-profile.json`. There is no supported
-  unsandboxed `hermes` on PATH. Profiles live under `~/.hermes/profiles/<name>/`.
-  Model: SuperGrok OAuth (`xai-oauth` / `grok-4.6`). Docs: `docs/hermes.md`.
-  Tests: `modules/hermes/_test/test-nono-hermes.sh`. Do not resurrect the QEMU
-  Hermes VM from branch `hermes-agent`.
+  (`packages.messaging`). Driver: `pkgs/hermes.nix` (`writeShellApplication`);
+  gateway: `pkgs/hermes-gateway.nix`; bundle: `symlinkJoin` → `pkgs.hermes`.
+  HM modules only on **mac-mini**. PATH has `hermes` and `hermes-gateway` only
+  (`hermes food`, `hermes concierge chat`). **Every** invocation execs
+  `nono run --profile /nix/store/…/nono-profile.json`. Profiles live under
+  `~/.hermes/profiles/<name>/`. Secrets: `HERMES_OP_VAULT` (default
+  `op://Private/hermes`). Docs: `docs/hermes.md`. Tests:
+  `modules/hermes/_test/test-nono-hermes.sh`.
 - **nono/opencode are NOT in nixpkgs.** Package bodies: `pkgs/nono.nix`,
   `pkgs/opencode-bin.nix`, `pkgs/opencode-nix-bundle.nix` (via
   `flake.overlays.default`). HM module `modules/opencode/nono-opencode.nix` only

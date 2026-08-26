@@ -5,8 +5,7 @@ description: Search restaurants, shortlist with reasons, collect feedback, and u
 
 # Restaurant preference loop
 
-Use this skill for every dining request. The structured store is
-`data/restaurants.json` relative to this profile's `HERMES_HOME`.
+Use this skill for every dining request. The structured store is `data/restaurants.json` relative to this profile's `HERMES_HOME`.
 
 ## Store shape
 
@@ -53,8 +52,7 @@ Use this skill for every dining request. The structured store is
 2. Read `~/.hermes/shared/trip-context.json` for place, party, dates, budget.
 3. If no place is named, use `home_base`.
 4. Search the web for currently open options that match stored prefs.
-5. Return **three** places. Each item: name, area, why it fits (cite store
-   fields), and one caution.
+5. Return **three** places. Each item: name, area, why it fits (cite store fields), and one caution.
 6. After user feedback, patch:
    - `places.<slug>` (status, rating, notes, visits)
    - `preferences.*` when the feedback generalizes

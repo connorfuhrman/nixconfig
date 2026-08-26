@@ -30,5 +30,8 @@ final: prev: {
     ];
   };
 
+  hermes-share = final.callPackage ./hermes-share.nix { };
+  hermes-cli = final.callPackage ./hermes.nix { };
+  hermes-gateway = final.callPackage ./hermes-gateway.nix { hermes = final.hermes-cli; };
   hermes = final.callPackage ./hermes-nix-bundle.nix { };
 }
