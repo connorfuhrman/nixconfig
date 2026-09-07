@@ -1,8 +1,6 @@
 { config, inputs, ... }: {
-  # Cluster worker role closure running on the second NUC. This is the ONLY
-  # closure for that machine (the plain `nuc2` host was removed when cluster
-  # roles were generalized). The head it joins is flake.cluster.headName
-  # (single switch point, see modules/nixos/cluster.nix).
+  # EXPERIMENTAL — see flake.hostStatus.nuc-cluster-worker.
+  # Cluster worker role closure running on the second NUC.
   flake.modules.nixos.host-nuc-cluster-worker = {
     imports = [
       config.flake.modules.nixos.system

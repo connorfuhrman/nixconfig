@@ -1,4 +1,5 @@
 { config, inputs, ... }: {
+  # EXPERIMENTAL — see flake.hostStatus.rpi-cluster-head.
   # PROTOTYPE: Raspberry Pi 4 as an alternate Ray head node.
   #
   # Purpose: prove the generalized cluster roles (modules/nixos/cluster.nix)

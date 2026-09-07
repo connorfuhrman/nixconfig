@@ -15,21 +15,8 @@ let
     };
 
   packageNames = [
-    "nono"
-    "opencode-bin"
-    "cm"
-    "opencode"
-    "opencode-config"
-    "opencode-nix-profile"
-    "opencode-orchestration-models"
-    "opencode-orchestration-test"
-    "opencode-skill-document-comments"
-    "opencode-skill-document-review"
-    "opencode-skill-orchestration"
-    "opencode-skill-nono-sandbox"
     "obsidian-plugins"
     "obsidian-nix-sync-plugins"
-    "agent-tools"
   ];
 in
 {

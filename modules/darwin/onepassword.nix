@@ -10,6 +10,7 @@
         "_1password"
         "_1password-cli"
         "obsidian"
+        "cursor"
       ];
 
     programs._1password.enable = true;

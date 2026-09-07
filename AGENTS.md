@@ -6,16 +6,16 @@ working in this repo.
 
 ## Hosts
 
-| Host | Platform | Type | Notes |
-|---|---|---|---|
-| `mbp14` | `aarch64-linux` | NixOS | Asahi Linux, MacBook Pro 14" M2 Pro/Max (KDE Plasma 6) |
-| `nuc` | `x86_64-linux` | NixOS | Intel Nuc, headless server (plain — no clustering) |
-| `nuc-cluster-head` | `x86_64-linux` | NixOS | Role closure on the nuc hardware — Ray head node |
-| `nuc-cluster-worker` | `x86_64-linux` | NixOS | Role closure on the second Nuc — Ray worker |
-| `rpi-cluster-head` | `aarch64-linux` | NixOS | Prototype Raspberry Pi head node (generalized `hosts/rpi/` template) |
-| `macbook` | `aarch64-darwin` | nix-darwin | macOS device |
-| `mac-mini` | `aarch64-darwin` | nix-darwin | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
-| `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | standalone via `homeManager.standard` |
+| Host | Platform | Type | Status | Notes |
+|---|---|---|---|---|
+| `mbp14` | `aarch64-linux` | NixOS | **experimental** | Asahi Linux, MacBook Pro 14" M2 Pro/Max (KDE Plasma 6) |
+| `nuc` | `x86_64-linux` | NixOS | **experimental** | Intel Nuc, headless server (plain — no clustering) |
+| `nuc-cluster-head` | `x86_64-linux` | NixOS | **experimental** | Role closure on the nuc hardware — Ray head node |
+| `nuc-cluster-worker` | `x86_64-linux` | NixOS | **experimental** | Role closure on the second Nuc — Ray worker |
+| `rpi-cluster-head` | `aarch64-linux` | NixOS | **experimental** | Prototype Raspberry Pi head node (generalized `hosts/rpi/` template) |
+| `macbook` | `aarch64-darwin` | nix-darwin | tested | macOS device |
+| `mac-mini` | `aarch64-darwin` | nix-darwin | tested | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
+| `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | per host | standalone via `homeManager.standard` |
 
 All hosts run Tailscale and have 1Password installed (CLI everywhere; GUI on
 mbp14 and darwin via nixpkgs). System and home username is **`connorfuhrman`**
@@ -39,8 +39,8 @@ everywhere.
 - Configurations live in `modules/hosts/<name>.nix`: a `host-<name>` module that
   composes features by name, plus the `<name>` configuration (and
   `connorfuhrman@<name>` home configuration) built from it.
-- Home hosts import **`homeManager.standard`** (base + emacs + coreutils +
-  nono-opencode) — do not re-list those four modules per host.
+- Home hosts import **`homeManager.standard`** (base + emacs + coreutils + mosh +
+  obsidian-config) — do not re-list those modules per host.
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
   through the top-level module system; lower-level modules close over `inputs`
   lexically where needed.
@@ -59,12 +59,9 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager: base, emacs, coreutils, obsidian-config, standard
-modules/opencode/        opencode feature: nono-opencode, criticmarkup + content trees (_agents/_skills/_instructions/_lib/_plugins/_test/_tools)
+modules/home/           homeManager: base, emacs, coreutils, cursor, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
-modules/hosts/          host definitions (+ _hardware-configuration.nix per NixOS host)
-opencode.json           project opencode permissions (keep in sync with nono-opencode.nix)
-.opencode/              project agents (e.g. ling-implementer)
+modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
 docs/                   human-facing notes (plans/, rfcs/, research/) — long answers go here
 firmware/               vendored Asahi firmware — PRIVATE, never publish
 INSTALL.md              human-facing Asahi install runbook for mbp14
@@ -81,11 +78,9 @@ README.md               human-facing overview (this repo is multi-host, not Asah
   - `flake.lib.pkgsFor <system>` — nixpkgs + overlay (used by home configs)
   - `packages.<system>.*` — same attrs for `nix build .#…`
 - **HM hosts** use `pkgs = config.flake.lib.pkgsFor "<system>"` (not bare
-  `legacyPackages`) so modules can `home.packages = [ pkgs.opencode ]`.
+  `legacyPackages`) so modules can reference overlay packages.
 - **NixOS/darwin** apply `nixpkgs.overlays = [ self.overlays.default ]` in
   `modules/{nixos,darwin}/system.nix`.
-- Content trees for the opencode bundle stay under `modules/opencode/_…`
-  (agents/skills/plugins/instructions/tools); packages reference those paths.
 
 ## Working in this repo
 
@@ -93,9 +88,7 @@ README.md               human-facing overview (this repo is multi-host, not Asah
   (`nix.settings.experimental-features`). Use plain `nix flake` / `nix eval`.
 - **Evaluation only — never build system closures.** No `nixos-rebuild`,
   `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
-  and `nix eval` are the validation tools; building the small pinned binary
-  packages (nono, opencode) for the CURRENT system is allowed for validation
-  (`nix build .#nono`, `nix build .#opencode`).
+  and `nix eval` are the validation tools.
 - This **is** a git repo. Prefer `develop` for commits (see Workflow). Do not
   force-push or commit secrets / `firmware/` blobs to a public remote.
 - `flake show` displays `darwinConfigurations`, `homeConfigurations`,
@@ -160,34 +153,13 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
   conflict). Do not add unfree packages without extending the predicate;
   never work around it with `--impure`/`NIXPKGS_ALLOW_UNFREE` in the
   validation suite.
-- **nono/opencode are NOT in nixpkgs.** Package bodies: `pkgs/nono.nix`,
-  `pkgs/opencode-bin.nix`, `pkgs/opencode-nix-bundle.nix` (via
-  `flake.overlays.default`). HM module `modules/opencode/nono-opencode.nix` only
-  installs `pkgs.opencode` + activation. Pinned upstream binaries: nono
-  v0.69.0 (nolabs-ai/nono), opencode v1.18.5 (anomalyco/opencode). Bumping =
-  new version + 3 hashes (`nix store prefetch-file`). nono Linux =
-  glibc/`autoPatchelfHook`; opencode Linux = musl static. **Entire install is
-  one store bundle** (`packages.opencode`): profile JSON, opencode.json,
-  agents, skills, plugins, models allowlist, **fleet instructions**
-  (`modules/opencode/_instructions/fleet.md`), launcher. Wrapper always uses
-  `--profile /nix/store/…/nono-profile.json` (never mutable
-  `~/.config/nono/profiles/`). Profile extends built-in `default` only — **no
-  `nono pull` required**. HM activation only creates XDG state dirs and
-  discovery symlinks into the store. Paid OpenRouter MoE allowlist:
-  `modules/opencode/_lib/opencode-models.nix`. Skills: `orchestration`,
-  `document-comments`, `document-review`, `nono-sandbox`. Agents:
-  `orchestrator` (default), `worker-free`, `worker-free-strong`, `moe-advisor`
-  — worker tiers pin explicit `:free` models (Task tool has NO per-spawn model
-  override; pick the tier, not a model); all agents run allow-all permissions
-  (nono is the boundary). The wrapper refreshes `$OPENCODE_FREE_MODELS` from
-  OpenRouter at every startup (fallback: `modules/opencode/_lib/free-models-snapshot.json`).
-  CriticMarkup: `pkgs/cm.nix` → `pkgs.cm`. Restart opencode after HM switch.
-- **Document review:** human instructions arrive as Obsidian Document Comments;
-  resolve (do not delete) when acted on. Agent prose edits use CriticMarkup
-  via `cm` / skill `document-review` (logical chunks for Track Changes).
 - **Obsidian:** system package on all hosts; plugins (document-comments,
   track-changes, remote-ssh, ghostty-terminal) are Nix-pinned —
   `obsidian-nix-sync-plugins <vault>` or HM activation into `~/nixconfig`.
+- **Cursor:** `homeManager.cursor` on `macbook` and `mac-mini` only — installs
+  `pkgs.code-cursor` via `home.packages` (no `programs.vscode`). Unfree
+  predicate scoped in the cursor HM module; Darwin system predicate extended in
+  `darwin.onepassword`. Settings/extensions stay in Cursor's UI.
 - **mosh:** client on all systems; `programs.mosh.enable` on NixOS servers
   (nuc); package on darwin server (mac-mini).
 - **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
@@ -273,12 +245,10 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # tru
 
 ## Workflow convention (user preference)
 
-- Primary agent **plans and verifies**; mechanical implementation is delegated
-  to the `ling-implementer` subagent (cheap model, defined in
-  `.opencode/agents/ling-implementer.md`) with exact file-by-file specs.
+- Primary agent **plans and verifies**; mechanical implementation can be
+  delegated to subagents with exact file-by-file specs.
 - After delegation, the primary agent re-reads changed files and re-runs the
   validation suite itself. Never trust a subagent's report without verification.
-- New opencode config (agents, etc.) requires an opencode restart to load.
 - **Always work and commit on the `develop` branch.** Never commit directly to
   `master`/`main`. Create or check out `develop` before staging commits; open
   PRs from `develop` into the default branch when the user asks to merge.

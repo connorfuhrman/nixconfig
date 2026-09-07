@@ -1,4 +1,5 @@
 { config, inputs, ... }: {
+  # EXPERIMENTAL — see flake.hostStatus.nuc-cluster-head.
   # Cluster head role closure running on the nuc hardware. Boot this INSTEAD of
   # the plain `nuc` closure when the machine should act as the Ray head node —
   # the two closures are mutually exclusive (different networking.hostName /

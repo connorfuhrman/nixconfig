@@ -7,8 +7,6 @@
       config.flake.modules.homeManager.base
       config.flake.modules.homeManager.emacs
       config.flake.modules.homeManager.coreutils
-      config.flake.modules.homeManager.nono-opencode
-      config.flake.modules.homeManager.criticmarkup
       config.flake.modules.homeManager.mosh
       config.flake.modules.homeManager.obsidian-config
     ];

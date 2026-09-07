@@ -23,7 +23,10 @@
 
   flake.homeConfigurations."connorfuhrman@mac-mini" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = config.flake.lib.pkgsFor "aarch64-darwin";
-    modules = [ config.flake.modules.homeManager.standard ];
+    modules = [
+      config.flake.modules.homeManager.standard
+      config.flake.modules.homeManager.cursor
+    ];
   };
 }
 

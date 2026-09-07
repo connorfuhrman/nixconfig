@@ -1,4 +1,5 @@
 { config, inputs, ... }: {
+  # EXPERIMENTAL — see flake.hostStatus.nuc (not yet validated on hardware).
   flake.modules.nixos.host-nuc = {
     imports = [
       config.flake.modules.nixos.system

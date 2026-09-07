@@ -12,27 +12,31 @@ pattern: features are modules under `modules/`, composed by name per host.
 
 ## Hosts
 
-| Host | System | Role |
-|---|---|---|
-| `mbp14` | `aarch64-linux` (NixOS / Asahi) | MacBook Pro 14" M2 — desktop (KDE Plasma 6) |
-| `nuc` | `x86_64-linux` (NixOS) | Intel NUC — headless server (plain, no clustering) |
-| `nuc-cluster-head` | `x86_64-linux` (NixOS) | Role closure on the NUC — Ray head node |
-| `nuc-cluster-worker` | `x86_64-linux` (NixOS) | Role closure on the second NUC — Ray worker |
-| `rpi-cluster-head` | `aarch64-linux` (NixOS) | Prototype Raspberry Pi 4 — alternate Ray head |
-| `macbook` | `aarch64-darwin` (nix-darwin) | macOS laptop |
-| `mac-mini` | `aarch64-darwin` (nix-darwin) | Always-on Mac mini — Linux builder + Roon Core |
+| Host | System | Role | Status |
+|---|---|---|---|
+| `mbp14` | `aarch64-linux` (NixOS / Asahi) | MacBook Pro 14" M2 — desktop (KDE Plasma 6) | **experimental** |
+| `nuc` | `x86_64-linux` (NixOS) | Intel NUC — headless server (plain, no clustering) | **experimental** |
+| `nuc-cluster-head` | `x86_64-linux` (NixOS) | Role closure on the NUC — Ray head node | **experimental** |
+| `nuc-cluster-worker` | `x86_64-linux` (NixOS) | Role closure on the second NUC — Ray worker | **experimental** |
+| `rpi-cluster-head` | `aarch64-linux` (NixOS) | Prototype Raspberry Pi 4 — alternate Ray head | **experimental** |
+| `macbook` | `aarch64-darwin` (nix-darwin) | macOS laptop | tested |
+| `mac-mini` | `aarch64-darwin` (nix-darwin) | Always-on Mac mini — Linux builder + Roon Core | tested |
 
 Each host has a matching standalone home-manager config: `connorfuhrman@<host>`.
 Cluster role closures are **mutually exclusive** with the plain closure on the
 same hardware (distinct `networking.hostName` / Tailscale identity) — boot
 `nuc` *or* `nuc-cluster-head` on the first NUC, never both.
 
+**Experimental** hosts (`mbp14`, all NUC closures, `rpi-cluster-head`) are
+evaluated in CI via `nix flake check` but have **not** been validated on real
+hardware yet. Metadata lives in `modules/hosts/status.nix` (`flake.hostStatus`).
+
 **Shared across hosts**
 
 - [Tailscale](https://tailscale.com/) (MagicDNS hostnames after one-time `sudo tailscale up`)
 - [1Password](https://1password.com/) CLI everywhere; GUI on `mbp14` and Darwin (nixpkgs)
 - Weekly Nix garbage collection (store paths older than 30 days)
-- Common CLI tools, git, gh (GitHub CLI), zsh, Emacs, and sandboxed [opencode](https://opencode.ai)
+- Common CLI tools, git, gh (GitHub CLI), zsh, Emacs
 
 ## Quick start
 
@@ -40,7 +44,7 @@ same hardware (distinct `networking.hostName` / Tailscale identity) — boot
 # Validate every configuration evaluates (no full system builds)
 nix flake check
 
-# NixOS
+# NixOS — experimental hosts; verify on hardware before relying on them
 sudo nixos-rebuild switch --flake .#mbp14
 sudo nixos-rebuild switch --flake .#nuc
 sudo nixos-rebuild switch --flake .#nuc-cluster-head
@@ -67,15 +71,12 @@ modules/
   nixos/                  NixOS features (system, desktop, server, asahi,
                           nuc-cluster, ray-cluster, onepassword, …)
   darwin/                 nix-darwin features (system, linux-builder, roon, …)
-  home/                   home-manager (standard = base+emacs+coreutils+nono-opencode)
-  opencode/               opencode feature: nono-opencode, criticmarkup + content
-                          trees (_agents/_skills/_instructions/_lib/_plugins/_test/_tools)
+  home/                   home-manager (standard = base+emacs+coreutils+mosh+obsidian-config)
   generic/                shared features (tailscale, mac-mini-builder)
   hosts/<name>.nix        per-host composition + home config
+  hosts/status.nix        host maturity metadata (experimental vs tested)
   hosts/<name>/_*.nix     generated hardware (NixOS; not auto-imported)
 docs/                     human-facing notes (plans/, rfcs/, research/)
-opencode.json             project opencode permissions
-.opencode/                project opencode agents (e.g. ling-implementer)
 firmware/                 Asahi peripheral firmware (private — do not publish)
 INSTALL.md                Asahi / mbp14 install runbook
 ```
@@ -93,15 +94,6 @@ Standalone home-manager for user `connorfuhrman` on every host:
 | **Emacs** | GUI from [connorfuhrman/emacs](https://github.com/connorfuhrman/emacs) | same flake (emacs-macport + packages + `--init-directory`) |
 | **Shell / CLI** | zsh, eza, bat, fzf, ydiff, dust, jq, gtop, gping, gh | same |
 | **Git** | name/email, `master` default branch, auto upstream on push, ydiff pager | same |
-| **opencode** | Store-backed bundle inside [nono](https://github.com/nolabs-ai/nono) — no `nono pull` needed | same |
-
-### Agent CLI tools
-
-The opencode bundle puts a deterministic toolset on PATH for every agent
-subshell (humans get the same tools via coreutils): `rg`, `fd`, `jq`, `sg`
-(ast-grep), `fzf`, `tree`, `delta`, `bat`, `gh`. Agent `gh` usage is
-nondestructive-only by policy (PR create/view, issue read/comment); GitHub
-credentials are pulled from 1Password at call time via `op`.
 
 ## Infrastructure notes
 
