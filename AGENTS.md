@@ -15,11 +15,15 @@ working in this repo.
 | `rpi-cluster-head` | `aarch64-linux` | NixOS | **experimental** | Prototype Raspberry Pi head node (generalized `hosts/rpi/` template) |
 | `macbook` | `aarch64-darwin` | nix-darwin | tested | macOS device |
 | `mac-mini` | `aarch64-darwin` | nix-darwin | tested | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
+| `cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | Cursor Cloud Agent home only — user `ubuntu` |
 | `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | per host | standalone via `homeManager.standard` |
+| `ubuntu@cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | `homeManager.cursor-cloud` (base + coreutils + emacs) |
 
-All hosts run Tailscale and have 1Password installed (CLI everywhere; GUI on
-mbp14 and darwin via nixpkgs). System and home username is **`connorfuhrman`**
-everywhere.
+All hardware hosts run Tailscale and have 1Password installed (CLI everywhere;
+GUI on mbp14 and darwin via nixpkgs). System and home username is
+**`connorfuhrman`** on those machines. Exception: Cloud Agent home
+`ubuntu@cursor-cloud` (`ubuntu` / `/home/ubuntu`). First-time Cloud Nix setup
+for agents: [`.cursor/AGENTS.md`](.cursor/AGENTS.md).
 
 ## Architecture (dendritic pattern — follow it)
 
@@ -40,7 +44,9 @@ everywhere.
   composes features by name, plus the `<name>` configuration (and
   `connorfuhrman@<name>` home configuration) built from it.
 - Home hosts import **`homeManager.standard`** (base + emacs + coreutils + mosh +
-  obsidian-config) — do not re-list those modules per host.
+  obsidian-config) — do not re-list those modules per host. Exception:
+  `ubuntu@cursor-cloud` imports `homeManager.cursor-cloud` (base + coreutils +
+  emacs only; no mosh / obsidian-config).
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
   through the top-level module system; lower-level modules close over `inputs`
   lexically where needed.
@@ -59,9 +65,10 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager: base, emacs, coreutils, cursor, obsidian-config, standard
+modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
+.cursor/AGENTS.md       AI-only Cursor Cloud first-time Nix setup (not human docs)
 docs/                   human-facing notes (plans/, rfcs/, research/) — long answers go here
 firmware/               vendored Asahi firmware — PRIVATE, never publish
 INSTALL.md              human-facing Asahi install runbook for mbp14
@@ -99,7 +106,7 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 
 ```sh
 cd /Users/connorfuhrman/nixconfig
-# primary gate: proves every configuration's derivations evaluate (14 closures).
+# primary gate: proves every configuration's derivations evaluate (15 closures).
 # Runs PURE (no --impure, no env vars) — unfree allowance is scoped in onepassword modules.
 nix flake check .
 # module registries:
@@ -118,6 +125,8 @@ nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
+nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
+nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
 ```
 
 ## Gotchas (learned the hard way)

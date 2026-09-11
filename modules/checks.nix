@@ -30,7 +30,9 @@
         eval-home-connorfuhrman-rpi-cluster-head = evalOnly "home-connorfuhrman-rpi-cluster-head" self.homeConfigurations."connorfuhrman@rpi-cluster-head".activationPackage.drvPath;
         eval-home-connorfuhrman-macbook = evalOnly "home-connorfuhrman-macbook" self.homeConfigurations."connorfuhrman@macbook".activationPackage.drvPath;
         eval-home-connorfuhrman-mac-mini = evalOnly "home-connorfuhrman-mac-mini" self.homeConfigurations."connorfuhrman@mac-mini".activationPackage.drvPath;
+        eval-home-ubuntu-cursor-cloud = evalOnly "home-ubuntu-cursor-cloud" self.homeConfigurations."ubuntu@cursor-cloud".activationPackage.drvPath;
         eval-obsidian-plugins = evalOnly "obsidian-plugins" self.packages.${sys}.obsidian-plugins.drvPath;
+        eval-cursor-cloud-setup = evalOnly "cursor-cloud-setup" self.packages.${sys}.cursor-cloud-setup.drvPath;
       };
     };
 }

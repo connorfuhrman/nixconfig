@@ -21,13 +21,15 @@ pattern: features are modules under `modules/`, composed by name per host.
 | `rpi-cluster-head` | `aarch64-linux` (NixOS) | Prototype Raspberry Pi 4 — alternate Ray head | **experimental** |
 | `macbook` | `aarch64-darwin` (nix-darwin) | macOS laptop | tested |
 | `mac-mini` | `aarch64-darwin` (nix-darwin) | Always-on Mac mini — Linux builder + Roon Core | tested |
+| `cursor-cloud` | `x86_64-linux` (home-manager only) | Cursor Cloud Agent home — user `ubuntu` | **experimental** |
 
-Each host has a matching standalone home-manager config: `connorfuhrman@<host>`.
+Each hardware host has a matching standalone home-manager config: `connorfuhrman@<host>`.
+`cursor-cloud` is home-only (`ubuntu@cursor-cloud`; app `cursor-cloud-setup`).
 Cluster role closures are **mutually exclusive** with the plain closure on the
 same hardware (distinct `networking.hostName` / Tailscale identity) — boot
 `nuc` *or* `nuc-cluster-head` on the first NUC, never both.
 
-**Experimental** hosts (`mbp14`, all NUC closures, `rpi-cluster-head`) are
+**Experimental** hosts (`mbp14`, all NUC closures, `rpi-cluster-head`, `cursor-cloud`) are
 evaluated in CI via `nix flake check` but have **not** been validated on real
 hardware yet. Metadata lives in `modules/hosts/status.nix` (`flake.hostStatus`).
 
@@ -87,7 +89,8 @@ Classes: `nixos`, `darwin`, `homeManager`, `generic`.
 
 ## Home environment
 
-Standalone home-manager for user `connorfuhrman` on every host:
+Standalone home-manager for user `connorfuhrman` on every hardware host.
+Cloud Agents use `ubuntu@cursor-cloud`.
 
 | | Linux | macOS |
 |---|---|---|
