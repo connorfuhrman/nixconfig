@@ -2,4 +2,5 @@
 final: prev: {
   obsidian-plugins = final.callPackage ./obsidian-plugins.nix { };
   obsidian-nix-sync-plugins = final.callPackage ./obsidian-nix-sync-plugins.nix { };
+  cursor-cloud-setup = final.callPackage ./cursor-cloud-setup.nix { };
 }

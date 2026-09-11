@@ -17,6 +17,7 @@ let
   packageNames = [
     "obsidian-plugins"
     "obsidian-nix-sync-plugins"
+    "cursor-cloud-setup"
   ];
 in
 {
@@ -33,5 +34,9 @@ in
     in
     {
       packages = pkgs.lib.genAttrs packageNames (name: pkgs.${name});
+      apps.cursor-cloud-setup = {
+        type = "app";
+        program = "${pkgs.cursor-cloud-setup}/bin/cursor-cloud-setup";
+      };
     };
 }

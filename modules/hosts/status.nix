@@ -29,5 +29,9 @@
       experimental = false;
       note = "Always-on builder + Roon — in daily use";
     };
+    cursor-cloud = {
+      experimental = true;
+      note = "Cursor Cloud Agent home only — x86_64-linux, user ubuntu";
+    };
   };
 }
