@@ -61,6 +61,15 @@ darwin-rebuild switch --flake .#mac-mini
 home-manager switch --flake .#connorfuhrman@macbook
 ```
 
+## CI
+
+Every push and pull request targeting `develop` or `main` runs
+[`nix flake check`](./modules/checks.nix) in
+[Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) inside the
+official [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container image.
+The check evaluates all host configurations without building full system
+closures. Merges require the Buildkite status check to pass.
+
 ## Layout
 
 ```
