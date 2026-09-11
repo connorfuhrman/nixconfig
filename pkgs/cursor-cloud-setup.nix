@@ -82,12 +82,15 @@ writeShellScriptBin "cursor-cloud-setup" ''
     fi
 
     mkdir -p "$dir/.cursor"
+    # Templates are store-copied 0444; drop dest first so --force can rewrite.
+    rm -f "$dest_json" "$dest_sh"
     if [ -n "$extra" ]; then
       "$jq" --arg extra "$extra" \
         '.install = (.install + "\n" + $extra)' \
         "$template_json" >"$dest_json"
     else
       cp -f "$template_json" "$dest_json"
+      chmod u+w "$dest_json"
     fi
     cp -f "$template_sh" "$dest_sh"
     chmod 0755 "$dest_sh"
