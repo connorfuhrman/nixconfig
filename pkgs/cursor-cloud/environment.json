@@ -1,0 +1,14 @@
+{
+  "name": "nix-home",
+  "user": "ubuntu",
+  "install": ".cursor/nix-home.sh",
+  "repositoryDependencies": [
+    "github.com/connorfuhrman/nixconfig"
+  ],
+  "egressAllowlist": [
+    "cache.nixos.org",
+    "install.determinate.systems",
+    "api.github.com",
+    "github.com"
+  ]
+}
