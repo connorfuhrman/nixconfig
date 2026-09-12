@@ -68,6 +68,19 @@ fi
 
 ensure_nix_daemon
 
+# Determinate ships a CA bundle; Cloud egress/redirects otherwise fail flake fetches
+# with: HTTP error 302 (curl error: SSL connect error).
+for cert in \
+  /nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt \
+  /etc/ssl/certs/ca-certificates.crt
+do
+  if [ -f "$cert" ]; then
+    export SSL_CERT_FILE="$cert"
+    export NIX_SSL_CERT_FILE="$cert"
+    break
+  fi
+done
+
 if [ -n "${NIXCONFIG_FLAKE:-}" ]; then
   flake="$NIXCONFIG_FLAKE"
 elif [ -f flake.nix ] && [ -d modules/home ]; then
@@ -76,4 +89,16 @@ else
   flake="github:connorfuhrman/nixconfig/develop"
 fi
 
-exec nix run "${flake}#cursor-cloud-setup"
+# Flake input downloads can 302 (github.com → codeload) and flake on first try.
+attempt=1
+while true; do
+  if nix run "${flake}#cursor-cloud-setup"; then
+    exit 0
+  fi
+  if [ "$attempt" -ge 5 ]; then
+    echo "nix-home.sh: nix run failed after ${attempt} attempts" >&2
+    exit 1
+  fi
+  sleep $((attempt * 2))
+  attempt=$((attempt + 1))
+done
