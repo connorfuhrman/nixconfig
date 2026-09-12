@@ -20,3 +20,51 @@ steps:
       automatic:
         - exit_status: "*"
           limit: 1
+
+  - label: ":cursor: environment.json schema"
+    key: cursor-env-schema
+    if: |
+      build.branch == "develop" || build.branch == "main" ||
+      build.pull_request.base_branch == "develop" ||
+      build.pull_request.base_branch == "main"
+    command: .buildkite/scripts/cursor-env-schema.sh
+    agents:
+      queue: linux-small
+    timeout_in_minutes: 10
+
+  - label: ":nix: cursor-cloud closure"
+    key: cursor-closure
+    if: |
+      build.branch == "develop" || build.branch == "main" ||
+      build.pull_request.base_branch == "develop" ||
+      build.pull_request.base_branch == "main"
+    command: .buildkite/scripts/cursor-closure.sh
+    plugins:
+      - docker#v5.14.0:
+          image: "nixos/nix:2.28.2"
+          mount-checkout: true
+          propagate-environment: true
+          environment:
+            - "NIX_CONFIG=experimental-features = nix-command flakes"
+    agents:
+      queue: linux-medium
+    timeout_in_minutes: 90
+    retry:
+      automatic:
+        - exit_status: "*"
+          limit: 1
+
+  - label: ":cursor: environment Build"
+    key: cursor-env-build
+    if: |
+      build.branch == "develop" || build.branch == "main" ||
+      build.pull_request.base_branch == "develop" ||
+      build.pull_request.base_branch == "main"
+    command: .buildkite/scripts/cursor-env-build.sh
+    agents:
+      queue: linux-small
+    timeout_in_minutes: 90
+    retry:
+      automatic:
+        - exit_status: 1
+          limit: 1
