@@ -18,8 +18,11 @@ App: `nix run .#cursor-cloud-setup`
 **Do not re-run `init` here.**
 
 - VM **with** Nix: `nix run .#cursor-cloud-setup`
-- VM **without** Nix: `.cursor/nix-home.sh` (installs Determinate Nix, then
-  the app). Do not `nix run` until `nix` is on PATH.
+- VM **without** Nix: `.cursor/nix-home.sh` (installs Determinate Nix, waits
+  until `nix-daemon` accepts connections, then the app). Do not `nix run`
+  until `nix` is on PATH and the daemon is up. The installer returning
+  success is not enough — a following `nix` as `ubuntu` fails with
+  `big-lock: Permission denied` if the daemon is not listening yet.
 
 ## Consumer repo (e.g. t-hex) — first time only when asked
 
