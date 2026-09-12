@@ -70,6 +70,8 @@ official [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container image.
 The check evaluates all host configurations without building full system
 closures. Merges require the Buildkite status check to pass.
 
+<!-- ci-smoke-test: safe to remove after verifying Buildkite PR triggers -->
+
 ## Layout
 
 ```
