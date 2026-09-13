@@ -11,6 +11,9 @@
       '';
     in
     {
+      # nix-darwin only creates users listed in knownUsers (see users/default.nix).
+      users.knownUsers = lib.mkAfter [ "buildkite-agent-macos" ];
+
       services.buildkite-agents.macos = {
         tokenPath = "/etc/buildkite-agent/cluster.token";
         tags = {
