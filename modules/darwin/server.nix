@@ -1,7 +1,18 @@
 { ... }: {
   # Always-on headless server behavior for macOS hosts.
-  flake.modules.darwin.server = { pkgs, ... }: {
+  flake.modules.darwin.server = { pkgs, config, ... }: {
     environment.systemPackages = [ pkgs.mosh ];
+
+    # Headless remote host: auto-login primary user at the console on boot.
+    # Console auto-login does not change SSH auth (password still required).
+    # /etc/kcpassword is a one-time hardware step:
+    # sudo sysadminctl -autologin set -userName connorfuhrman -password -
+    system.defaults.loginwindow.autoLoginUser = config.system.primaryUser;
+    system.defaults.loginwindow.GuestEnabled = false;
+
+    # Tailscale for remote access; keep tailscaled alive across crashes.
+    services.tailscale.enable = true;
+    launchd.daemons.tailscaled.serviceConfig.KeepAlive = true;
 
     # Power policy: never sleep, restart after power failure, wake on LAN.
     system.activationScripts.serverPower.text = ''
