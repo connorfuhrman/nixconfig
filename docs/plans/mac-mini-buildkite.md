@@ -38,7 +38,7 @@ cluster. Remaining steps on mac-mini:
 **One-shot (recommended):**
 
 ```sh
-cd ~/nixconfig && git pull origin develop
+cd ~/nixconfig && git pull origin main   # or your feature branch until merged
 export BUILDKITE_API_TOKEN='…'   # personal token with write_clusters
 ./scripts/mac-mini-buildkite-bootstrap.sh
 ```
