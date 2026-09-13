@@ -64,6 +64,13 @@
           chmod 640 /etc/buildkite-agent/cluster.token
         fi
 
+        # build #122: buildkite-agent-macos could not read /etc/nix/builder_ed25519
+        # (platform mismatch for aarch64-linux installer builds via linux-builder).
+        if [ -f /etc/nix/builder_ed25519 ]; then
+          chown root:${agentUser} /etc/nix/builder_ed25519
+          chmod 640 /etc/nix/builder_ed25519
+        fi
+
         launchctl kickstart -k system/org.nixos.buildkite-agent-macos 2>/dev/null || true
       '';
     };

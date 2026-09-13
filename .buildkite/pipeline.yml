@@ -2,6 +2,7 @@
 x-branch-if: &branch-if
   if: |
     build.branch == "main" ||
+    build.branch == "cursor/nixos-installer-iso-5d60" ||
     build.pull_request.base_branch == "main"
 
 x-nix-docker: &nix-docker
