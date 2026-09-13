@@ -209,10 +209,16 @@ ls -l /var/run/docker.sock   # symlink → Podman API socket (ConnectionInfo.Pod
 sudo tail -20 /var/log/podman-machine.log
 ```
 
-`podman machine init` is **not** automated — launchd only ensures rootful mode,
+`podman machine init` is **not** automated — launchd ensures rootful mode,
+sets machine memory to 10240 MiB (stop/set/start if the running VM differs),
 starts the VM, and maintains `/var/run/docker.sock`. After reboot, the root
 `org.nixos.podman-machine` daemon runs without a login session (`RunAtLoad` +
 `StartInterval` + retry on failure).
+
+The mini is 16 GiB and `nix.linux-builder` is already 8 GiB. 8096 MiB still
+OOM-killed `nix flake check` in `nixos/nix:2.28.2` (~7.4 GiB nix RSS during
+emacs-overlay unpack). 10 GiB is the encoded bump; do not `podman machine set`
+by hand — rebuild so launchd applies it.
 
 ## Validation
 

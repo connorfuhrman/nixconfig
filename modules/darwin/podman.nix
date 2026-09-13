@@ -10,6 +10,12 @@
       agentUser = "buildkite-agent-macos";
       podman = pkgs.podman;
       dockerGid = toString config.users.groups.docker.gid;
+      # mac-mini is 16 GiB; linux-builder is already 8 GiB. Build 67's
+      # nixos/nix:2.28.2 flake-check OOM-killed nix at ~7.4 GiB RSS (emacs
+      # overlay unpack) inside an 8096 MiB machine — 4–6 GiB would still
+      # SIGKILL 137. 10 GiB is the bump that can finish eval without adding
+      # another full 8 GiB VM on a 16 GiB host (idle builder pages compress).
+      desiredMemoryMiB = "10240";
       scriptPath = lib.makeBinPath [
         podman
         pkgs.coreutils
@@ -77,7 +83,19 @@
           podman_as_user machine set --rootful "$machine"
         fi
 
+        desiredMemory="${desiredMemoryMiB}"
+        currentMemory="$(podman_as_user machine inspect "$machine" --format '{{.Resources.Memory}}' 2>/dev/null || echo 0)"
         state="$(podman_as_user machine inspect "$machine" --format '{{.State}}' 2>/dev/null || echo stopped)"
+        if [ "$currentMemory" != "$desiredMemory" ]; then
+          echo "Podman machine memory $currentMemory MiB -> $desiredMemory MiB"
+          # applehv applies --memory only when the VM is stopped.
+          if [ "$state" = "running" ]; then
+            podman_as_user machine stop "$machine"
+            state=stopped
+          fi
+          podman_as_user machine set --memory "$desiredMemory" "$machine"
+        fi
+
         if [ "$state" != "running" ]; then
           podman_as_user machine start "$machine"
         fi
@@ -160,7 +178,7 @@
           sleep 1
         done
 
-        echo "podman $machine running (rootful); proxy $listen -> $sock"
+        echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB); proxy $listen -> $sock"
       '';
 
       podmanDockerProxy = pkgs.writeShellScript "podman-docker-proxy" ''
