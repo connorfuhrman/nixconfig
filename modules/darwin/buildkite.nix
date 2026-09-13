@@ -18,7 +18,10 @@
 
       services.buildkite-agents.macos = {
         tokenPath = "/etc/buildkite-agent/cluster.token";
-        extraConfig = "debug=true";
+        extraConfig = ''
+          debug=true
+          plugins-path="${agentHome}/plugins"
+        '';
         tags = {
           queue = "mac-mini-macos";
           os = "macos";
@@ -50,10 +53,11 @@
       # (after users) so buildkite-agent-macos exists before chgrp/chown.
       system.activationScripts.postActivation.text = lib.mkAfter ''
         agent_home=${agentHome}
-        mkdir -p "$agent_home/builds"
+        mkdir -p "$agent_home/builds" "$agent_home/plugins"
         chown -R ${agentUser}:${agentUser} "$agent_home"
         chmod 755 "$agent_home"
         chmod 755 "$agent_home/builds"
+        chmod 755 "$agent_home/plugins"
 
         mkdir -p /etc/buildkite-agent
         chmod 755 /etc/buildkite-agent
