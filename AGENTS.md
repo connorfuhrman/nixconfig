@@ -128,6 +128,7 @@ nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # tru
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
 nix eval .#darwinConfigurations.mac-mini.config.nix.settings.secret-key-files  # ["/etc/nix/keys/mac-mini-1.secret"]
 nix eval .#darwinConfigurations.macbook.config.nix.settings.extra-trusted-public-keys --apply 'ks: builtins.any (k: builtins.match "mac-mini-1:.*" k != null) ks'  # true
+nix eval .#apps.aarch64-darwin.mac-mini-install-nix-store-signing.program
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
 nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
@@ -234,7 +235,8 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `docs/plans/1password-ssh-workplan.md`. Dual-NUC scale-out:
   `docs/rfcs/0001-dual-nuc-cluster.md`.
 - **Store-path signing:** mac-mini signs local builds (`darwin.nix-store-sign`);
-  clients trust `mac-mini-1` (`generic.nix-store-trust`). Runbook:
+  clients trust `mac-mini-1` (`generic.nix-store-trust`). One-time setup on
+  mac-mini: `nix run .#mac-mini-install-nix-store-signing`. Runbook:
   `docs/plans/nix-store-signing.md`.
 - **Roon on macOS:** nixpkgs `roon-server` is x86_64-linux only and Roon ships
   no standalone headless macOS server — Roon.app (brew cask) IS the Core and

@@ -41,7 +41,7 @@ EOF
 
   if sudo test -f "$SECRET_PATH"; then
     echo "Using existing $SECRET_PATH"
-    if ! sudo "$NIX" key convert-secret-to-public < "$SECRET_PATH" >/dev/null 2>&1; then
+    if ! sudo cat "$SECRET_PATH" | "$NIX" key convert-secret-to-public >/dev/null 2>&1; then
       die "$SECRET_PATH exists but is not a valid Nix signing secret — fix or remove manually"
     fi
   else
@@ -54,7 +54,7 @@ EOF
     echo "Installed new signing secret at $SECRET_PATH (0600, root:wheel)."
   fi
 
-  public_key=$(sudo "$NIX" key convert-secret-to-public < "$SECRET_PATH")
+  public_key=$(sudo cat "$SECRET_PATH" | "$NIX" key convert-secret-to-public)
   public_key=$(printf '%s' "$public_key" | tr -d '[:space:]')
 
   echo
