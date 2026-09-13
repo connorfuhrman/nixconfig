@@ -34,18 +34,12 @@ fi
 
 prompt_text="$(sed "s/{{COMMIT_SHA}}/${BUILDKITE_COMMIT}/g" "$PROMPT_FILE")"
 
+# Always pin the agent to BUILDKITE_COMMIT. prUrl resolution fails for some
+# PR/build combinations (e.g. after rebase); the SHA is the authoritative ref.
 repo_entry="$(jq -n \
   --arg url "$REPO_URL" \
   --arg ref "$BUILDKITE_COMMIT" \
   '{url: $url, startingRef: $ref}')"
-
-if [[ -n "${BUILDKITE_PULL_REQUEST:-}" && "${BUILDKITE_PULL_REQUEST}" != "false" ]]; then
-  pr_url="https://github.com/${BUILDKITE_REPO}/pull/${BUILDKITE_PULL_REQUEST}"
-  repo_entry="$(jq -n \
-    --arg url "$REPO_URL" \
-    --arg pr "$pr_url" \
-    '{url: $url, prUrl: $pr}')"
-fi
 
 payload="$(jq -n \
   --arg text "$prompt_text" \
