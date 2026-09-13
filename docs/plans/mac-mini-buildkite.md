@@ -27,16 +27,35 @@ token:
 
 | Property | Value |
 |---|---|
-| Account | Fuhrmans |
-| Vault | Private |
-| Item title | Buildkite |
-| Field | `credential` (or `password` on a Login item) |
+| Account shorthand | `aztec_fuhrmans` (`op account list`) |
+| Account email | `connorfuhrman@outlook.com` |
+| Account URL | `https://aztec-fuhrmans.1password.com` |
+| Vault | `Private` |
+| Item title | `Buildkite` |
+| Field | `credential` (Password item) or `password` (Login item) |
+
+Discover layout on mac-mini (readonly — does not print secret values):
+
+```sh
+op account list
+eval "$(op signin --account aztec_fuhrmans)"   # or omit --account when only one is signed in
+op vault list
+op item list --vault Private | rg -i buildkite
+op item get Buildkite --vault Private --format json \
+  | jq '{title, vault, fields: [.fields[] | {id, label, purpose, type}]}'
+```
+
+If no Buildkite item exists, create a **Password** item titled `Buildkite` in
+vault `Private` and paste the `bkct_…` cluster agent token into the password
+field (Buildkite → Agents → Default cluster → Agent tokens).
 
 Verify read access before install:
 
 ```sh
-eval "$(op signin --account Fuhrmans)"
-op read --account Fuhrmans "op://Private/Buildkite/credential"
+eval "$(op signin --account aztec_fuhrmans)"
+op read "op://Private/Buildkite/credential"
+# or, for a Login item:
+# op read "op://Private/Buildkite/password"
 # should print a bkct_… token
 ```
 
@@ -64,7 +83,7 @@ cluster. Remaining steps on mac-mini:
 
 ```sh
 cd ~/nixconfig && git pull origin main   # or your feature branch until merged
-eval "$(op signin --account Fuhrmans)"
+eval "$(op signin --account aztec_fuhrmans)"
 ./scripts/mac-mini-buildkite-bootstrap.sh
 ```
 

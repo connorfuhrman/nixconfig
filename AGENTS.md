@@ -181,7 +181,8 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   linux-builder VM; native aarch64 Linux, x86_64-linux Nix via binfmt). Cluster
   agent token path: `/etc/buildkite-agent/cluster.token` (never in the Nix
   store). Install on mac-mini via `nix run .#mac-mini-buildkite-install-token`
-  (reads `bkct_` token from 1Password `op://Private/Buildkite/credential`).
+  (reads `bkct_` token from 1Password account `aztec_fuhrmans`,
+  `op://Private/Buildkite/credential`).
   Runbook: [`docs/plans/mac-mini-buildkite.md`](docs/plans/mac-mini-buildkite.md).
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.roon-server` enables it (and any other
