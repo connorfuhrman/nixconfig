@@ -1,8 +1,8 @@
 # Installing NixOS (Asahi Linux) on the MacBook Pro 14" (mbp14)
 
-This guide is **Asahi / mbp14 only**. For Intel NUC USB installers, build
-`nix build .#nuc-iso` (or `.#nuc-cluster-head-iso` / `.#nuc-cluster-worker-iso`)
-— see README. Do not use `installation-cd-minimal` on Apple Silicon.
+This guide is **Asahi / mbp14 only**. For Intel NUC and other x86_64 targets,
+build the generic installer `nix build .#iso` — see README. Do not use
+`installation-cd-minimal` on Apple Silicon.
 
 This guide installs NixOS with Apple Silicon support ("Asahi Linux") on the
 MacBook Pro 14" M2 Pro/Max, alongside macOS (dual boot), using this flake.
@@ -80,19 +80,16 @@ flake). Unzip it if necessary.
 
 ```sh
 cd ~/nixconfig
-nix build \
-  'github:nix-community/nixos-apple-silicon/release-2025-11-18#packages.aarch64-linux.installer-bootstrap' \
-  -o installer -L
+nix build --system aarch64-linux .#asahi-iso -o installer -L
 ```
 
 The ISO appears at `installer/iso/nixos-*.iso`. Expect this to take a while
 on first run (the builder VM downloads or compiles the Asahi kernel and
 friends; the nixos-apple-silicon binary cache is used automatically).
 
-This flake does **not** export `.#mbp14-iso`: the apple-silicon
-`iso-configuration` still sets `boot.bootspec.enable`, which current
-nixpkgs removed. Build installer-bootstrap from that project (option B)
-or download a release (option A) — do not use `installation-cd-minimal`.
+`.#asahi-iso` re-exports `nixos-apple-silicon`'s `installer-bootstrap`
+(`packages.aarch64-linux.asahi-iso`). Do not use the generic x86_64
+`.#iso` on Apple Silicon.
 
 ## 3. Write the ISO to the USB drive (on any Mac)
 

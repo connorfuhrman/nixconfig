@@ -161,13 +161,13 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   closures happens on target hardware or the mac-mini builder. Check names must
   not contain `@` (invalid in store paths), hence `eval-home-connorfuhrman-mbp14`
   etc. Installer media checks use `isoImage.drvPath` / `sdImage.drvPath` the
-  same way — never `nix build` the image from the agent/dev machine.
-- **Installer media are `extendModules` variants**, not live host closures.
-  `nixosConfigurations.nuc` stays the installed system; `nuc-iso` (and
-  `packages.x86_64-linux.nuc-iso`) adds `installation-cd-minimal`. Helper:
-  `flake.lib.nixosInstallerFromHost` / `mkInstallerIso` in `modules/nixos/iso.nix`.
-  No ISO for `mbp14` (Asahi `iso-configuration` vs current nixpkgs / bootspec).
-  `rpi-cluster-head-iso` is an SD image.
+  same way — eval only, except when explicitly asked to realize `.#iso`.
+- **Installer media are generic**, not per-host variants. Three outputs in
+  `modules/installer-media.nix`: `.#iso` (x86_64 `installation-cd-minimal`),
+  `.#asahi-iso` (`nixos-apple-silicon` `installer-bootstrap`), `.#rpi-iso`
+  (aarch64 `sd-image-aarch64-installer`). Helper: `flake.lib.mkGenericInstaller`
+  in `modules/nixos/iso.nix`. Live host closures unchanged; pick the host at
+  `nixos-install --flake /etc/nixconfig#<host>`.
 - **Unfree packages:** 1Password is unfree; each platform's onepassword
   module sets a scoped `nixpkgs.config.allowUnfreePredicate` (must appear
   exactly once per configuration — multiple definitions of that option

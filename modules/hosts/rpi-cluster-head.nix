@@ -17,9 +17,6 @@
   # ./rpi/_hardware-configuration.nix — not vendored yet to keep flake.nix
   # input-stable. The template is generalized: any RPi-based host closure
   # (head or worker) imports the same file.
-  #
-  # Installer media: nixosConfigurations.rpi-cluster-head-iso is an aarch64
-  # SD image (sd-image-aarch64-installer), not a USB ISO.
   flake.modules.nixos.host-rpi-cluster-head = {
     imports = [
       config.flake.modules.nixos.system

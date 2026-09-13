@@ -7,6 +7,7 @@
   ],
   "egressAllowlist": [
     "cache.nixos.org",
+    "codeload.github.com",
     "install.determinate.systems",
     "api.github.com",
     "github.com"

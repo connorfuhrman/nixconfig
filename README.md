@@ -60,18 +60,15 @@ darwin-rebuild switch --flake .#mac-mini
 # home-manager (first bootstraps with `nix run home-manager/master -- …`)
 home-manager switch --flake .#connorfuhrman@macbook
 
-# NixOS installer media (eval-only on the dev machine — realize images
-# on a matching linux builder). Live installer, not a preinstalled disk
-# image: still partition + nixos-generate-config +
-# nixos-install --flake /etc/nixconfig#<host>
-nix build .#nuc-iso
-nix build .#packages.x86_64-linux.nuc-iso
-nix build .#nixosConfigurations.nuc-iso.config.system.build.isoImage
+# Generic NixOS installer media (three types — not per-host variants).
+# Realize on a matching builder; after boot: partition, nixos-generate-config,
+# then `nixos-install --flake /etc/nixconfig#<host>`.
+nix build .#iso                              # x86_64 USB minimal installer
+nix build .#asahi-iso                        # aarch64 Apple Silicon installer
+nix build .#rpi-iso                          # aarch64 SD card installer (Pi)
 ```
 
-Same pattern for `nuc-cluster-head-iso` and `nuc-cluster-worker-iso`.
-`rpi-cluster-head-iso` is an SD image (`packages.aarch64-linux.rpi-cluster-head-iso`).
-`mbp14` has no flake ISO — use [INSTALL.md](./INSTALL.md) (Asahi installer-bootstrap).
+See [INSTALL.md](./INSTALL.md) for Asahi / mbp14 (uses `.#asahi-iso`).
 
 ## CI
 
@@ -151,30 +148,24 @@ login. Optional auto-login for unattended boot.
 
 ### NixOS installer media
 
-`modules/nixos/iso.nix` extends each NixOS host with the matching installer
-module (`extendModules` / `nixosInstallerFromHost` — live closures stay clean):
+Three **generic** boot-media outputs in `modules/installer-media.nix` /
+`modules/nixos/iso.nix` — no per-host ISO variants:
 
-| Build | Medium | After install |
+| Build | Medium | Typical target |
 |---|---|---|
-| `nix build .#nuc-iso` | x86_64 minimal USB ISO | `.#nuc` |
-| `nix build .#nuc-cluster-head-iso` | x86_64 minimal USB ISO | `.#nuc-cluster-head` |
-| `nix build .#nuc-cluster-worker-iso` | x86_64 minimal USB ISO | `.#nuc-cluster-worker` |
-| `nix build .#packages.aarch64-linux.rpi-cluster-head-iso` | aarch64 SD image | `.#rpi-cluster-head` |
+| `nix build .#iso` | x86_64 minimal USB ISO | Intel NUC, cursor-cloud host, … |
+| `nix build .#asahi-iso` | aarch64 Apple Silicon ISO | mbp14 (see INSTALL.md) |
+| `nix build .#rpi-iso` | aarch64 SD image | Raspberry Pi (`nixos-install --flake .#rpi-cluster-head`, etc.) |
 
-`mbp14` is skipped: the apple-silicon ISO module still sets
-`boot.bootspec.enable`, which this flake's nixpkgs removed. Use INSTALL.md.
-
-The image is a **minimal installer** flavored with that host's modules
-(hostname, `connorfuhrman`, git/vim, this repo at `/etc/nixconfig`). It is
-not a preinstalled rootfs. Hardware templates and Thunderbolt `/30`s still
-need real values from the target machine. Cluster-role media do **not**
-start Ray on the live image.
+Each image is a **minimal live installer** with this flake at `/etc/nixconfig`
+and git/vim — not a preinstalled rootfs. Pick the host closure at install time
+(`nixos-install --flake /etc/nixconfig#nuc`, `#mbp14`, …).
 
 ### Asahi install (mbp14)
 
-See [INSTALL.md](./INSTALL.md) for dual-boot NixOS on Apple Silicon (ISO,
+See [INSTALL.md](./INSTALL.md) for dual-boot NixOS on Apple Silicon (`.#asahi-iso`,
 partitioning, firmware, first rebuild). Do not use `installation-cd-minimal`
-or `nix build .#nuc-iso` on the MacBook.
+or `nix build .#iso` on the MacBook.
 
 ## Privacy
 

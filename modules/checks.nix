@@ -1,4 +1,4 @@
-{ self, ... }: {
+{ self, inputs, ... }: {
   # Eval-only checks: every configuration's derivations must instantiate
   # (evaluate) cleanly. Each check is a trivial text file embedding one
   # configuration's .drv path — computing the .drv path forces full
@@ -10,21 +10,26 @@
   # Check names must not contain `@` (invalid in store paths).
   perSystem = { pkgs, ... }:
     let
+      inherit (inputs.nixpkgs) lib;
       evalOnly = name: drvPath:
         pkgs.writeText "eval-${name}" (builtins.unsafeDiscardStringContext drvPath + "\n");
       sys = pkgs.stdenv.hostPlatform.system;
+      installerChecks =
+        lib.optionalAttrs (sys == "x86_64-linux") {
+          eval-iso = evalOnly "iso" self.nixosConfigurations.iso.config.system.build.isoImage.drvPath;
+        }
+        // lib.optionalAttrs (sys == "aarch64-linux") {
+          eval-asahi-iso = evalOnly "asahi-iso" self.packages.aarch64-linux.asahi-iso.drvPath;
+          eval-rpi-iso = evalOnly "rpi-iso" self.nixosConfigurations.rpi-iso.config.system.build.sdImage.drvPath;
+        };
     in
     {
-      checks = {
+      checks = installerChecks // {
         eval-nixos-mbp14 = evalOnly "nixos-mbp14" self.nixosConfigurations.mbp14.config.system.build.toplevel.drvPath;
         eval-nixos-nuc = evalOnly "nixos-nuc" self.nixosConfigurations.nuc.config.system.build.toplevel.drvPath;
         eval-nixos-nuc-cluster-head = evalOnly "nixos-nuc-cluster-head" self.nixosConfigurations.nuc-cluster-head.config.system.build.toplevel.drvPath;
         eval-nixos-nuc-cluster-worker = evalOnly "nixos-nuc-cluster-worker" self.nixosConfigurations.nuc-cluster-worker.config.system.build.toplevel.drvPath;
         eval-nixos-rpi-cluster-head = evalOnly "nixos-rpi-cluster-head" self.nixosConfigurations.rpi-cluster-head.config.system.build.toplevel.drvPath;
-        eval-nixos-iso-nuc = evalOnly "nixos-iso-nuc" self.nixosConfigurations.nuc-iso.config.system.build.isoImage.drvPath;
-        eval-nixos-iso-nuc-cluster-head = evalOnly "nixos-iso-nuc-cluster-head" self.nixosConfigurations.nuc-cluster-head-iso.config.system.build.isoImage.drvPath;
-        eval-nixos-iso-nuc-cluster-worker = evalOnly "nixos-iso-nuc-cluster-worker" self.nixosConfigurations.nuc-cluster-worker-iso.config.system.build.isoImage.drvPath;
-        eval-nixos-iso-rpi-cluster-head = evalOnly "nixos-iso-rpi-cluster-head" self.nixosConfigurations.rpi-cluster-head-iso.config.system.build.sdImage.drvPath;
         eval-darwin-macbook = evalOnly "darwin-macbook" self.darwinConfigurations.macbook.config.system.build.toplevel.drvPath;
         eval-darwin-mac-mini = evalOnly "darwin-mac-mini" self.darwinConfigurations.mac-mini.config.system.build.toplevel.drvPath;
         eval-home-connorfuhrman-mbp14 = evalOnly "home-connorfuhrman-mbp14" self.homeConfigurations."connorfuhrman@mbp14".activationPackage.drvPath;

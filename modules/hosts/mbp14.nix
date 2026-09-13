@@ -1,8 +1,5 @@
 { config, inputs, ... }: {
   # EXPERIMENTAL — see flake.hostStatus.mbp14 (Asahi install not yet validated).
-  # No flake ISO output: apple-silicon iso-configuration still sets
-  # boot.bootspec.enable, which current nixpkgs removed. Use INSTALL.md
-  # (not installation-cd-minimal).
   flake.modules.nixos.host-mbp14 = {
     imports = [
       inputs.nixos-apple-silicon.nixosModules.apple-silicon-support
