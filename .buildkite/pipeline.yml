@@ -3,6 +3,7 @@ steps:
     key: mac-mini-macos-ci
     if: |
       build.branch == "main" ||
+      build.branch == "cursor/mac-mini-buildkite" ||
       build.pull_request.base_branch == "main"
     steps:
       - label: ":nix: flake check (native macOS)"
@@ -60,6 +61,7 @@ steps:
     key: flake-check-hosted-linux-medium
     if: |
       build.branch == "main" ||
+      build.branch == "cursor/mac-mini-buildkite" ||
       build.pull_request.base_branch == "main"
     soft_fail: true
     command: .buildkite/scripts/flake-check.sh
