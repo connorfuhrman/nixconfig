@@ -121,6 +121,8 @@ nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # tru
 nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
 nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["mac-mini"]
+nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: (builtins.head ms).systems'  # ["aarch64-linux"] — no x86_64-linux offload from x86 hosts
+nix eval .#darwinConfigurations.macbook.config.nix.buildMachines --apply 'ms: (builtins.head ms).systems'  # ["aarch64-linux" "x86_64-linux"]
 nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 's: builtins.filter (n: builtins.match "ray.*" n != null) (builtins.attrNames s)'  # ["ray-head"]
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
@@ -175,7 +177,9 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   (nuc); package on darwin server (mac-mini).
 - **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
   (qemu-user binfmt in the builder VM). Clients use
-  `generic.mac-mini-builder` with both systems.
+  `generic.mac-mini-builder`; x86_64-linux NixOS hosts build x86 locally and
+  only offload `aarch64-linux` to the mini (Darwin and aarch64-linux clients
+  still offload both).
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.roon-server` enables it (and any other
   host that needs brew).
