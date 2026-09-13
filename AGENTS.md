@@ -17,7 +17,7 @@ working in this repo.
 | `mac-mini` | `aarch64-darwin` | nix-darwin | tested | Always-on server: Buildkite agent (`mac-mini-macos`), aarch64-linux builder (`nix.linux-builder`) + Roon Server |
 | `cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | Cursor Cloud Agent home only — user `ubuntu` |
 | `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | per host | standalone via `homeManager.standard` |
-| `ubuntu@cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | `homeManager.cursor-cloud` (base + coreutils + emacs + gh) |
+| `ubuntu@cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | `homeManager.cursor-cloud` (base + coreutils + emacs; no gh — GitHub MCP) |
 
 All hardware hosts run Tailscale and have 1Password installed (CLI everywhere;
 GUI on mbp14 and darwin via nixpkgs). System and home username is
@@ -46,7 +46,7 @@ for agents: [`.cursor/AGENTS.md`](.cursor/AGENTS.md).
 - Home hosts import **`homeManager.standard`** (base + emacs + coreutils + gh +
   mosh + obsidian-config) — do not re-list those modules per host. Exception:
   `ubuntu@cursor-cloud` imports `homeManager.cursor-cloud` (base + coreutils +
-  emacs + gh; no mosh / obsidian-config).
+  emacs only; no mosh / obsidian-config / gh — GitHub MCP instead of the CLI).
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
   through the top-level module system; lower-level modules close over `inputs`
   lexically where needed.
