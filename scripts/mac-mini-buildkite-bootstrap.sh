@@ -58,12 +58,12 @@ sudo darwin-rebuild switch --flake .#mac-mini
 
 echo "Waiting for linux-builder…"
 for _ in $(seq 1 60); do
-  if sudo ssh -o BatchMode=yes -o ConnectTimeout=5 linux-builder true 2>/dev/null; then
+  if sudo ssh -F /etc/ssh/ssh_config -o BatchMode=yes -o ConnectTimeout=5 linux-builder true 2>/dev/null; then
     break
   fi
   sleep 5
 done
-sudo ssh linux-builder uname -m
+sudo ssh -F /etc/ssh/ssh_config linux-builder uname -m
 
 echo "Buildkite launchd jobs (system domain — use sudo):"
 sudo launchctl list 2>/dev/null | grep buildkite || true
@@ -72,9 +72,7 @@ sudo launchctl print system/org.nixos.buildkite-agent-macos 2>/dev/null | head -
   || echo "  (org.nixos.buildkite-agent-macos not loaded yet)"
 echo "Token readable by buildkite-agent-macos?"
 sudo -u buildkite-agent-macos test -r "$TOKEN_PATH" \
-  && echo "  yes" || echo "  NO — run: sudo chgrp buildkite-agent-macos $TOKEN_PATH && sudo chmod 640 $TOKEN_PATH"
-echo "Fixing token permissions and restarting agents…"
-nix run .#mac-mini-buildkite-fix-perms
+  && echo "  yes" || echo "  NO — re-run: sudo darwin-rebuild switch --flake .#mac-mini"
 
 echo "Done. Confirm agents at:"
 echo "  https://buildkite.com/organizations/$ORG/clusters/$CLUSTER_ID"

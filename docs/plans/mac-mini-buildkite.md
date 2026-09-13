@@ -102,7 +102,10 @@ cluster. Remaining steps on mac-mini:
 
    `postActivation` creates `/var/lib/buildkite-agent-macos`, fixes token
    permissions, and kickstarts the Buildkite launchd daemons. `buildkite-token-sync`
-   copies the token into the linux-builder VM over SSH (`/etc/nix/builder_ed25519`).
+   copies the token into the linux-builder VM over SSH using the nix-darwin
+   builder key (`/etc/nix/builder_ed25519`, `/etc/ssh/ssh_config.d/100-linux-builder.conf`).
+   The guest install script lives at a stable path (`/etc/buildkite/install-cluster-token`)
+   so passwordless `sudo` survives rebuilds.
 
 3. Confirm agents connected in Buildkite → Agents → Default cluster.
 

@@ -29,7 +29,6 @@ let
     "obsidian-nix-sync-plugins"
     "cursor-cloud-setup"
     "mac-mini-buildkite-install-token"
-    "mac-mini-buildkite-fix-perms"
     "origin"
   ];
 in
@@ -54,10 +53,6 @@ in
       apps.mac-mini-buildkite-install-token = {
         type = "app";
         program = "${pkgs.mac-mini-buildkite-install-token}/bin/mac-mini-buildkite-install-token";
-      };
-      apps.mac-mini-buildkite-fix-perms = {
-        type = "app";
-        program = "${pkgs.mac-mini-buildkite-fix-perms}/bin/mac-mini-buildkite-fix-perms";
       };
     };
 }

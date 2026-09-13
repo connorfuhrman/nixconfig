@@ -138,12 +138,18 @@
           '';
         };
 
+        # Stable path for passwordless sudo (store paths change each rebuild).
+        environment.etc."buildkite/install-cluster-token" = {
+          source = installBuildkiteClusterToken;
+          mode = "0755";
+        };
+
         security.sudo.extraRules = [
           {
             users = [ "builder" ];
             commands = [
               {
-                command = toString installBuildkiteClusterToken;
+                command = "/etc/buildkite/install-cluster-token *";
                 options = [ "NOPASSWD" ];
               }
             ];
@@ -171,7 +177,7 @@
           chmod 600 "$tmp"
           ${linuxBuilderScp} -q "$tmp" linux-builder:/tmp/buildkite-cluster.token
           rm -f "$tmp"
-          if ! ${linuxBuilderSsh} linux-builder sudo ${toString installBuildkiteClusterToken} /tmp/buildkite-cluster.token; then
+          if ! ${linuxBuilderSsh} linux-builder sudo /etc/buildkite/install-cluster-token /tmp/buildkite-cluster.token; then
             echo "token install in linux-builder failed — run: sudo darwin-rebuild switch --flake .#mac-mini" >&2
             exit 1
           fi
