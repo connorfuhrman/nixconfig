@@ -9,6 +9,7 @@
       gtop
       gping
       gh
+      origin
     ];
 
     programs.eza.enable = true;

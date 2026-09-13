@@ -60,6 +60,7 @@ for agents: [`.cursor/AGENTS.md`](.cursor/AGENTS.md).
 ```
 flake.nix               nixConfig (binary cache) + inputs + mkFlake only
 pkgs/                   custom packages (callPackage); overlay = pkgs/default.nix
+                        (obsidian-*, cursor-cloud-setup, origin)
 modules/pkgs.nix        flake.overlays.default + packages.* + lib.pkgsFor
 modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwin
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
@@ -127,6 +128,7 @@ nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # tru
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
+nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 ```
 
 ## Gotchas (learned the hard way)

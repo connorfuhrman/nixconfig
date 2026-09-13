@@ -104,7 +104,7 @@ Cloud Agents use `ubuntu@cursor-cloud`.
 | | Linux | macOS |
 |---|---|---|
 | **Emacs** | GUI from [connorfuhrman/emacs](https://github.com/connorfuhrman/emacs) | same flake (emacs-macport + packages + `--init-directory`) |
-| **Shell / CLI** | zsh, eza, bat, fzf, ydiff, dust, jq, gtop, gping, gh | same |
+| **Shell / CLI** | zsh, eza, bat, fzf, ydiff, dust, jq, gtop, gping, gh, origin | same |
 | **Git** | name/email, `master` default branch, auto upstream on push, ydiff pager | same |
 
 ## Infrastructure notes
