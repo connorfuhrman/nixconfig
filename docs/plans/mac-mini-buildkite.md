@@ -1,8 +1,16 @@
 # Mac mini Buildkite self-hosted compute
 
-Runbook for the Mac mini (`mac-mini`) as Buildkite self-hosted compute: a single
-Darwin agent on queue `mac-mini-macos`. Linux Nix builds are offloaded to the
-persistent `nix.linux-builder` VM as a remote builder — not a separate CI host.
+Runbook for the Mac mini (`mac-mini`) as Buildkite self-hosted compute: one
+launchd agent on queue `mac-mini-macos` with `spawn=2` (two connected agents,
+`mac-mini-macos-1` / `-2`). Linux Nix builds are offloaded to the persistent
+`nix.linux-builder` VM as a remote builder — not a separate CI host.
+
+**Concurrency:** `spawn=2` in `extraConfig`, agent name `%hostname-macos-%spawn`
+(Buildkite requires `%spawn` when `--spawn` / `spawn=` shares `build-path`).
+Stay at 2: the host is 16 GiB and `nix.linux-builder` is already ~8 GiB;
+Podman Machine (follow-up) is ~10 GiB. Higher spawn oversubscribes RAM when
+jobs use the builder or containers. One launchd process — do not add a second
+`services.buildkite-agents.*` entry.
 
 Container / `docker#` on `mac-mini-macos` (Podman Machine) is a follow-up and
 is not part of this landing.
@@ -81,8 +89,8 @@ nix run .#mac-mini-buildkite-install-token
 
 ## Nix modules
 
-- `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`,
-  `trusted-users`, agent workdir + token permissions via `postActivation`,
+- `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`
+  (`spawn=2`, name `%hostname-macos-%spawn`), `trusted-users`, agent workdir + token permissions via `postActivation`,
   Origin `insteadOf` gitconfig + pinned `known_hosts`, launchd
   `GIT_CONFIG_GLOBAL` / `GIT_SSH_COMMAND`, headless `ProcessType = Standard`,
   and launchd kickstart of the macOS agent after activation
@@ -121,7 +129,12 @@ mac-mini:
    `postActivation` creates `/var/lib/buildkite-agent-macos`, fixes token
    permissions, and kickstarts the macOS Buildkite launchd daemon.
 
-3. Confirm the agent connected in Buildkite → Agents → Default cluster.
+3. Confirm **two** agents connected on queue `mac-mini-macos` in
+   Buildkite → Agents → Default cluster (`mac-mini-macos-1` and `-2`).
+   If launchd still looks like a single process, that is expected (`spawn`
+   forks inside one daemon). Check `spawn=` landed in
+   `/var/lib/buildkite-agent-macos/buildkite-agent.cfg` (do not paste the
+   token from that file).
 
 **Token-only reinstall** (skip darwin-rebuild if config unchanged):
 
@@ -221,6 +234,8 @@ Eval gates (from any machine with the flake):
 nix flake check .
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.name
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.extraConfig
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-origin-ssh.program

@@ -176,8 +176,9 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 - **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
   (qemu-user binfmt in the builder VM). Clients use
   `generic.mac-mini-builder` with both systems.
-- **mac-mini Buildkite** runs one self-hosted agent on the Default cluster:
-  `mac-mini-macos` (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
+- **mac-mini Buildkite** runs one self-hosted agent (`spawn=2`, names
+  `%hostname-macos-%spawn`) on the Default cluster: `mac-mini-macos`
+  (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
   as a remote builder (aarch64-linux native; x86_64-linux via qemu-user binfmt in
   the VM) — not a separate Buildkite agent. Container / `docker#` on this queue
   is a follow-up. Cluster agent token path:

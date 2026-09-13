@@ -36,9 +36,16 @@
 
       services.buildkite-agents.macos = {
         tokenPath = "/etc/buildkite-agent/cluster.token";
+        # Buildkite requires %spawn in the name when spawn>1 shares build-path.
+        # Default is "%hostname-macos-%n"; %n is not the spawn index.
+        name = "%hostname-macos-%spawn";
+        # Host is 16 GiB; linux-builder is ~8 GiB. spawn=2 is two concurrent
+        # Darwin jobs; 4+ oversubscribes RAM if those jobs also use the builder
+        # (or Podman Machine, once that lands).
         extraConfig = ''
           debug=true
           plugins-path="${agentHome}/plugins"
+          spawn=2
         '';
         tags = {
           queue = "mac-mini-macos";
