@@ -10,12 +10,14 @@
 #   nix build .#nuc-iso
 #   nix build .#packages.x86_64-linux.nuc-iso
 #   nix build .#nixosConfigurations.nuc-iso.config.system.build.isoImage
-#   nix build .#packages.aarch64-linux.mbp14-iso             # Asahi ISO
 #   nix build .#packages.aarch64-linux.rpi-cluster-head-iso  # SD image
 #
 # Media:
 #   x86_64 hosts — installation-cd-minimal
-#   mbp14        — nixos-apple-silicon iso-configuration (not generic CD)
+#   mbp14        — skipped: apple-silicon iso-configuration still sets
+#                  boot.bootspec.enable, which current nixpkgs removed.
+#                  Use INSTALL.md (prebuilt ISO or installer-bootstrap
+#                  from that flake, not installation-cd-minimal).
 #   rpi-cluster-head — sd-image-aarch64-installer (SD, not USB ISO)
 { self, inputs, config, ... }:
 let
@@ -96,6 +98,7 @@ in
     };
 
   flake.lib.nixosInstallerImage = cfg:
-    cfg.config.system.build.isoImage or cfg.config.system.build.sdImage
-      or throw "configuration has no system.build.isoImage or system.build.sdImage";
+    if cfg.config.system.build ? isoImage then cfg.config.system.build.isoImage
+    else if cfg.config.system.build ? sdImage then cfg.config.system.build.sdImage
+    else throw "configuration has no system.build.isoImage or system.build.sdImage";
 }

@@ -70,8 +70,8 @@ nix build .#nixosConfigurations.nuc-iso.config.system.build.isoImage
 ```
 
 Same pattern for `nuc-cluster-head-iso` and `nuc-cluster-worker-iso`.
-`mbp14-iso` is the Asahi installer (`packages.aarch64-linux.mbp14-iso`).
 `rpi-cluster-head-iso` is an SD image (`packages.aarch64-linux.rpi-cluster-head-iso`).
+`mbp14` has no flake ISO — use [INSTALL.md](./INSTALL.md) (Asahi installer-bootstrap).
 
 ## CI
 
@@ -159,8 +159,10 @@ module (`extendModules` / `nixosInstallerFromHost` — live closures stay clean)
 | `nix build .#nuc-iso` | x86_64 minimal USB ISO | `.#nuc` |
 | `nix build .#nuc-cluster-head-iso` | x86_64 minimal USB ISO | `.#nuc-cluster-head` |
 | `nix build .#nuc-cluster-worker-iso` | x86_64 minimal USB ISO | `.#nuc-cluster-worker` |
-| `nix build .#packages.aarch64-linux.mbp14-iso` | Asahi ISO | `.#mbp14` |
 | `nix build .#packages.aarch64-linux.rpi-cluster-head-iso` | aarch64 SD image | `.#rpi-cluster-head` |
+
+`mbp14` is skipped: the apple-silicon ISO module still sets
+`boot.bootspec.enable`, which this flake's nixpkgs removed. Use INSTALL.md.
 
 The image is a **minimal installer** flavored with that host's modules
 (hostname, `connorfuhrman`, git/vim, this repo at `/etc/nixconfig`). It is
@@ -171,8 +173,8 @@ start Ray on the live image.
 ### Asahi install (mbp14)
 
 See [INSTALL.md](./INSTALL.md) for dual-boot NixOS on Apple Silicon (ISO,
-partitioning, firmware, first rebuild). `mbp14-iso` is the in-repo Asahi
-installer (same family as option B there), not `installation-cd-minimal`.
+partitioning, firmware, first rebuild). Do not use `installation-cd-minimal`
+or `nix build .#nuc-iso` on the MacBook.
 
 ## Privacy
 

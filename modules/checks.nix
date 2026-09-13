@@ -24,7 +24,6 @@
         eval-nixos-iso-nuc = evalOnly "nixos-iso-nuc" self.nixosConfigurations.nuc-iso.config.system.build.isoImage.drvPath;
         eval-nixos-iso-nuc-cluster-head = evalOnly "nixos-iso-nuc-cluster-head" self.nixosConfigurations.nuc-cluster-head-iso.config.system.build.isoImage.drvPath;
         eval-nixos-iso-nuc-cluster-worker = evalOnly "nixos-iso-nuc-cluster-worker" self.nixosConfigurations.nuc-cluster-worker-iso.config.system.build.isoImage.drvPath;
-        eval-nixos-iso-mbp14 = evalOnly "nixos-iso-mbp14" self.nixosConfigurations.mbp14-iso.config.system.build.isoImage.drvPath;
         eval-nixos-iso-rpi-cluster-head = evalOnly "nixos-iso-rpi-cluster-head" self.nixosConfigurations.rpi-cluster-head-iso.config.system.build.sdImage.drvPath;
         eval-darwin-macbook = evalOnly "darwin-macbook" self.darwinConfigurations.macbook.config.system.build.toplevel.drvPath;
         eval-darwin-mac-mini = evalOnly "darwin-mac-mini" self.darwinConfigurations.mac-mini.config.system.build.toplevel.drvPath;

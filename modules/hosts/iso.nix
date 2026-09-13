@@ -22,11 +22,6 @@ let
       hostModule = config.flake.modules.nixos.host-nuc-cluster-worker;
       installerModule = config.flake.modules.nixos.iso-x86;
     };
-    mbp14-iso = nixosInstallerFromHost {
-      system = "aarch64-linux";
-      hostModule = config.flake.modules.nixos.host-mbp14;
-      installerModule = config.flake.modules.nixos.iso-asahi;
-    };
     rpi-cluster-head-iso = nixosInstallerFromHost {
       system = "aarch64-linux";
       hostModule = config.flake.modules.nixos.host-rpi-cluster-head;
@@ -41,7 +36,6 @@ let
       nuc-cluster-worker-iso = nixosInstallerImage isoConfigs.nuc-cluster-worker-iso;
     };
     aarch64-linux = {
-      mbp14-iso = nixosInstallerImage isoConfigs.mbp14-iso;
       rpi-cluster-head-iso = nixosInstallerImage isoConfigs.rpi-cluster-head-iso;
     };
   };

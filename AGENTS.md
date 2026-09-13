@@ -166,7 +166,8 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `nixosConfigurations.nuc` stays the installed system; `nuc-iso` (and
   `packages.x86_64-linux.nuc-iso`) adds `installation-cd-minimal`. Helper:
   `flake.lib.nixosInstallerFromHost` / `mkInstallerIso` in `modules/nixos/iso.nix`.
-  `mbp14-iso` uses the apple-silicon ISO; `rpi-cluster-head-iso` is an SD image.
+  No ISO for `mbp14` (Asahi `iso-configuration` vs current nixpkgs / bootspec).
+  `rpi-cluster-head-iso` is an SD image.
 - **Unfree packages:** 1Password is unfree; each platform's onepassword
   module sets a scoped `nixpkgs.config.allowUnfreePredicate` (must appear
   exactly once per configuration — multiple definitions of that option

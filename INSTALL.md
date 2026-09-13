@@ -89,12 +89,10 @@ The ISO appears at `installer/iso/nixos-*.iso`. Expect this to take a while
 on first run (the builder VM downloads or compiles the Asahi kernel and
 friends; the nixos-apple-silicon binary cache is used automatically).
 
-**Option C — this flake's host-flavored Asahi ISO** (same apple-silicon
-installer modules, plus `/etc/nixconfig` from this repo):
-
-```sh
-nix build .#packages.aarch64-linux.mbp14-iso -o installer -L
-```
+This flake does **not** export `.#mbp14-iso`: the apple-silicon
+`iso-configuration` still sets `boot.bootspec.enable`, which current
+nixpkgs removed. Build installer-bootstrap from that project (option B)
+or download a release (option A) — do not use `installation-cd-minimal`.
 
 ## 3. Write the ISO to the USB drive (on any Mac)
 
