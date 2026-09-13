@@ -125,6 +125,6 @@ EOF
 
   echo "Installing cluster agent token to $TOKEN_PATH (sudo required)…"
   sudo mkdir -p /etc/buildkite-agent
-  printf '%s' "$token" | sudo install -m 600 -o root -g root /dev/stdin "$TOKEN_PATH"
-  echo "Installed $TOKEN_PATH (0600, root-owned)."
+  printf '%s' "$token" | sudo install -m 600 -o root -g wheel /dev/stdin "$TOKEN_PATH"
+  echo "Installed $TOKEN_PATH (0600, root:wheel)."
 ''
