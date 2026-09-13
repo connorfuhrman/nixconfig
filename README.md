@@ -63,7 +63,7 @@ home-manager switch --flake .#connorfuhrman@macbook
 
 ## CI
 
-Every push and pull request targeting `develop` or `main` runs
+Every push and pull request runs
 [`nix flake check`](./modules/checks.nix) in
 [Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) inside the
 official [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container image.
