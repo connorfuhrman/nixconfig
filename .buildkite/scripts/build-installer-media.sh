@@ -7,13 +7,17 @@ target="${1:?usage: build-installer-media.sh <iso|asahi-iso|rpi-iso>}"
 
 case "${target}" in
   iso)
-    attr=".#iso"
+    # Hosted linux-medium Docker agent is x86_64-linux; explicit system keeps
+    # behavior stable if the evaluating system ever changes.
+    attr=".#packages.x86_64-linux.iso"
     ;;
   asahi-iso)
-    attr=".#asahi-iso"
+    # mac-mini-macos evaluates as aarch64-darwin; installer media lives under
+    # aarch64-linux and builds via nix.linux-builder (see build-packages.sh).
+    attr=".#packages.aarch64-linux.asahi-iso"
     ;;
   rpi-iso)
-    attr=".#rpi-iso"
+    attr=".#packages.aarch64-linux.rpi-iso"
     ;;
   *)
     echo "unknown installer target: ${target}" >&2
