@@ -26,17 +26,3 @@ ensure_linux_builder_ssh() {
   ssh-keyscan -p 31022 -H linux-builder 127.0.0.1 2>/dev/null \
     | grep -v '^#' >> "${ssh_dir}/known_hosts" || true
 }
-
-wait_for_linux_builder() {
-  ensure_linux_builder_ssh
-  local attempt
-  for attempt in $(seq 1 30); do
-    if ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder true 2>/dev/null; then
-      return 0
-    fi
-    echo "waiting for linux-builder SSH (attempt ${attempt}/30)..."
-    sleep 10
-  done
-  echo "linux-builder SSH did not become ready in time" >&2
-  return 1
-}
