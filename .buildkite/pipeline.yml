@@ -1,10 +1,9 @@
 steps:
+  # No branch `if`: Cloud Agents push the feature branch before the PR exists,
+  # so pull_request.base_branch is empty and a gate on main/develop skips this
+  # step. skip_pull_request_builds_for_existing_commits then blocks a redo.
   - label: ":nix: flake check"
     key: flake-check
-    if: |
-      build.branch == "develop" || build.branch == "main" ||
-      build.pull_request.base_branch == "develop" ||
-      build.pull_request.base_branch == "main"
     command: .buildkite/scripts/flake-check.sh
     plugins:
       - docker#v5.14.0:
