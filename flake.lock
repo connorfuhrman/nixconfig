@@ -234,8 +234,10 @@
       },
       "locked": {
         "lastModified": 1789277419,
-        "narHash": "sha256-yL/YDz2ynABamjsksGI0at8p6QKa66aId9nfXr4WolQ=",
+        "narHash": "sha256-uVNPwv2CX8d22gWOduCsvyQ8Xr/ag2KY1dP5fI5jZcM=",
+        "ref": "refs/heads/main",
         "rev": "0636e251e92185e7ba1f77c387396d6ebe5a3aea",
+        "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/nixos-apple-silicon.git"
       },

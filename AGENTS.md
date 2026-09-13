@@ -121,8 +121,10 @@ nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # tru
 nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # true
 nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
-nix eval .#nixosConfigurations.nuc-iso.config.system.build.isoImage.drvPath  # installer ISO (eval only — do not nix build the image)
-nix eval .#packages.x86_64-linux.nuc-iso.drvPath                           # same derivation via packages.*
+nix eval .#nixosConfigurations.iso.config.system.build.isoImage.drvPath      # x86_64 installer ISO (eval only — do not nix build the image)
+nix eval .#packages.x86_64-linux.iso.drvPath                                 # same derivation via packages.*
+nix eval .#packages.aarch64-linux.asahi-iso.drvPath                          # Apple Silicon installer (eval only)
+nix eval .#nixosConfigurations.rpi-iso.config.system.build.sdImage.drvPath   # Pi SD image (eval only)
 nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["mac-mini"]
 nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 's: builtins.filter (n: builtins.match "ray.*" n != null) (builtins.attrNames s)'  # ["ray-head"]
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
