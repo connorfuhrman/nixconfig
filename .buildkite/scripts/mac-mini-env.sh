@@ -28,10 +28,28 @@ ensure_linux_builder_ssh() {
 }
 
 configure_mac_mini_installer_build() {
-  # build #120: linux-asahi link steps (amdgpu.o, ubifs.o) failed under
-  # linux-builder maxJobs=8 on an 8GiB VM; keep installer media builds gentle.
-  export NIX_BUILD_CORES="${NIX_BUILD_CORES:-2}"
-  local additions=$'max-jobs = 2\nbuilders-use-substitutes = true\nextra-substituters = https://nixos-apple-silicon.cachix.org https://cache.nixos.org\nextra-trusted-public-keys = nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20= cache.nixos.org-1:6NCHdD59X431o0gWyp1MrYtA1W29A03ad25ERVQ9Fb0= cache.nixos.org-1:fj7Fj4A0i1u5w0Wd6T1cxxXZ30KHC4GKn2ax4P4CjY4='
+  # linux-asahi kernel compiles are RAM-heavy on the 8GiB linux-builder VM.
+  # Start with more parallelism and step down after failures (see ladder below).
+  # Override rung via INSTALLER_PARALLEL_RUNG (1-4) on retry builds.
+  local rung="${INSTALLER_PARALLEL_RUNG:-1}"
+  local max_jobs cores
+  case "${rung}" in
+    1) max_jobs=2; cores=6 ;;
+    2) max_jobs=1; cores=4 ;;
+    3) max_jobs=1; cores=2 ;;
+    4) max_jobs=1; cores=1 ;;
+    *)
+      echo "invalid INSTALLER_PARALLEL_RUNG=${rung} (expected 1-4)" >&2
+      exit 1
+      ;;
+  esac
+
+  export NIX_BUILD_CORES="${NIX_BUILD_CORES:-${cores}}"
+  echo "installer parallelism: rung ${rung} (max-jobs=${max_jobs}, cores=${NIX_BUILD_CORES})"
+
+  local additions
+  additions=$'builders-use-substitutes = true\nextra-substituters = https://nixos-apple-silicon.cachix.org https://cache.nixos.org\nextra-trusted-public-keys = nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20= cache.nixos.org-1:6NCHdD59X431o0gWyp1MrYtA1W29A03ad25ERVQ9Fb0= cache.nixos.org-1:fj7Fj4A0i1u5w0Wd6T1cxxXZ30KHC4GKn2ax4P4CjY4='
+  additions="${additions}"$'\n'"max-jobs = ${max_jobs}"
   if [[ -n "${NIX_CONFIG:-}" ]]; then
     export NIX_CONFIG="${NIX_CONFIG}"$'\n'"${additions}"
   else
