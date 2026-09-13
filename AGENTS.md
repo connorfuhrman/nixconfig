@@ -216,7 +216,7 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   NOT on the tailnet — INSTALL.md correctly uses `mac-mini.local` there.
   On macOS the module runs headless tailscaled — do not also install the
   Tailscale.app cask.
-- **1Password:** CLI everywhere (`programs._1password`), GUI via `programs._1password-gui` on NixOS and nixpkgs on darwin (same official 1Password.app as the Homebrew cask). On macOS, nixpkgs provides both CLI and GUI — no Homebrew cask needed.
+- **1Password:** CLI everywhere (`programs._1password`). GUI via `programs._1password-gui` on NixOS. On darwin, copy nixpkgs `_1password-gui` to `/Applications/1Password.app` with rsync `--no-owner` — do **not** enable `programs._1password-gui` (its `install -o root` fails on an existing notarized bundle). No Homebrew cask.
 - **Emacs:** single `homeManager.emacs` module on every host — installs the
   flake-wrapped `emacs` (emacsWithPackages + `--init-directory`) and links
   `~/.config/emacs` to `emacs-config`. Darwin uses emacs-macport under that
