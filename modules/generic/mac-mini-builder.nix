@@ -7,7 +7,7 @@
   # access must work for root as well (system ssh_config IdentityFile, or a
   # key root can read). Prefer 1Password SSH agent once rolled out — see
   # docs/plans/1password-ssh-workplan.md.
-  flake.modules.generic.mac-mini-builder = { lib, ... }: {
+  flake.modules.generic.mac-mini-builder = { lib, pkgs, ... }: {
     nix.distributedBuilds = true;
 
     nix.buildMachines = [
@@ -19,8 +19,11 @@
         speedFactor = 2;
         supportedFeatures = [ "benchmark" "big-parallel" "kvm" ];
         mandatoryFeatures = [ ];
-        # Both Linux systems the mini's linux-builder advertises.
-        systems = [ "aarch64-linux" "x86_64-linux" ];
+        # aarch64-linux always (native in the mini's linux-builder VM).
+        # x86_64-linux only when this host cannot build it locally (Darwin,
+        # aarch64-linux NixOS). x86_64-linux NixOS hosts build x86 locally.
+        systems = [ "aarch64-linux" ]
+          ++ lib.optional (!pkgs.stdenv.hostPlatform.isx86_64) "x86_64-linux";
       }
     ];
 

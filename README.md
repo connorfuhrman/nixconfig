@@ -126,10 +126,11 @@ job environments. The head role is a single switch point
 ### Mac mini remote builder
 
 The mini runs `nix.linux-builder` (aarch64-linux VM with qemu-user binfmt, so
-it advertises **both** `aarch64-linux` and `x86_64-linux`). Clients (`macbook`,
-`mbp14`, `nuc`, the cluster role closures) offload via
-`generic.mac-mini-builder` over SSH host
-`mac-mini` (existing key / SSH config as `connorfuhrman`).
+it advertises **both** `aarch64-linux` and `x86_64-linux`). Clients offload via
+`generic.mac-mini-builder` over SSH host `mac-mini` (existing key / SSH config
+as `connorfuhrman`). Darwin and aarch64-linux hosts (`macbook`, `mbp14`) use
+both systems; x86_64-linux hosts (`nuc`, cluster roles) build x86 locally and
+only offload `aarch64-linux` to the mini.
 
 ### Roon Core (mac-mini)
 
