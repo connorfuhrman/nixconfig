@@ -95,6 +95,9 @@
           chmod 640 /etc/buildkite-agent/cluster.token
         fi
 
+        # linux-builder must finish boot + switch-to-configuration (sudo rules,
+        # /etc/buildkite/install-cluster-token) before token-sync runs.
+        launchctl kickstart -k system/org.nixos.linux-builder 2>/dev/null || true
         launchctl kickstart -k system/org.nixos.buildkite-agent-macos 2>/dev/null || true
         launchctl kickstart -k system/org.nixos.buildkite-token-sync 2>/dev/null || true
       '';
@@ -168,8 +171,12 @@
             echo "buildkite cluster token missing at $token" >&2
             exit 1
           fi
-          until ${linuxBuilderSsh} linux-builder true 2>/dev/null; do
-            echo "waiting for linux-builder…" >&2
+          # SSH comes up before switch-to-configuration finishes; wait until the
+          # guest install script and passwordless sudo rule are live.
+          until ${linuxBuilderSsh} linux-builder \
+            'test -x /etc/buildkite/install-cluster-token && sudo -n -l 2>/dev/null' \
+            | grep -qF 'install-cluster-token'; do
+            echo "waiting for linux-builder activation…" >&2
             sleep 5
           done
           tmp=$(mktemp /tmp/buildkite-cluster.token.XXXXXX)
@@ -177,10 +184,16 @@
           chmod 600 "$tmp"
           ${linuxBuilderScp} -q "$tmp" linux-builder:/tmp/buildkite-cluster.token
           rm -f "$tmp"
-          if ! ${linuxBuilderSsh} linux-builder sudo /etc/buildkite/install-cluster-token /tmp/buildkite-cluster.token; then
-            echo "token install in linux-builder failed — run: sudo darwin-rebuild switch --flake .#mac-mini" >&2
-            exit 1
-          fi
+          attempts=0
+          until ${linuxBuilderSsh} linux-builder sudo -n /etc/buildkite/install-cluster-token /tmp/buildkite-cluster.token; do
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge 12 ]; then
+              echo "token install in linux-builder failed — run: sudo darwin-rebuild switch --flake .#mac-mini" >&2
+              exit 1
+            fi
+            echo "token install retry $attempts/12…" >&2
+            sleep 10
+          done
           echo "token synced to linux-builder at $(date)"
         '';
         serviceConfig = {
