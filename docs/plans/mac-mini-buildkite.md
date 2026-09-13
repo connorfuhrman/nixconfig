@@ -100,7 +100,7 @@ nix run .#mac-mini-buildkite-install-token
 **Manual fallback** (if 1Password is unavailable):
 
 1. Create a cluster agent token in Buildkite → Agents → Default cluster → Agent tokens
-2. `sudo install -m 600 -o root -g root /path/to/token /etc/buildkite-agent/cluster.token`
+2. `sudo install -m 600 -o root -g wheel /path/to/token /etc/buildkite-agent/cluster.token`
 3. `sudo darwin-rebuild switch --flake .#mac-mini`
 4. Confirm agents connected; token sync copies token into the VM
 5. Re-run or trigger nixconfig / t-hex builds on the correct queues
