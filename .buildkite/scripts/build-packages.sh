@@ -9,12 +9,17 @@ echo "--- :nix: discover flake packages"
 discovered=$(nix eval --accept-flake-config --raw .#packages --apply '
   packages:
     let
-      inherit (builtins) attrNames concatMap concatStringsSep sort;
+      inherit (builtins) attrNames concatMap concatStringsSep sort filter;
       lt = a: b: a < b;
+      # Installer boot media are multi-GB images built (and artifact-uploaded) in
+      # dedicated CI steps; building them here duplicates work and can exhaust
+      # linux-builder disk during the bulk package sweep.
+      skipInstallerMedia = name:
+        name == "iso" || name == "asahi-iso" || name == "rpi-iso";
       systems = sort lt (attrNames packages);
       forSystem = system:
         map (name: "${system} ${name}")
-          (sort lt (attrNames packages.${system}));
+          (sort lt (filter (n: ! skipInstallerMedia n) (attrNames packages.${system})));
     in
     concatStringsSep "\n" (concatMap forSystem systems)
 ')
