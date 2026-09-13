@@ -45,6 +45,8 @@
 
       launchd.daemons.buildkite-agent-macos = {
         environment.DOCKER_HOST = "unix:///var/run/docker.sock";
+        # Podman honors CONTAINER_HOST, not DOCKER_HOST.
+        environment.CONTAINER_HOST = "unix:///var/run/docker.sock";
         serviceConfig.ProcessType = lib.mkForce "Standard";
       };
 

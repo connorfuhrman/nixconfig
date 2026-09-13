@@ -1,20 +1,26 @@
 { ... }: {
   # Podman on macOS for Linux containers (Buildkite docker plugin on mac-mini-macos).
   #
-  # Rootless Podman is incompatible with the Buildkite agent: the API socket lives
-  # under the primary user's /var/folders temp dir, which buildkite-agent-macos
-  # cannot reach. Requires rootful mode plus a root launchd job that symlinks
-  # /var/run/docker.sock for docker API compat.
+  # The machine API socket lives under the primary user's 700 TMPDIR, which
+  # buildkite-agent-macos cannot traverse. Rootful mode plus a root socat proxy
+  # on /var/run/docker.sock (660, group docker) is the agent-visible path.
   flake.modules.darwin.podman = { config, lib, pkgs, ... }:
     let
       primaryUser = config.system.primaryUser;
       agentUser = "buildkite-agent-macos";
       podman = pkgs.podman;
+      dockerGid = toString config.users.groups.docker.gid;
       scriptPath = lib.makeBinPath [
         podman
         pkgs.coreutils
         pkgs.gnugrep
       ];
+
+      dockerWrapper = pkgs.writeShellScript "docker-via-podman" ''
+        export DOCKER_HOST="''${DOCKER_HOST:-unix:///var/run/docker.sock}"
+        export CONTAINER_HOST="''${CONTAINER_HOST:-unix:///var/run/docker.sock}"
+        exec ${podman}/bin/podman "$@"
+      '';
 
       dockerCompat = pkgs.runCommand "${podman.pname}-docker-compat-${podman.version}"
         {
@@ -25,7 +31,7 @@
         }
         ''
           mkdir -p $out/bin
-          ln -s ${podman}/bin/podman $out/bin/docker
+          ln -s ${dockerWrapper} $out/bin/docker
 
           mkdir -p $man/share/man/man1
           for f in ${podman.man}/share/man/man1/*; do
@@ -116,12 +122,75 @@
         fi
 
         mkdir -p /var/run
-        # Force-replace Docker Desktop (or stale) symlink every run.
-        ln -sfn "$sock" /var/run/docker.sock
-        chgrp docker "$sock" /var/run/docker.sock
-        chmod 660 "$sock"
+        target_file=/var/run/podman-api.target
+        prev_file=/var/run/podman-api.target.prev
+        listen=/var/run/docker.sock
+        printf '%s\n' "$sock" > "$target_file"
+        chgrp docker "$sock" 2>/dev/null || true
+        chmod 660 "$sock" 2>/dev/null || true
 
-        echo "podman $machine running (rootful); /var/run/docker.sock -> $sock"
+        # Never leave a symlink into the 700 TMPDIR as the agent-visible path.
+        # Root socat can open that sock; uid 536 cannot traverse the parents.
+        need_proxy_restart=0
+        if [ -L "$listen" ] || [ ! -S "$listen" ]; then
+          need_proxy_restart=1
+        fi
+        prev=""
+        if [ -f "$prev_file" ]; then
+          prev="$(tr -d '\n' < "$prev_file")"
+        fi
+        if [ "$prev" != "$sock" ]; then
+          need_proxy_restart=1
+        fi
+
+        if [ "$need_proxy_restart" = 1 ]; then
+          if [ -L "$listen" ]; then
+            rm -f "$listen"
+          fi
+          /bin/launchctl kickstart -k system/org.nixos.podman-docker-proxy 2>/dev/null || true
+          printf '%s\n' "$sock" > "$prev_file"
+        fi
+
+        for _ in $(seq 1 10); do
+          if [ -S "$listen" ] && [ ! -L "$listen" ]; then
+            chgrp docker "$listen"
+            chmod 660 "$listen"
+            break
+          fi
+          sleep 1
+        done
+
+        echo "podman $machine running (rootful); proxy $listen -> $sock"
+      '';
+
+      podmanDockerProxy = pkgs.writeShellScript "podman-docker-proxy" ''
+        set -euo pipefail
+        target_file=/var/run/podman-api.target
+        listen=/var/run/docker.sock
+        target=""
+
+        for _ in $(seq 1 60); do
+          if [ -f "$target_file" ]; then
+            target="$(tr -d '\n' < "$target_file")"
+            if [ -n "$target" ] && [ -S "$target" ]; then
+              break
+            fi
+          fi
+          sleep 1
+        done
+
+        if [ -z "$target" ] || [ ! -S "$target" ]; then
+          echo "ERROR: podman API target not ready ($target_file)" >&2
+          exit 1
+        fi
+
+        # Drop Docker Desktop / stale symlink so we bind a real listen sock.
+        rm -f "$listen"
+
+        echo "proxy $listen -> $target"
+        exec ${pkgs.socat}/bin/socat \
+          UNIX-LISTEN:"$listen",fork,reuseaddr,unlink-early,mode=0660,user=root,group=${dockerGid} \
+          UNIX-CONNECT:"$target"
       '';
     in
     {
@@ -140,8 +209,8 @@
         members = [ primaryUser agentUser ];
       };
 
-      # Root launchd: podman machine is owned by primaryUser, but /var/run/docker.sock
-      # must be writable only by root. Runs at boot without a login session.
+      # Root launchd: machine is owned by primaryUser; the proxy listen sock is
+      # root:docker so the agent never opens the 700 TMPDIR path.
       launchd.daemons.podman-machine = {
         path = with pkgs; [ podman coreutils gnugrep ];
         script = "${podmanMachineEnsure}";
@@ -156,8 +225,22 @@
         };
       };
 
+      launchd.daemons.podman-docker-proxy = {
+        path = with pkgs; [ coreutils socat ];
+        script = "${podmanDockerProxy}";
+        serviceConfig = {
+          RunAtLoad = true;
+          KeepAlive = {
+            SuccessfulExit = false;
+          };
+          StandardOutPath = "/var/log/podman-docker-proxy.log";
+          StandardErrorPath = "/var/log/podman-docker-proxy.log";
+        };
+      };
+
       system.activationScripts.postActivation.text = lib.mkAfter ''
         launchctl kickstart -k system/org.nixos.podman-machine 2>/dev/null || true
+        launchctl kickstart -k system/org.nixos.podman-docker-proxy 2>/dev/null || true
       '';
     };
 }
