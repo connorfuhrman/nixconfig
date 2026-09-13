@@ -2,8 +2,7 @@ steps:
   - label: ":nix: flake check"
     key: flake-check
     if: |
-      build.branch == "develop" || build.branch == "main" ||
-      build.pull_request.base_branch == "develop" ||
+      build.branch == "main" ||
       build.pull_request.base_branch == "main"
     command: .buildkite/scripts/flake-check.sh
     plugins:
@@ -24,8 +23,7 @@ steps:
   - label: ":nix: flake check (mac-mini aarch64-linux)"
     key: flake-check-mac-mini-linux
     if: |
-      build.branch == "develop" || build.branch == "main" ||
-      build.pull_request.base_branch == "develop" ||
+      build.branch == "main" ||
       build.pull_request.base_branch == "main"
     command: .buildkite/scripts/flake-check.sh
     agents:
@@ -35,8 +33,7 @@ steps:
   - label: ":nix: flake check (mac-mini macos)"
     key: flake-check-mac-mini-macos
     if: |
-      build.branch == "develop" || build.branch == "main" ||
-      build.pull_request.base_branch == "develop" ||
+      build.branch == "main" ||
       build.pull_request.base_branch == "main"
     command: .buildkite/scripts/flake-check.sh
     agents:

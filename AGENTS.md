@@ -97,7 +97,7 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 - **Evaluation only — never build system closures.** No `nixos-rebuild`,
   `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
   and `nix eval` are the validation tools.
-- This **is** a git repo. Prefer `develop` for commits (see Workflow). Do not
+- This **is** a git repo. Use feature branches targeting `main` (see Workflow). Do not
   force-push or commit secrets / `firmware/` blobs to a public remote.
 - `flake show` displays `darwinConfigurations`, `homeConfigurations`,
   `homeModules`, and `modules` as type "unknown" — normal Nix behavior, not an
@@ -243,9 +243,8 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 
 - **Always work on a side branch.** Never commit directly to `master` or `main`.
   If the human does not specify a branch name, ask before creating one.
-  Default to `develop` for general work; create feature branches (`feat/<name>`)
-  for larger changes. Open PRs from your branch into the default branch when
-  the human asks to merge.
+  Create feature branches (`feat/<name>`, `cursor/<name>`, etc.) from `main`.
+  Open PRs from your branch into `main` when the human asks to merge.
 - **Commit at discrete milestones.** Each commit should represent a complete,
   coherent unit of work — not half-finished edits. Resist the urge to commit
   after every tiny change; batch related changes together.
@@ -265,9 +264,8 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   delegated to subagents with exact file-by-file specs.
 - After delegation, the primary agent re-reads changed files and re-runs the
   validation suite itself. Never trust a subagent's report without verification.
-- **Always work and commit on the `develop` branch.** Never commit directly to
-  `master`/`main`. Create or check out `develop` before staging commits; open
-  PRs from `develop` into the default branch when the user asks to merge.
+- **Always work on a feature branch from `main`.** Never commit directly to
+  `master`/`main`. Open PRs into `main` when the user asks to merge.
 - **Long-form human output → Obsidian doc, not chat.** If the answer is more
   than a short paragraph / a few bullets (research, comparisons, runbooks,
   architecture notes, multi-section explanations), write a Markdown file under

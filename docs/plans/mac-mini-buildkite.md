@@ -32,18 +32,24 @@ pipeline upload. Self-hosted steps use **native Nix** — no Docker plugin.
 
 ## Bootstrap order
 
-1. Create queues `mac-mini-macos` and `mac-mini-aarch64-linux` on the Default cluster
-2. Create a cluster agent token (Buildkite UI or REST `POST …/clusters/{id}/tokens`)
-3. Install token on host:
-   ```sh
-   sudo install -m 600 -o root -g root /path/to/token /etc/buildkite-agent/cluster.token
-   ```
-4. Apply config on the mini:
-   ```sh
-   cd ~/nixconfig && sudo darwin-rebuild switch --flake .#mac-mini
-   ```
-5. Confirm agents connected in Buildkite; token sync oneshot copies token into the VM
-6. Trigger nixconfig / t-hex builds and verify jobs land on the correct queues
+Queues `mac-mini-macos` and `mac-mini-aarch64-linux` already exist on the Default
+cluster. Remaining steps on mac-mini:
+
+**One-shot (recommended):**
+
+```sh
+cd ~/nixconfig && git pull origin develop
+export BUILDKITE_API_TOKEN='…'   # personal token with write_clusters
+./scripts/mac-mini-buildkite-bootstrap.sh
+```
+
+**Manual:**
+
+1. Create a cluster agent token (Buildkite UI or REST `POST …/clusters/{id}/tokens`)
+2. `sudo install -m 600 -o root -g root /path/to/token /etc/buildkite-agent/cluster.token`
+3. `sudo darwin-rebuild switch --flake .#mac-mini`
+4. Confirm agents connected; token sync copies token into the VM
+5. Re-run or trigger nixconfig / t-hex builds on the correct queues
 
 ## Git checkout for self-hosted jobs
 
