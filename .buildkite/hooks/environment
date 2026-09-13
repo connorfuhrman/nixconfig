@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Agent injects BUILDKITE_AGENT_JOB_API_SOCKET after pipeline env is merged.
+# Unset it here so docker-buildkite-plugin v5.14.0 skips the --volume mount
+# (commands/run.sh: `[[ -n "${BUILDKITE_AGENT_JOB_API_SOCKET:-}" ]]`).
+# Podman Machine cannot bind-mount a Darwin unix socket; flake-check does not
+# need the Job API. Other steps keep the socket.
+if [[ "${BUILDKITE_STEP_KEY:-}" == "flake-check-mac-mini-container" ]]; then
+  unset BUILDKITE_AGENT_JOB_API_SOCKET
+  export BUILDKITE_AGENT_JOB_API_SOCKET=""
+fi

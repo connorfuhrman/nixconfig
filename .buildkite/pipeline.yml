@@ -20,6 +20,12 @@ steps:
       - label: ":docker: flake check (container / Podman)"
         key: flake-check-mac-mini-container
         command: .buildkite/scripts/flake-check.sh
+        # docker-buildkite-plugin v5.14.0 bind-mounts this socket when set
+        # (`[[ -n "${BUILDKITE_AGENT_JOB_API_SOCKET:-}" ]]` in commands/run.sh).
+        # Podman Machine cannot statfs a Darwin unix socket into the Linux VM;
+        # flake-check does not need the Job API. Empty on this step only.
+        env:
+          BUILDKITE_AGENT_JOB_API_SOCKET: ""
         plugins:
           - docker#v5.14.0:
               image: "nixos/nix:2.28.2"
