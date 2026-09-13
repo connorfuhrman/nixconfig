@@ -64,7 +64,7 @@ pkgs/                   custom packages (callPackage); overlay = pkgs/default.ni
 modules/pkgs.nix        flake.overlays.default + packages.* + lib.pkgsFor
 modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwin
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
-modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
+modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword, iso
 modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
 modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
@@ -107,7 +107,8 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 
 ```sh
 cd /Users/connorfuhrman/nixconfig
-# primary gate: proves every configuration's derivations evaluate (15 closures).
+# primary gate: proves every configuration's derivations evaluate
+# (live closures + installer ISO/SD variants).
 # Runs PURE (no --impure, no env vars) — unfree allowance is scoped in onepassword modules.
 nix flake check .
 # module registries:
@@ -120,6 +121,8 @@ nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # tru
 nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # true
 nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
+nix eval .#nixosConfigurations.nuc-iso.config.system.build.isoImage.drvPath  # installer ISO (eval only — do not nix build the image)
+nix eval .#packages.x86_64-linux.nuc-iso.drvPath                           # same derivation via packages.*
 nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["mac-mini"]
 nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 's: builtins.filter (n: builtins.match "ray.*" n != null) (builtins.attrNames s)'  # ["ray-head"]
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
@@ -157,7 +160,13 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   they instantiate (fully evaluate) every closure but build nothing. Realizing
   closures happens on target hardware or the mac-mini builder. Check names must
   not contain `@` (invalid in store paths), hence `eval-home-connorfuhrman-mbp14`
-  etc.
+  etc. Installer media checks use `isoImage.drvPath` / `sdImage.drvPath` the
+  same way — never `nix build` the image from the agent/dev machine.
+- **Installer media are `extendModules` variants**, not live host closures.
+  `nixosConfigurations.nuc` stays the installed system; `nuc-iso` (and
+  `packages.x86_64-linux.nuc-iso`) adds `installation-cd-minimal`. Helper:
+  `flake.lib.nixosInstallerFromHost` / `mkInstallerIso` in `modules/nixos/iso.nix`.
+  `mbp14-iso` uses the apple-silicon ISO; `rpi-cluster-head-iso` is an SD image.
 - **Unfree packages:** 1Password is unfree; each platform's onepassword
   module sets a scoped `nixpkgs.config.allowUnfreePredicate` (must appear
   exactly once per configuration — multiple definitions of that option

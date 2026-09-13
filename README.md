@@ -59,7 +59,19 @@ darwin-rebuild switch --flake .#mac-mini
 
 # home-manager (first bootstraps with `nix run home-manager/master -- …`)
 home-manager switch --flake .#connorfuhrman@macbook
+
+# NixOS installer media (eval-only on the dev machine — realize images
+# on a matching linux builder). Live installer, not a preinstalled disk
+# image: still partition + nixos-generate-config +
+# nixos-install --flake /etc/nixconfig#<host>
+nix build .#nuc-iso
+nix build .#packages.x86_64-linux.nuc-iso
+nix build .#nixosConfigurations.nuc-iso.config.system.build.isoImage
 ```
+
+Same pattern for `nuc-cluster-head-iso` and `nuc-cluster-worker-iso`.
+`mbp14-iso` is the Asahi installer (`packages.aarch64-linux.mbp14-iso`).
+`rpi-cluster-head-iso` is an SD image (`packages.aarch64-linux.rpi-cluster-head-iso`).
 
 ## CI
 
@@ -80,7 +92,7 @@ modules/
   checks.nix              eval-only checks for all configs
   pkgs.nix                overlay export + packages.* + lib.pkgsFor
   nixos/                  NixOS features (system, desktop, server, asahi,
-                          nuc-cluster, ray-cluster, onepassword, …)
+                          iso, nuc-cluster, ray-cluster, onepassword, …)
   darwin/                 nix-darwin features (system, linux-builder, roon, …)
   home/                   home-manager (standard = base+emacs+coreutils+mosh+obsidian-config)
   generic/                shared features (tailscale, mac-mini-builder)
@@ -137,10 +149,30 @@ Roon.app is the Core on macOS (no headless server package). Installed via
 Homebrew. After install: sign in, enable this Mac as Core, turn on launch at
 login. Optional auto-login for unattended boot.
 
+### NixOS installer media
+
+`modules/nixos/iso.nix` extends each NixOS host with the matching installer
+module (`extendModules` / `nixosInstallerFromHost` — live closures stay clean):
+
+| Build | Medium | After install |
+|---|---|---|
+| `nix build .#nuc-iso` | x86_64 minimal USB ISO | `.#nuc` |
+| `nix build .#nuc-cluster-head-iso` | x86_64 minimal USB ISO | `.#nuc-cluster-head` |
+| `nix build .#nuc-cluster-worker-iso` | x86_64 minimal USB ISO | `.#nuc-cluster-worker` |
+| `nix build .#packages.aarch64-linux.mbp14-iso` | Asahi ISO | `.#mbp14` |
+| `nix build .#packages.aarch64-linux.rpi-cluster-head-iso` | aarch64 SD image | `.#rpi-cluster-head` |
+
+The image is a **minimal installer** flavored with that host's modules
+(hostname, `connorfuhrman`, git/vim, this repo at `/etc/nixconfig`). It is
+not a preinstalled rootfs. Hardware templates and Thunderbolt `/30`s still
+need real values from the target machine. Cluster-role media do **not**
+start Ray on the live image.
+
 ### Asahi install (mbp14)
 
 See [INSTALL.md](./INSTALL.md) for dual-boot NixOS on Apple Silicon (ISO,
-partitioning, firmware, first rebuild).
+partitioning, firmware, first rebuild). `mbp14-iso` is the in-repo Asahi
+installer (same family as option B there), not `installation-cd-minimal`.
 
 ## Privacy
 
