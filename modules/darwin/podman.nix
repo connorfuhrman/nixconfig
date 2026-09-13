@@ -10,6 +10,11 @@
       primaryUser = config.system.primaryUser;
       agentUser = "buildkite-agent-macos";
       podman = pkgs.podman;
+      scriptPath = lib.makeBinPath [
+        podman
+        pkgs.coreutils
+        pkgs.gnugrep
+      ];
 
       dockerCompat = pkgs.runCommand "${podman.pname}-docker-compat-${podman.version}"
         {
@@ -31,6 +36,7 @@
 
       podmanMachineEnsure = pkgs.writeShellScript "podman-machine-ensure" ''
         set -euo pipefail
+        export PATH="${scriptPath}:$PATH"
 
         primaryUser="${primaryUser}"
         home="/Users/${primaryUser}"
@@ -39,10 +45,10 @@
         sudo="/usr/bin/sudo"
 
         podman_as_user() {
-          "$sudo" -u "$primaryUser" env HOME="$home" PATH="${lib.makeBinPath [ podman ]}:$PATH" "$podman" "$@"
+          "$sudo" -u "$primaryUser" env HOME="$home" PATH="${scriptPath}:$PATH" "$podman" "$@"
         }
 
-        if ! podman_as_user machine list --format '{{.Name}}' 2>/dev/null | grep -qx "$machine"; then
+        if ! podman_as_user machine inspect "$machine" >/dev/null 2>&1; then
           echo "ERROR: podman machine '$machine' missing — run once as $primaryUser:" >&2
           echo "  podman machine init --rootful $machine" >&2
           exit 1
@@ -80,8 +86,9 @@
         fi
 
         mkdir -p /var/run
+        # Force-replace Docker Desktop (or stale) symlink every run.
         ln -sf "$sock" /var/run/docker.sock
-        chgrp docker "$sock"
+        chgrp docker "$sock" /var/run/docker.sock
         chmod 660 "$sock"
 
         echo "podman $machine running (rootful); /var/run/docker.sock -> $sock"
@@ -102,7 +109,7 @@
       # Root launchd: podman machine is owned by primaryUser, but /var/run/docker.sock
       # must be writable only by root. Runs at boot without a login session.
       launchd.daemons.podman-machine = {
-        path = [ podman ];
+        path = with pkgs; [ podman coreutils gnugrep ];
         script = "${podmanMachineEnsure}";
         serviceConfig = {
           RunAtLoad = true;
