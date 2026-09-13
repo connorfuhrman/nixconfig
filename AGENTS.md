@@ -14,7 +14,7 @@ working in this repo.
 | `nuc-cluster-worker` | `x86_64-linux` | NixOS | **experimental** | Role closure on the second Nuc — Ray worker |
 | `rpi-cluster-head` | `aarch64-linux` | NixOS | **experimental** | Prototype Raspberry Pi head node (generalized `hosts/rpi/` template) |
 | `macbook` | `aarch64-darwin` | nix-darwin | tested | macOS device |
-| `mac-mini` | `aarch64-darwin` | nix-darwin | tested | Always-on server: aarch64-linux builder (`nix.linux-builder`) + Roon Server |
+| `mac-mini` | `aarch64-darwin` | nix-darwin | tested | Always-on server: Buildkite agent (`mac-mini-macos`), aarch64-linux builder (`nix.linux-builder`) + Roon Server |
 | `cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | Cursor Cloud Agent home only — user `ubuntu` |
 | `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | per host | standalone via `homeManager.standard` |
 | `ubuntu@cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | `homeManager.cursor-cloud` (base + coreutils + emacs) |
@@ -65,7 +65,7 @@ modules/pkgs.nix        flake.overlays.default + packages.* + lib.pkgsFor
 modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwin
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword, iso
-modules/darwin/         nix-darwin features: system, linux-builder, server, roon-server, onepassword, emacs-plus
+modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
 modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
@@ -94,13 +94,13 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 
 - **Flakes and `nix-command` are enabled** in system config
   (`nix.settings.experimental-features`). Use plain `nix flake` / `nix eval`.
-- **Evaluation only from dev machines — never build system closures locally.**
-  No `nixos-rebuild`, `darwin-rebuild`, or `home-manager` from the dev
-  machine. `nix flake check` and `nix eval` are the validation tools. CI
-  (Buildkite) additionally **realizes** the three generic installer media
-  (`.#iso`, `.#asahi-iso`, `.#rpi-iso`); aarch64 builds run on the
-  `mac-mini-macos` queue.
-- This **is** a git repo. Prefer `develop` for commits (see Workflow). Do not
+- **Evaluation only — never build system closures.** No `nixos-rebuild`,
+  `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
+  and `nix eval` are the validation tools. CI (Buildkite) additionally
+  **realizes** the three generic installer media (`.#iso`, `.#asahi-iso`,
+  `.#rpi-iso`); x86_64 `.#iso` runs on hosted `linux-medium`, aarch64 images
+  on `mac-mini-macos`.
+- This **is** a git repo. Use feature branches targeting `main` (see Workflow). Do not
   force-push or commit secrets / `firmware/` blobs to a public remote.
 - `flake show` displays `darwinConfigurations`, `homeConfigurations`,
   `homeModules`, and `modules` as type "unknown" — normal Nix behavior, not an
@@ -191,6 +191,16 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 - **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
   (qemu-user binfmt in the builder VM). Clients use
   `generic.mac-mini-builder` with both systems.
+- **mac-mini Buildkite** runs one self-hosted agent on the Default cluster:
+  `mac-mini-macos` (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
+  as a remote builder (aarch64-linux native; x86_64-linux via qemu-user binfmt in
+  the VM) — not a separate Buildkite agent. Container / `docker#` on this queue
+  is a follow-up. Cluster agent token path:
+  `/etc/buildkite-agent/cluster.token` (never in the Nix store). Install on
+  mac-mini via `nix run .#mac-mini-buildkite-install-token` (reads `bkct_`
+  token from 1Password account `aztec_fuhrmans`,
+  `op://Private/Buildkite/credential`).
+  Runbook: [`docs/plans/mac-mini-buildkite.md`](docs/plans/mac-mini-buildkite.md).
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.roon-server` enables it (and any other
   host that needs brew).
@@ -253,9 +263,8 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 
 - **Always work on a side branch.** Never commit directly to `master` or `main`.
   If the human does not specify a branch name, ask before creating one.
-  Default to `develop` for general work; create feature branches (`feat/<name>`)
-  for larger changes. Open PRs from your branch into the default branch when
-  the human asks to merge.
+  Create feature branches (`feat/<name>`, `cursor/<name>`, etc.) from `main`.
+  Open PRs from your branch into `main` when the human asks to merge.
 - **Commit at discrete milestones.** Each commit should represent a complete,
   coherent unit of work — not half-finished edits. Resist the urge to commit
   after every tiny change; batch related changes together.
@@ -275,9 +284,8 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   delegated to subagents with exact file-by-file specs.
 - After delegation, the primary agent re-reads changed files and re-runs the
   validation suite itself. Never trust a subagent's report without verification.
-- **Always work and commit on the `develop` branch.** Never commit directly to
-  `master`/`main`. Create or check out `develop` before staging commits; open
-  PRs from `develop` into the default branch when the user asks to merge.
+- **Always work on a feature branch from `main`.** Never commit directly to
+  `master`/`main`. Open PRs into `main` when the user asks to merge.
 - **Long-form human output → Obsidian doc, not chat.** If the answer is more
   than a short paragraph / a few bullets (research, comparisons, runbooks,
   architecture notes, multi-section explanations), write a Markdown file under

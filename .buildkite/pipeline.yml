@@ -1,8 +1,7 @@
 # Shared fragments. Buildkite expands YAML anchors / merge keys at upload.
 x-branch-if: &branch-if
   if: |
-    build.branch == "develop" || build.branch == "main" ||
-    build.pull_request.base_branch == "develop" ||
+    build.branch == "main" ||
     build.pull_request.base_branch == "main"
 
 x-nix-docker: &nix-docker
@@ -22,6 +21,13 @@ x-linux-medium: &linux-medium
   agents:
     queue: linux-medium
 
+x-timeout-retry: &timeout-retry
+  timeout_in_minutes: 180
+  retry:
+    automatic:
+      - exit_status: "*"
+        limit: 1
+
 x-retry-once: &retry-once
   retry:
     automatic:
@@ -29,6 +35,25 @@ x-retry-once: &retry-once
         limit: 1
 
 steps:
+  - group: ":mac: mac-mini-macos CI"
+    key: mac-mini-macos-ci
+    <<: *branch-if
+    steps:
+      - label: ":nix: flake check (native macOS)"
+        key: flake-check-mac-mini-macos
+        command: .buildkite/scripts/flake-check.sh
+        <<: [*mac-mini-macos, *timeout-retry]
+
+      - label: ":package: build packages"
+        key: build-packages-mac-mini-macos
+        command: .buildkite/scripts/build-packages.sh
+        <<: [*mac-mini-macos, *timeout-retry]
+
+      - label: ":nixos: build nixos (rpi-cluster-head)"
+        key: build-nixos-rpi-cluster-head
+        command: .buildkite/scripts/build-nixos.sh
+        <<: [*mac-mini-macos, *timeout-retry]
+
   - label: ":nix: flake check"
     key: flake-check
     command: .buildkite/scripts/flake-check.sh
@@ -38,7 +63,7 @@ steps:
   - group: ":cd: Installer media"
     key: installer-media
     depends_on: flake-check
-    <<: [*branch-if]
+    <<: *branch-if
     steps:
       - label: ":cd: x86_64 installer ISO"
         key: build-iso

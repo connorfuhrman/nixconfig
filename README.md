@@ -72,16 +72,18 @@ See [INSTALL.md](./INSTALL.md) for Asahi / mbp14 (uses `.#asahi-iso`).
 
 ## CI
 
-Every push and pull request targeting `develop` or `main` runs in
+Every push and pull request targeting `main` runs in
 [Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) (see
 [`.buildkite/pipeline.yml`](./.buildkite/pipeline.yml)):
 
-1. **`:nix: flake check`** — fast eval-only gate in the official
-   [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container on the
+1. **mac-mini-macos CI** — native `nix flake check`, package builds, and
+   `rpi-cluster-head` NixOS realization on the self-hosted Mac mini agent.
+2. **`:nix: flake check`** — required eval-only gate in the official
+   [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container on the hosted
    `linux-medium` queue ([`modules/checks.nix`](./modules/checks.nix)).
-2. **Installer media builds** (after flake check passes) — real `nix build`
-   of the three generic boot images, with `*.iso` / `*.img.zst` uploaded as
-   Buildkite artifacts:
+3. **Installer media builds** (after the hosted flake check passes) — real
+   `nix build` of the three generic boot images, with `*.iso` / `*.img.zst`
+   uploaded as Buildkite artifacts:
    - `.#iso` — `linux-medium` (native x86_64-linux in Docker)
    - `.#asahi-iso` — `mac-mini-macos` (aarch64-linux via mac-mini
      `nix.linux-builder`)

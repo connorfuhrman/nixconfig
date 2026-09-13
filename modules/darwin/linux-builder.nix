@@ -6,10 +6,14 @@
   flake.modules.darwin.linux-builder = { ... }: {
     nix.linux-builder = {
       enable = true;
-      ephemeral = true;
-      maxJobs = 4;
+      ephemeral = false;
+      maxJobs = 8;
       systems = [ "aarch64-linux" "x86_64-linux" ];
       config = { pkgs, lib, ... }: {
+        virtualisation.cores = 8;
+        virtualisation.darwin-builder.memorySize = 8 * 1024;
+        virtualisation.darwin-builder.diskSize = 124 * 1024;
+
         # Emulate x86_64-linux inside the aarch64 builder VM (works without
         # host Rosetta share). Slower than Rosetta; reliable bootstrap.
         boot.binfmt.emulatedSystems = [ "x86_64-linux" ];
