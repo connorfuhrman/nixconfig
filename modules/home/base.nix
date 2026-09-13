@@ -8,6 +8,10 @@
     # Let home-manager manage itself.
     programs.home-manager.enable = true;
 
+    # Standalone HM aborts if a managed file already exists. The Nix installer
+    # writes ~/.zprofile on macOS; first activation must rename it, not fail.
+    home.backupFileExtension = "backup";
+
     # Homebrew is outside nix; ensure it stays on PATH even when a parent
     # shell left __NIX_DARWIN_SET_ENVIRONMENT_DONE set (stale PATH).
     home.sessionPath = lib.optionals pkgs.stdenv.isDarwin [

@@ -24,7 +24,9 @@
             sudo darwin-rebuild switch --flake "''${flake}#''${host}" "$@"
 
             echo "==> home-manager switch --flake ''${flake}#''${user}@''${host} $*"
-            home-manager switch --flake "''${flake}#''${user}@''${host}" "$@"
+            # -b backup matches home.backupFileExtension: existing files
+            # (e.g. Nix-installer ~/.zprofile) are renamed, not clobbered.
+            home-manager switch -b backup --flake "''${flake}#''${user}@''${host}" "$@"
 
             echo "==> done (''${user}@''${host})"
           '';
