@@ -31,6 +31,7 @@
           pkgs.coreutils
           pkgs.gnutar
           pkgs.gzip
+          pkgs.podman
         ];
       };
 
