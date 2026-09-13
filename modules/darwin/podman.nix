@@ -76,23 +76,48 @@
           podman_as_user machine start "$machine"
         fi
 
+        resolve_sock() {
+          local candidate=""
+
+          candidate="$(podman_as_user machine inspect "$machine" --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null || true)"
+          if [ -n "$candidate" ] && [ -S "$candidate" ]; then
+            echo "$candidate"
+            return 0
+          fi
+
+          candidate="$userTmpDir/podman/$machine-api.sock"
+          if [ -S "$candidate" ]; then
+            echo "$candidate"
+            return 0
+          fi
+
+          candidate="$(find "$userTmpDir" /var/folders "$home/.local/share/containers/podman/machine" \
+            -name "$machine-api.sock" -type s 2>/dev/null | head -n1 || true)"
+          if [ -n "$candidate" ] && [ -S "$candidate" ]; then
+            echo "$candidate"
+            return 0
+          fi
+
+          return 1
+        }
+
         sock=""
         for _ in $(seq 1 30); do
-          sock="$(podman_as_user machine inspect "$machine" --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null || true)"
-          if [ -n "$sock" ] && [ -S "$sock" ]; then
+          sock="$(resolve_sock || true)"
+          if [ -n "$sock" ]; then
             break
           fi
           sleep 1
         done
 
         if [ -z "$sock" ] || [ ! -S "$sock" ]; then
-          echo "ERROR: Podman API socket not found (ConnectionInfo.PodmanSocket.Path)" >&2
+          echo "ERROR: Podman API socket not found (ConnectionInfo, TMPDIR, or find)" >&2
           exit 1
         fi
 
         mkdir -p /var/run
         # Force-replace Docker Desktop (or stale) symlink every run.
-        ln -sf "$sock" /var/run/docker.sock
+        ln -sfn "$sock" /var/run/docker.sock
         chgrp docker "$sock" /var/run/docker.sock
         chmod 660 "$sock"
 
