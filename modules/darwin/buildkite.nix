@@ -42,22 +42,17 @@
         "buildkite-agent-macos"
       ];
 
-      system.activationScripts.buildkiteTokenDir.text = ''
+      # nix-darwin only runs hardcoded activation scripts (users, launchd,
+      # postActivation, …). Custom script names are ignored; use postActivation
+      # (after users) so buildkite-agent-macos exists before chgrp.
+      system.activationScripts.postActivation.text = lib.mkAfter ''
         mkdir -p /etc/buildkite-agent
         chmod 755 /etc/buildkite-agent
+        if [ -f /etc/buildkite-agent/cluster.token ]; then
+          chown root:buildkite-agent-macos /etc/buildkite-agent/cluster.token
+          chmod 640 /etc/buildkite-agent/cluster.token
+        fi
       '';
-
-      # Token is read at agent start by buildkite-agent-macos (not root). Install
-      # scripts may run before the user exists; activation fixes group/mode.
-      system.activationScripts.buildkiteTokenPermissions = {
-        deps = [ "users" ];
-        text = ''
-          if [ -f /etc/buildkite-agent/cluster.token ]; then
-            chown root:buildkite-agent-macos /etc/buildkite-agent/cluster.token
-            chmod 640 /etc/buildkite-agent/cluster.token
-          fi
-        '';
-      };
 
       nix.linux-builder.config = { ... }: {
         services.buildkite-agents.linux = {
