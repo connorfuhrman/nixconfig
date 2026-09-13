@@ -224,6 +224,7 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.DOCKER_HOST
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.path # includes *-podman-docker-compat-*/bin
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.KeepAlive
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
 ```
