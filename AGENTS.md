@@ -188,12 +188,12 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `docker run -v $PWD` works with no guest symlink. Agent home / `dataDir` stay
   `/private/var/lib/buildkite-agent-macos` — nix-darwin will not move an existing
   user's home (`/var` → `/private/var` on Darwin). Do not put checkout under
-  `/var/lib` (`/private` virtiofs wedges on guest ls/umount) and do not add a
+  `/var/lib` (guest ls/umount of `/private/var` hangs virtiofs) and do not add a
   nested virtiofs of the checkout. Origin SSH / `.gitconfig` live in that home.
-  Job API is off
-  (`bootstrap --no-job-api` + launchd `BUILDKITE_AGENT_NO_JOB_API=true`);
-  unix sockets cannot ride virtiofs and `job-api=false` in extraConfig is
-  not an agent-start key. Do not add per-pipeline `docker cp` wrappers. Cluster agent token path:
+  Job API is off (`bootstrap --no-job-api` + launchd `BUILDKITE_AGENT_NO_JOB_API=true`)
+  because unix sockets cannot ride virtiofs and docker-buildkite-plugin
+  bind-mounts `BUILDKITE_AGENT_JOB_API_SOCKET` when that env is set.
+  `job-api=false` in extraConfig is not an agent-start key. Cluster agent token path:
   `/etc/buildkite-agent/cluster.token` (never in the Nix store). Install on
   mac-mini via `nix run .#mac-mini-buildkite-install-token` (reads `bkct_`
   token from 1Password account `aztec_fuhrmans`,

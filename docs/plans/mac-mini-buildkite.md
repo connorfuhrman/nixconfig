@@ -7,9 +7,9 @@ launchd agent on queue `mac-mini-macos` with `spawn=2` (two connected agents,
 
 **Concurrency:** `spawn=2` in `extraConfig`, agent name `%hostname-macos-%spawn`
 (Buildkite requires `%spawn` when `--spawn` / `spawn=` shares `build-path`).
-Stay at 2: the host is 16 GiB and `nix.linux-builder` is already ~8 GiB;
-Podman Machine (follow-up) is ~10 GiB. Higher spawn oversubscribes RAM when
-jobs use the builder or containers. One launchd process — do not add a second
+Stay at 2: the host is 16 GiB, `nix.linux-builder` is already ~8 GiB, and
+Podman Machine is 10 GiB. Higher spawn oversubscribes RAM when jobs use the
+builder or containers. One launchd process — do not add a second
 `services.buildkite-agents.*` entry.
 
 ## Queues (Default cluster)
@@ -225,8 +225,8 @@ switch). The private key is never replaced by a rebuild.
 - `flake-check-hosted-linux-medium` — hosted `linux-medium` + Docker (existing backup)
 - `flake-check-mac-mini-macos` — queue `mac-mini-macos` (native Darwin Nix)
 - `flake-check-mac-mini-container` — queue `mac-mini-macos` + `docker#v5.14.0`
-  (`nixos/nix:2.28.2`); **canary** that `docker run -v $PWD:/workdir` works
-  on the runner. Do not replace this with a per-pipeline `docker cp` wrapper.
+  (`nixos/nix:2.28.2`). Checkout is on `/Users` virtiofs, so `docker run -v $PWD`
+  is the native path.
 - `build-packages-mac-mini-macos` — autodiscover `.#packages` and build
 - `build-nixos-rpi-cluster-head` — realize the lightest NixOS toplevel via linux-builder
 
@@ -250,7 +250,7 @@ puts the API socket under the primary user's `/var/folders/…/T/podman/` temp d
 which `buildkite-agent-macos` cannot access. Privileged ports and some images
 also fail rootless.
 
-**One-time setup** (machine already exists from a rootless trial — no re-init):
+**One-time setup** if the machine already exists rootless:
 
 ```sh
 # as connorfuhrman
@@ -272,7 +272,7 @@ Verify:
 podman machine inspect podman-machine-default --format '{{.Rootful}}'   # true
 podman machine list
 docker run --rm quay.io/podman/hello
-ls -l /var/run/docker.sock   # symlink → Podman API socket (ConnectionInfo.PodmanSocket.Path)
+ls -l /var/run/docker.sock   # root socat listen sock (660, group docker) → Podman API
 sudo tail -20 /var/log/podman-machine.log
 ```
 
@@ -286,53 +286,36 @@ Agent **home** stays `/private/var/lib/buildkite-agent-macos` (`dataDir`, Origin
 SSH, `.gitconfig`). nix-darwin will not change an existing user's home — do
 not set `users.users.buildkite-agent-macos.home` to `/Users/Shared/...`.
 Agent **checkout** is `/Users/Shared/buildkite-agent-macos` (`build-path` /
-`plugins-path`), on the default applehv `/Users` virtiofs share, owned by
-`buildkite-agent-macos:docker`. `docker run -v $PWD` works with no guest
-symlink. Do **not** put checkout under `/var/lib`: Darwin `/var` is
-`/private/var`, guest `ls`/`umount` of `/private/var/lib/buildkite-agent-macos`
-wedges virtiofs (build 102 hung before flake-check started), and a nested
-virtiofs of that path kills vfkit. Ensure **prunes** extra virtiofs JSON for
-the checkout and the old `/var/lib` path. Never umount guest virtiofs shares.
+`plugins-path`) on the default applehv `/Users` virtiofs share, owned by
+`buildkite-agent-macos:docker`. `docker run -v $PWD` works there with no guest
+symlink. Darwin `/var` is `/private/var`; put checkout under `/Users`, not
+`/var/lib`. Guest `ls`/`umount` of `/private/var/lib/...` hangs that virtiofs
+share. Nested virtiofs of the checkout or home is unused (applehv already
+shares `/Users`) — launchd ensure **prunes** those extra JSON mounts. Never
+umount guest virtiofs shares.
 
-Unix sockets cannot ride virtiofs. docker-buildkite-plugin v5.14.0
-bind-mounts `BUILDKITE_AGENT_JOB_API_SOCKET` when that env is non-empty.
-Agent 3.129 Job API is a **bootstrap** flag (`--no-job-api` /
-`BUILDKITE_AGENT_NO_JOB_API`), not an agent-start key: `job-api=false` in
-`extraConfig` was present on the live cfg and Job API still ran (build 93).
-nix-darwin has no `commandLine` option. Disable it agent-wide via
-`bootstrap-script=… bootstrap --no-job-api` plus launchd
-`BUILDKITE_AGENT_NO_JOB_API=true`. Do not rely on step env (agent overwrites
-an empty `BUILDKITE_AGENT_JOB_API_SOCKET`).
+Unix sockets cannot ride virtiofs. docker-buildkite-plugin bind-mounts
+`BUILDKITE_AGENT_JOB_API_SOCKET` when that env is set, so Job API is off
+agent-wide: `bootstrap-script=… bootstrap --no-job-api` plus launchd
+`BUILDKITE_AGENT_NO_JOB_API=true`. `job-api=false` is not an agent-start key.
+nix-darwin has no `commandLine` option. Do not rely on step env (the agent
+overwrites an empty `BUILDKITE_AGENT_JOB_API_SOCKET`).
 
-**Volumes + Job API need `darwin-rebuild`.** Do not retry CI until this host
-has switched. If `/private` virtiofs is already wedged from an earlier hung
-`umount` (gvproxy/vfkit still up, guest `ls /private/var/lib/buildkite-agent-macos`
-times out), restart the machine **after** the switch — the live generation's
-ensure still SSHes into that path and will re-hang:
+Memory is 10240 MiB (host 16 GiB, linux-builder already 8 GiB; a full
+`nix flake check` in `nixos/nix` needs ~8 GiB RSS for emacs overlay unpack).
+Idle builder pages compress, so a second full 8 GiB VM is unnecessary. Do
+not `podman machine set --memory` by hand — rebuild so launchd applies it.
 
-```sh
-cd ~/nixconfig && git pull
-sudo darwin-rebuild switch --flake .#mac-mini
-podman machine stop podman-machine-default
-podman machine start podman-machine-default
-```
-
-If `podman machine stop` hangs, Connor may need sudo to kill vfkit/gvproxy
-(`pgrep -lf 'vfkit|gvproxy'`) then `launchctl kickstart -k system/org.nixos.podman-machine`.
-
-Then confirm default shares only (`/Users` `/private` `/var/folders`) and
-that bind-mount of the new checkout returns immediately:
+If `podman machine stop` hangs, kill vfkit/gvproxy (`pgrep -lf 'vfkit|gvproxy'`)
+then `launchctl kickstart -k system/org.nixos.podman-machine`. Confirm default
+shares only (`/Users` `/private` `/var/folders`) and that a bind-mount of the
+checkout returns immediately:
 
 ```sh
 python3 -c 'import json; m=json.load(open("/Users/connorfuhrman/.config/containers/podman/machine/applehv/podman-machine-default.json"))["Mounts"]; print([ (x["Source"], x["Target"]) for x in m ])'
 podman machine ssh -- 'ls /Users/Shared/buildkite-agent-macos | head'
 podman run --rm -v /Users/Shared/buildkite-agent-macos:/workdir alpine:3.20 ls /workdir
 ```
-
-The mini is 16 GiB and `nix.linux-builder` is already 8 GiB. 8096 MiB still
-OOM-killed `nix flake check` in `nixos/nix:2.28.2` (~7.4 GiB nix RSS during
-emacs-overlay unpack). 10 GiB is the encoded bump; do not `podman machine set`
-by hand — rebuild so launchd applies it.
 
 ## Validation
 

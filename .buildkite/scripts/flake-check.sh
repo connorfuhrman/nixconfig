@@ -2,11 +2,9 @@
 # Evaluate flake checks in separate nix processes.
 #
 # A single `nix flake check` retains the evaluator heap across every
-# configuration. In the Podman Machine guest (10 GiB RAM, no swap) that
-# peaked at nix anon-rss 9496472 kB and the Linux OOM killer SIGKILL'd
-# the process (exit 137) during eval-home-connorfuhrman-macbook — host
-# macOS was not out of memory. One invocation per check lets the heap
-# drop between closures.
+# configuration. The Podman Machine guest is 10 GiB with no swap, and a
+# full eval of this flake (emacs overlay unpack) needs ~8 GiB RSS. One
+# invocation per check lets the heap drop between closures.
 set -euo pipefail
 
 system=$(nix eval --raw --impure --expr builtins.currentSystem)

@@ -5,11 +5,11 @@
       # Existing dscl home. nix-darwin will not change it. /var is a symlink
       # to /private/var on Darwin — keep the /private path the live user has.
       agentHome = "/private/var/lib/${agentUser}";
-      # Checkout on applehv /Users virtiofs so docker -v $PWD works. /private
-      # virtiofs of the home wedges on guest ls/umount; nested virtiofs of
-      # /var/lib/... kills vfkit. Must match modules/darwin/podman.nix
-      # agentCheckoutRoot. ExtraConfig build-path last-wins over nix-darwin's
-      # dataDir/builds.
+      # Checkout on applehv /Users virtiofs so docker -v $PWD works. Do not
+      # put checkout under /var/lib (/private/var on Darwin): guest ls/umount
+      # of that path hangs the share, and nested virtiofs tags are unused.
+      # Must match modules/darwin/podman.nix agentCheckoutRoot. ExtraConfig
+      # build-path last-wins over nix-darwin's dataDir/builds.
       agentCheckout = "/Users/Shared/${agentUser}";
       originSshKey = "${agentHome}/.ssh/origin_cursor";
       # Public only — private key is installed by
@@ -50,16 +50,15 @@
         # Default is "%hostname-macos-%n"; %n is not the spawn index.
         name = "%hostname-macos-%spawn";
         # Host is 16 GiB; linux-builder is ~8 GiB. spawn=2 is two concurrent
-        # Darwin jobs; 4+ oversubscribes RAM if those jobs also use the builder
-        # (or Podman Machine, once that lands).
-        # Unix sockets cannot ride virtiofs. docker-buildkite-plugin v5.14.0
-        # bind-mounts BUILDKITE_AGENT_JOB_API_SOCKET when set
-        # (`[[ -n "${BUILDKITE_AGENT_JOB_API_SOCKET:-}" ]]`). Agent 3.129
-        # overwrites an empty step env and always starts Job API unless
-        # bootstrap gets --no-job-api. `job-api=false` is NOT an agent-start
-        # key (live cfg had it; Job API still ran). nix-darwin has no
-        # commandLine option — extraConfig bootstrap-script + launchd
-        # BUILDKITE_AGENT_NO_JOB_API is the agent-level disable.
+        # Darwin jobs; higher spawn oversubscribes RAM when jobs also use the
+        # builder or Podman Machine (~10 GiB).
+        # Unix sockets cannot ride virtiofs. docker-buildkite-plugin bind-mounts
+        # BUILDKITE_AGENT_JOB_API_SOCKET when that env is set, so Job API is
+        # disabled agent-wide: bootstrap --no-job-api plus launchd
+        # BUILDKITE_AGENT_NO_JOB_API. `job-api=false` is not an agent-start
+        # key. nix-darwin has no commandLine option, so extraConfig
+        # bootstrap-script is the switch. Do not rely on step env (agent
+        # overwrites an empty BUILDKITE_AGENT_JOB_API_SOCKET).
         extraConfig = ''
           debug=true
           plugins-path="${agentCheckout}/plugins"

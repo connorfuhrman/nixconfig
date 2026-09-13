@@ -10,19 +10,17 @@
       agentUser = "buildkite-agent-macos";
       podman = pkgs.podman;
       dockerGid = toString config.users.groups.docker.gid;
-      # mac-mini is 16 GiB; linux-builder is already 8 GiB. Build 67's
-      # nixos/nix:2.28.2 flake-check OOM-killed nix at ~7.4 GiB RSS (emacs
-      # overlay unpack) inside an 8096 MiB machine — 4–6 GiB would still
-      # SIGKILL 137. 10 GiB is the bump that can finish eval without adding
-      # another full 8 GiB VM on a 16 GiB host (idle builder pages compress).
+      # 10 GiB: mac-mini is 16 GiB, linux-builder is already 8 GiB, and a full
+      # `nix flake check` in a Linux VM needs ~8 GiB RSS (emacs overlay unpack).
+      # Idle builder pages compress, so a second full 8 GiB VM is unnecessary.
       desiredMemoryMiB = "10240";
       # Must match modules/darwin/buildkite.nix agentCheckout / build-path.
       # Agent home stays /private/var/lib/buildkite-agent-macos (nix-darwin
-      # will not move an existing user). applehv virtiofs-shares /Users;
-      # docker run -v $PWD works there with no guest symlink. Guest ls/umount
-      # of /private/var/lib/... wedges virtiofs. Do not add a nested virtiofs
-      # of this path (or the home): CoreOS never mounts the extra tag and
-      # vfkit has been exiting seconds after start with that device.
+      # will not move an existing user). applehv virtiofs-shares /Users by
+      # default, so docker run -v $PWD works at this checkout with no guest
+      # symlink. Do not add a nested virtiofs of /private/var or this path:
+      # guest ls/umount of /private/var/lib hangs the share, and extra tags
+      # are not mounted by the guest.
       agentCheckoutRoot = "/Users/Shared/buildkite-agent-macos";
       oldCheckoutRoot = "/var/lib/buildkite-agent-macos";
       agentHome = "/private/var/lib/buildkite-agent-macos";
@@ -273,8 +271,8 @@
           sleep 1
         done
 
-        # Never umount / SSH-stat guest checkout paths. umount of a symlink
-        # onto /private virtiofs wedges the share; [ -d ] follows it and hangs.
+        # Never umount or SSH-stat guest checkout paths. umount of a symlink
+        # onto /private virtiofs hangs the share; [ -d ] follows it and hangs.
         echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB, checkout $checkoutRoot on /Users virtiofs); proxy $listen -> $sock"
       '';
 
@@ -336,8 +334,8 @@
             SuccessfulExit = false;
           };
           # `podman machine start` leaves vfkit+gvproxy in this job's process
-          # group. launchd otherwise SIGTERMs them when the one-shot ensure
-          # exits 0 (~1 min after "started successfully").
+          # group. Without AbandonProcessGroup, launchd SIGTERMs them when the
+          # one-shot ensure exits 0.
           AbandonProcessGroup = true;
           StandardOutPath = "/var/log/podman-machine.log";
           StandardErrorPath = "/var/log/podman-machine.log";
