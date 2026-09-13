@@ -49,19 +49,18 @@ If no Buildkite item exists, create a **Password** item titled `Buildkite` in
 vault `Private` and paste the `bkct_…` cluster agent token into the password
 field (Buildkite → Agents → Default cluster → Agent tokens).
 
-Verify read access before install (desktop app unlock is enough — `op whoami` may fail):
+Verify read access before install (desktop app unlock is enough — no `op whoami` check):
 
 ```sh
-op read "op://Private/Buildkite/credential"
-# or, for a Login item:
-# op read "op://Private/Buildkite/password"
+op read "op://Private/Buildkite/credential" \
+  || op read "op://Private/Buildkite/password"
 # should print a bkct_… token
 # if read fails: eval "$(op signin --account aztec_fuhrmans)"
 ```
 
-Install to the host (mac-mini only). Bootstrap uses Homebrew `op` from your shell
-(`/opt/homebrew/bin/op` or `$OP`), not `nix run` — so desktop integration applies.
-Token-only reinstall: `nix run .#mac-mini-buildkite-install-token` (no whoami gate).
+Install to the host (mac-mini only). Both paths use Homebrew `op`
+(`/opt/homebrew/bin/op` or `$OP`) and write via `mktemp` + `install -g wheel`
+(BSD `install` rejects `/dev/stdin`).
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
@@ -89,8 +88,8 @@ op read "op://Private/Buildkite/credential"   # sanity check (desktop unlock is 
 ./scripts/mac-mini-buildkite-bootstrap.sh
 ```
 
-The bootstrap script reads the token with shell `op` when the file is missing (no
-`op whoami` gate), then `darwin-rebuild switch`.
+The bootstrap script calls `install_cluster_token` (shell `op`, direct `op read`,
+`mktemp` + `install -g wheel`) when the file is missing, then `darwin-rebuild switch`.
 
 **Token only** (skip darwin-rebuild):
 
@@ -103,11 +102,17 @@ nix run .#mac-mini-buildkite-install-token
 From 1Password (BSD `install` on macOS does not accept `/dev/stdin` — use a temp file):
 
 ```sh
+op_bin=${OP:-/opt/homebrew/bin/op}
 sudo mkdir -p /etc/buildkite-agent
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
-op read "op://Private/Buildkite/credential" > "$tmp"
+token=$("$op_bin" read "op://Private/Buildkite/credential" 2>/dev/null) \
+  || token=$("$op_bin" read "op://Private/Buildkite/password" 2>/dev/null) \
+  || { echo "op read failed"; exit 1; }
+printf '%s' "$token" | tr -d '[:space:]' > "$tmp"
 sudo install -m 600 -o root -g wheel "$tmp" /etc/buildkite-agent/cluster.token
+rm -f "$tmp"
+trap - EXIT
 ```
 
 Or from a saved token file:
