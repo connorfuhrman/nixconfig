@@ -43,9 +43,14 @@
         machine=podman-machine-default
         podman="${podman}/bin/podman"
         sudo="/usr/bin/sudo"
+        getconf="/usr/bin/getconf"
+
+        # sudo(8) drops the login-session TMPDIR; podman then reports
+        # /tmp/podman/... while the real socket lives under /var/folders/.../T/.
+        userTmpDir="$("$sudo" -u "$primaryUser" "$getconf" DARWIN_USER_TEMP_DIR)"
 
         podman_as_user() {
-          "$sudo" -u "$primaryUser" env HOME="$home" PATH="${scriptPath}:$PATH" "$podman" "$@"
+          "$sudo" -u "$primaryUser" env HOME="$home" TMPDIR="$userTmpDir" PATH="${scriptPath}:$PATH" "$podman" "$@"
         }
 
         if ! podman_as_user machine inspect "$machine" >/dev/null 2>&1; then
