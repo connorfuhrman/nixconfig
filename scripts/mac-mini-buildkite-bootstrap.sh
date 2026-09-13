@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot bootstrap for mac-mini Buildkite self-hosted agents.
+# One-shot bootstrap for mac-mini Buildkite self-hosted agent.
 # Run on mac-mini after main includes modules/darwin/buildkite.nix.
 #
 # Usage:
@@ -56,15 +56,6 @@ echo "Applying nix-darwin config (sudo required)…"
 cd "$REPO_ROOT"
 sudo darwin-rebuild switch --flake .#mac-mini
 
-echo "Waiting for linux-builder…"
-for _ in $(seq 1 60); do
-  if sudo ssh -F /etc/ssh/ssh_config -o BatchMode=yes -o ConnectTimeout=5 linux-builder true 2>/dev/null; then
-    break
-  fi
-  sleep 5
-done
-sudo ssh -F /etc/ssh/ssh_config linux-builder uname -m
-
 echo "Buildkite launchd jobs (system domain — use sudo):"
 sudo launchctl list 2>/dev/null | grep buildkite || true
 echo "macOS agent daemon status:"
@@ -74,5 +65,5 @@ echo "Token readable by buildkite-agent-macos?"
 sudo -u buildkite-agent-macos test -r "$TOKEN_PATH" \
   && echo "  yes" || echo "  NO — re-run: sudo darwin-rebuild switch --flake .#mac-mini"
 
-echo "Done. Confirm agents at:"
+echo "Done. Confirm agent at:"
 echo "  https://buildkite.com/organizations/$ORG/clusters/$CLUSTER_ID"

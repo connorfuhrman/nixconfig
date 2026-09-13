@@ -1,25 +1,35 @@
 # Mac mini Buildkite self-hosted compute
 
-Runbook for the Mac mini (`mac-mini`) as Buildkite self-hosted compute: a Darwin
-agent plus a Linux agent inside the persistent `linux-builder` NixOS VM.
+Runbook for the Mac mini (`mac-mini`) as Buildkite self-hosted compute: a single
+Darwin agent on queue `mac-mini-macos`. Linux Nix builds are offloaded to the
+persistent `nix.linux-builder` VM as a remote builder — not a separate CI host.
 
 ## Queues (Default cluster)
 
 | Queue | Where jobs run | Use for |
 |---|---|---|
-| `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, macOS-only work |
-| `mac-mini-aarch64-linux` | linux-builder VM (aarch64 Linux) | Native `aarch64-linux` Nix; `x86_64-linux` via qemu-user binfmt on the same VM |
+| `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, macOS-only work; can offload `aarch64-linux` / `x86_64-linux` via `nix.linux-builder` when jobs need Linux Nix |
 
 Hosted `linux-small` / `linux-medium` remain for native x86_64 speed and
 pipeline upload. Self-hosted steps use **native Nix** — no Docker plugin.
 
+## Linux builds (remote builder, not a CI agent)
+
+`modules/darwin/linux-builder.nix` runs a persistent NixOS VM
+(`nix.linux-builder`) that advertises `aarch64-linux` and `x86_64-linux` (via
+qemu-user binfmt). When a job runs on the macOS agent and invokes Nix for a
+Linux system, Nix dispatches builds to that VM automatically — no Buildkite
+agent runs inside the guest.
+
+Other hosts (e.g. `nuc`) use `generic.mac-mini-builder` as a remote builder
+client over Tailscale; the macOS agent uses the same VM locally.
+
 ## Cluster agent token
 
-- **Path on host and guest:** `/etc/buildkite-agent/cluster.token`
-- **Permissions (host):** `0640`, `root:buildkite-agent-macos` (set by nix-darwin `postActivation`)
-- **Permissions (linux-builder guest):** `0640`, `root:buildkite-agent-linux` (installed by token-sync)
+- **Path on host:** `/etc/buildkite-agent/cluster.token`
+- **Permissions:** `0640`, `root:buildkite-agent-macos` (set by nix-darwin `postActivation`)
 - **Never** commit the token value or put it in the Nix store
-- One cluster-scoped token; each agent selects its queue via `tags.queue`
+- One cluster-scoped token; the macOS agent selects queue `mac-mini-macos` via `tags.queue`
 
 ### 1Password item layout
 
@@ -60,8 +70,7 @@ op read "op://Private/Buildkite/credential" \
 ```
 
 Install to the host (mac-mini only). Uses Homebrew `op`
-(`/opt/homebrew/bin/op` or `$OP`) and writes via `mktemp` + `install -g wheel`
-(BSD `install` rejects `/dev/stdin`).
+(`/opt/homebrew/bin/op` or `$OP`) and writes via `mktemp` + `install`.
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
@@ -70,22 +79,21 @@ nix run .#mac-mini-buildkite-install-token
 ## Nix modules
 
 - `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`,
-  guest `services.buildkite-agents.linux` (merged into `nix.linux-builder.config`),
-  `trusted-users`, launchd `buildkite-token-sync` (scp token into VM), agent
-  workdir + token permissions via `postActivation`, headless `ProcessType =
-  Standard`, and launchd kickstart after activation
-- `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`),
-  sized for agent + Nix store (8 cores, 8 GiB RAM, 124 GiB disk, `maxJobs = 8`)
+  `trusted-users`, agent workdir + token permissions via `postActivation`,
+  headless `ProcessType = Standard`, and launchd kickstart of the macOS agent
+  after activation
+- `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`) used
+  as a Nix remote builder (not a Buildkite agent host)
 - Imported from `modules/hosts/mac-mini.nix`
 
-All agent setup (user workdir, token permissions, launchd ProcessType, token
-sync SSH, service reload) is handled by nix-darwin. **No manual `chgrp`,
-`chmod`, or `launchctl kickstart` is required.**
+All agent setup (user workdir, token permissions, launchd ProcessType, service
+reload) is handled by nix-darwin. **No manual `chgrp`, `chmod`, or
+`launchctl kickstart` is required.**
 
 ## Bootstrap order
 
-Queues `mac-mini-macos` and `mac-mini-aarch64-linux` already exist on the Default
-cluster. Remaining steps on mac-mini:
+Queue `mac-mini-macos` already exists on the Default cluster. Remaining steps on
+mac-mini:
 
 1. Install the cluster agent token (once, if missing):
 
@@ -101,19 +109,21 @@ cluster. Remaining steps on mac-mini:
    ```
 
    `postActivation` creates `/var/lib/buildkite-agent-macos`, fixes token
-   permissions, and kickstarts the Buildkite launchd daemons. `buildkite-token-sync`
-   copies the token into the linux-builder VM over SSH using the nix-darwin
-   builder key (`/etc/nix/builder_ed25519`, `/etc/ssh/ssh_config.d/100-linux-builder.conf`).
-   The guest install script lives at a stable path (`/etc/buildkite/install-cluster-token`)
-   so passwordless `sudo` survives rebuilds.
+   permissions, and kickstarts the macOS Buildkite launchd daemon.
 
-3. Confirm agents connected in Buildkite → Agents → Default cluster.
+3. Confirm the agent connected in Buildkite → Agents → Default cluster.
 
 **Token-only reinstall** (skip darwin-rebuild if config unchanged):
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
-sudo darwin-rebuild switch --flake .#mac-mini   # re-applies permissions + kickstarts sync
+sudo darwin-rebuild switch --flake .#mac-mini   # re-applies permissions + kickstarts agent
+```
+
+Or use the bootstrap script:
+
+```sh
+./scripts/mac-mini-buildkite-bootstrap.sh
 ```
 
 ### Manual token fallback
@@ -151,20 +161,12 @@ sudo darwin-rebuild switch --flake .#mac-mini
 `.buildkite/pipeline.yml` includes:
 
 - `flake-check` — hosted `linux-medium` + Docker (existing)
-- `flake-check-mac-mini-linux` — queue `mac-mini-aarch64-linux`
 - `flake-check-mac-mini-macos` — queue `mac-mini-macos`
 
 ### t-hex
 
-Add `flake-check-aarch64` on queue `mac-mini-aarch64-linux` (parallel to hosted
-x86 step). Nested virt: do not run NixOS tests requiring KVM inside the VM on
-Apple Silicon.
-
-## Podman fallback
-
-Only if `darwin-rebuild switch` fails with “a `aarch64-linux` … is required” or
-the ephemeral disk cannot realize the new image. See plan in
-`.cursor/plans/mac_mini_buildkite_*.plan.md`. Steady state stays `nix.linux-builder`.
+For Linux Nix work from the macOS agent, rely on `nix.linux-builder` remote
+builds rather than a dedicated Linux Buildkite queue.
 
 ## Validation
 
@@ -173,7 +175,6 @@ Eval gates (from any machine with the flake):
 ```sh
 nix flake check .
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
-nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.ephemeral
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
@@ -184,8 +185,7 @@ On mac-mini after `darwin-rebuild switch`:
 ```sh
 sudo launchctl print system/org.nixos.buildkite-agent-macos | grep -E 'state =|last exit'
 sudo tail -20 /var/lib/buildkite-agent-macos/buildkite-agent.log
-sudo tail -10 /var/log/buildkite-token-sync.log
 ```
 
-**Done** means Buildkite jobs actually passed on both self-hosted queues — not
+**Done** means Buildkite jobs actually passed on queue `mac-mini-macos` — not
 eval-only success.

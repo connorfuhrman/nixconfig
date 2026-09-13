@@ -20,16 +20,6 @@ steps:
         - exit_status: "*"
           limit: 1
 
-  - label: ":nix: flake check (mac-mini aarch64-linux)"
-    key: flake-check-mac-mini-linux
-    if: |
-      build.branch == "main" ||
-      build.pull_request.base_branch == "main"
-    command: .buildkite/scripts/flake-check.sh
-    agents:
-      queue: mac-mini-aarch64-linux
-    timeout_in_minutes: 90
-
   - label: ":nix: flake check (mac-mini macos)"
     key: flake-check-mac-mini-macos
     if: |
