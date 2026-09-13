@@ -11,8 +11,14 @@
       '';
     in
     {
-      # nix-darwin only creates users listed in knownUsers (see users/default.nix).
+      # nix-darwin only creates users/groups listed in knownUsers/knownGroups.
+      users.knownGroups = lib.mkAfter [ "buildkite-agent-macos" ];
       users.knownUsers = lib.mkAfter [ "buildkite-agent-macos" ];
+      users.groups.buildkite-agent-macos.gid = lib.mkDefault 536;
+      users.users.buildkite-agent-macos = {
+        uid = lib.mkDefault 536;
+        gid = lib.mkDefault config.users.groups.buildkite-agent-macos.gid;
+      };
 
       services.buildkite-agents.macos = {
         tokenPath = "/etc/buildkite-agent/cluster.token";
