@@ -15,7 +15,9 @@ The `cursor-env-build` step authenticates to the Cloud Agents API with
 2. Or add **`CURSOR_API_KEY`** from Cursor Dashboard → API Keys.
 3. Confirm **Cursor Cloud MCP** is enabled for the team (Agents → MCP settings).
 
-Never commit tokens. The step fails immediately when neither secret is set.
+The step declares `secrets: [CURSOR_AUTOMATION_WEBHOOK_TOKEN]` in
+`.buildkite/pipeline.yml` so Buildkite injects the cluster secret into the job
+environment. Never commit tokens.
 
 ### GitHub branch protection (after first green run)
 

@@ -61,6 +61,8 @@ steps:
       build.pull_request.base_branch == "develop" ||
       build.pull_request.base_branch == "main"
     command: .buildkite/scripts/cursor-env-build.sh
+    secrets:
+      - CURSOR_AUTOMATION_WEBHOOK_TOKEN
     agents:
       queue: linux-small
     timeout_in_minutes: 90
