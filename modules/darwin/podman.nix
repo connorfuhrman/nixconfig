@@ -16,14 +16,18 @@
       # SIGKILL 137. 10 GiB is the bump that can finish eval without adding
       # another full 8 GiB VM on a 16 GiB host (idle builder pages compress).
       desiredMemoryMiB = "10240";
-      # Must match modules/darwin/buildkite.nix agentHome. Default applehv
-      # virtiofs is $HOME only (/Users,/private,/var/folders); the agent
-      # checkout is /var/lib/buildkite-agent-macos — docker-buildkite-plugin
-      # bind-mounts $PWD and the Linux engine statfs's that path in the VM.
+      # Must match modules/darwin/buildkite.nix agentHome. applehv already
+      # virtiofs-shares /private; Darwin /var is a symlink into that tree, so
+      # the checkout is in the guest at /private/var/lib/buildkite-agent-macos.
+      # docker-buildkite-plugin bind-mounts $PWD; the Linux engine statfs's
+      # /var/lib/buildkite-agent-macos inside the VM — a guest symlink makes
+      # that Darwin path real. Do not add a second virtiofs of this path:
+      # it nests inside the /private share, CoreOS never mounts the extra tag,
+      # and vfkit has been exiting seconds after start with that device.
       agentCheckoutRoot = "/var/lib/buildkite-agent-macos";
       # podman machine ssh exec's `ssh` from PATH. Launchd's default PATH is
-      # only the nix bins below; without openssh the guest virtiofs check and
-      # /private bind-mount fallback exit 127 and KeepAlive crash-loops.
+      # only the nix bins below; without openssh the guest checkout symlink
+      # exits 127 and KeepAlive crash-loops.
       scriptPath = lib.makeBinPath [
         podman
         pkgs.coreutils
@@ -31,70 +35,52 @@
         pkgs.openssh
       ] + ":/usr/bin";
 
-      # `podman machine set` has no --volume on 5.8. Tags are sha256(source)[:36]
-      # (same as podman machine init -v).
+      # Drop nested virtiofs sources from applehv JSON (applied only while stopped).
       volumeEnsurePy = pkgs.writeText "podman-machine-ensure-volumes.py" ''
-        import hashlib
         import json
         import os
         import sys
-
-        def parse_specs(specs):
-            wanted = []
-            for spec in specs:
-                source, target = spec.split(":", 1)
-                wanted.append((source, target))
-            return wanted
 
         def load(path):
             with open(path, encoding="utf-8") as fh:
                 return json.load(fh)
 
-        def missing_mounts(cfg, wanted):
-            mounts = cfg.get("Mounts") or []
-            have = {(m.get("Source"), m.get("Target")) for m in mounts}
-            return [item for item in wanted if item not in have]
-
-        def apply(path, wanted):
-            cfg = load(path)
-            missing = missing_mounts(cfg, wanted)
-            if not missing:
-                print("unchanged")
-                return 0
-            mounts = list(cfg.get("Mounts") or [])
-            for source, target in missing:
-                tag = hashlib.sha256(source.encode()).hexdigest()[:36]
-                mounts.append({
-                    "OriginalInput": "{}:{}".format(source, target),
-                    "ReadOnly": False,
-                    "Source": source,
-                    "Tag": tag,
-                    "Target": target,
-                    "Type": "virtiofs",
-                    "VSockNumber": None,
-                })
-                print("add virtiofs {} -> {}".format(source, target), file=sys.stderr)
-            cfg["Mounts"] = mounts
+        def save(path, cfg):
             tmp = path + ".tmp"
             with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump(cfg, fh, separators=(",", ":"))
                 fh.write("\n")
             os.replace(tmp, path)
+
+        def extra_sources(cfg, sources):
+            drop = set(sources)
+            return [m.get("Source") for m in (cfg.get("Mounts") or []) if m.get("Source") in drop]
+
+        def prune(path, sources):
+            cfg = load(path)
+            drop = set(sources)
+            mounts = cfg.get("Mounts") or []
+            kept = [m for m in mounts if m.get("Source") not in drop]
+            if len(kept) == len(mounts):
+                print("unchanged")
+                return 0
+            cfg["Mounts"] = kept
+            save(path, cfg)
             print("changed")
             return 0
 
         def main(argv):
             if len(argv) < 4:
-                print("usage: ensure-volumes.py --status|--apply JSON SRC:TGT...", file=sys.stderr)
+                print("usage: ensure-volumes.py --status|--prune JSON SOURCE...", file=sys.stderr)
                 return 1
             mode, path = argv[1], argv[2]
-            wanted = parse_specs(argv[3:])
+            sources = argv[3:]
             if mode == "--status":
-                missing = missing_mounts(load(path), wanted)
-                print("needed" if missing else "unchanged")
+                extra = extra_sources(load(path), sources)
+                print("needed" if extra else "unchanged")
                 return 0
-            if mode == "--apply":
-                return apply(path, wanted)
+            if mode == "--prune":
+                return prune(path, sources)
             print("unknown mode {}".format(mode), file=sys.stderr)
             return 1
 
@@ -180,21 +166,21 @@
           podman_as_user machine set --memory "$desiredMemory" "$machine"
         fi
 
-        # Virtiofs the Buildkite checkout at the same absolute path in the VM.
-        # `podman machine set` has no --volume; applehv reads Mounts at start.
+        # Same-path checkout: prune any nested virtiofs of $checkoutRoot, then
+        # symlink it in the guest onto the existing /private share.
         checkoutRoot="${agentCheckoutRoot}"
         mkdir -p "$checkoutRoot"
         jsonPath="$(podman_as_user machine inspect "$machine" --format '{{.ConfigDir.Path}}')/$machine.json"
         volumePy="${volumeEnsurePy}"
         python="${pkgs.python3}/bin/python3"
-        vol_status="$("$python" "$volumePy" --status "$jsonPath" "/Users:/Users" "$checkoutRoot:$checkoutRoot")"
+        vol_status="$(as_user "$python" "$volumePy" --status "$jsonPath" "$checkoutRoot")"
         if [ "$vol_status" = "needed" ]; then
-          echo "Podman machine virtiofs: adding /Users and $checkoutRoot (same guest path)"
+          echo "Podman machine virtiofs: dropping nested $checkoutRoot (covered by /private)"
           if [ "$state" = "running" ]; then
             podman_as_user machine stop "$machine"
             state=stopped
           fi
-          as_user "$python" "$volumePy" --apply "$jsonPath" "/Users:/Users" "$checkoutRoot:$checkoutRoot"
+          as_user "$python" "$volumePy" --prune "$jsonPath" "$checkoutRoot"
         fi
 
         if [ "$state" = "starting" ]; then
@@ -288,11 +274,10 @@
           sleep 1
         done
 
-        # After the API is up, SSH works. If JSON Mounts did not attach
-        # (applehv ignored the extra share), bind the already-virtiofs'd
-        # /private tree so docker -v $PWD still statfs's a real guest path.
-        # Never fail the daemon here: missing ssh on PATH used to exit 127,
-        # KeepAlive-restart, and race `podman machine start` against a live VM.
+        # After the API is up, SSH works. Never fail the daemon here: missing
+        # ssh on PATH used to exit 127, KeepAlive-restart, and race
+        # `podman machine start` against a live VM. Guest symlink persists on
+        # the FCOS /var disk; rmdir only an empty placeholder (never rm -rf).
         ssh_ready=0
         for _ in $(seq 1 30); do
           if podman_as_user machine ssh "$machine" -- true >/dev/null 2>&1; then
@@ -302,14 +287,16 @@
           sleep 1
         done
         if [ "$ssh_ready" != 1 ]; then
-          echo "WARNING: podman machine ssh not ready; guest virtiofs check skipped" >&2
-        elif ! podman_as_user machine ssh "$machine" -- grep -F " $checkoutRoot " /proc/mounts >/dev/null 2>&1; then
-          echo "WARNING: virtiofs $checkoutRoot missing in guest; bind-mounting /private$checkoutRoot"
-          podman_as_user machine ssh "$machine" -- sudo mkdir -p "$checkoutRoot" || true
-          podman_as_user machine ssh "$machine" -- sudo mount --bind "/private$checkoutRoot" "$checkoutRoot" || true
+          echo "WARNING: podman machine ssh not ready; guest checkout symlink skipped" >&2
+        else
+          echo "Guest: $checkoutRoot -> /private$checkoutRoot"
+          guestParent="$(dirname "$checkoutRoot")"
+          podman_as_user machine ssh "$machine" -- "sudo umount '$checkoutRoot' >/dev/null 2>&1 || true"
+          podman_as_user machine ssh "$machine" -- "if [ -d '$checkoutRoot' ] && [ ! -L '$checkoutRoot' ]; then sudo rmdir '$checkoutRoot' || true; fi"
+          podman_as_user machine ssh "$machine" -- "sudo mkdir -p '$guestParent' && sudo ln -sfn '/private$checkoutRoot' '$checkoutRoot'" || true
         fi
 
-        echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB, virtiofs $checkoutRoot); proxy $listen -> $sock"
+        echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB, guest $checkoutRoot -> /private$checkoutRoot); proxy $listen -> $sock"
       '';
 
       podmanDockerProxy = pkgs.writeShellScript "podman-docker-proxy" ''

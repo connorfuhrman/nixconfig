@@ -253,19 +253,19 @@ sudo tail -20 /var/log/podman-machine.log
 ```
 
 `podman machine init` is **not** automated — launchd ensures rootful mode,
-sets machine memory to 10240 MiB, virtiofs-mounts `/Users` and
-`/var/lib/buildkite-agent-macos` at the **same absolute path** in the VM
-(stop + patch applehv machine JSON `Mounts` + start: `podman machine set`
-has no `--volume` on 5.8), starts the VM, and maintains `/var/run/docker.sock`.
-After reboot, the root `org.nixos.podman-machine` daemon runs without a login
-session (`RunAtLoad` + `StartInterval` + retry on failure).
+sets machine memory to 10240 MiB, starts the VM, and maintains
+`/var/run/docker.sock`. After reboot, the root `org.nixos.podman-machine`
+daemon runs without a login session (`RunAtLoad` + `StartInterval`;
+`KeepAlive.SuccessfulExit = false` so a finished ensure does not restart-loop).
 
 Darwin `/var` is a symlink to `private/var`. Default virtiofs of `/private`
 makes the checkout visible at `/private/var/lib/buildkite-agent-macos` in the
 guest, but `docker run -v $PWD` uses `/var/lib/buildkite-agent-macos/...` —
-the Linux engine `statfs`s that path inside the VM and fails with
-`no such file or directory` unless a same-path share exists. `/Users` is
-already a default share (needed if `build-path` ever moves under `$HOME`).
+the Linux engine `statfs`s that path inside the VM. Ensure **symlinks** the
+Darwin path to the `/private` tree in the guest. Do **not** add a second
+virtiofs of `/var/lib/buildkite-agent-macos` (nested inside `/private`):
+CoreOS never mounts the extra tag, and vfkit has been dying seconds after
+start with that device. `/Users` is already a default share.
 
 Unix sockets cannot ride virtiofs. `modules/darwin/buildkite.nix` sets
 `job-api=false` on the Darwin agent so docker-buildkite-plugin does not
@@ -280,12 +280,12 @@ cd ~/nixconfig && git pull
 sudo darwin-rebuild switch --flake .#mac-mini
 ```
 
-Then confirm guest mounts (expect virtiofs, or a bind of `/private/var/lib/...`
-if applehv ignored the JSON share):
+Then confirm the guest path (symlink to `/private/var/lib/...`, plus default
+`/Users` `/private` `/var/folders` virtiofs only — no extra checkout share):
 
 ```sh
 python3 -c 'import json; m=json.load(open("/Users/connorfuhrman/.config/containers/podman/machine/applehv/podman-machine-default.json"))["Mounts"]; print([ (x["Source"], x["Target"]) for x in m ])'
-podman machine ssh -- grep -E 'Users|private|folders|buildkite' /proc/mounts
+podman machine ssh -- 'readlink /var/lib/buildkite-agent-macos; ls /var/lib/buildkite-agent-macos | head'
 docker run --rm -v /var/lib/buildkite-agent-macos:/workdir alpine:3.20 ls /workdir
 ```
 
