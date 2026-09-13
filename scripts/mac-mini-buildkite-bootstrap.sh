@@ -59,8 +59,10 @@ for _ in $(seq 1 60); do
 done
 sudo ssh linux-builder uname -m
 
-echo "Buildkite agents (expect buildkite-agent-macos + org.nixos.linux-builder guest agent):"
-launchctl list 2>/dev/null | rg buildkite || true
+echo "Buildkite launchd jobs (expect buildkite-agent-macos + buildkite-token-sync):"
+launchctl list 2>/dev/null | grep buildkite || true
+echo "macOS agent daemon status:"
+launchctl print system/org.nixos.buildkite-agent-macos 2>/dev/null | head -20 || echo "  (org.nixos.buildkite-agent-macos not loaded yet)"
 
 echo "Done. Confirm agents at:"
 echo "  https://buildkite.com/organizations/$ORG/clusters/$CLUSTER_ID"
