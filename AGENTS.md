@@ -17,7 +17,7 @@ working in this repo.
 | `mac-mini` | `aarch64-darwin` | nix-darwin | tested | Always-on server: Buildkite agent (`mac-mini-macos`), aarch64-linux builder (`nix.linux-builder`) + Roon Server |
 | `cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | Cursor Cloud Agent home only — user `ubuntu` |
 | `connorfuhrman@mbp14` / `@nuc` / `@macbook` / `@mac-mini` | per host | home-manager | per host | standalone via `homeManager.standard` |
-| `ubuntu@cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | `homeManager.cursor-cloud` (base + coreutils + emacs) |
+| `ubuntu@cursor-cloud` | `x86_64-linux` | home-manager | **experimental** | `homeManager.cursor-cloud` (base + coreutils + emacs + gh) |
 
 All hardware hosts run Tailscale and have 1Password installed (CLI everywhere;
 GUI on mbp14 and darwin via nixpkgs). System and home username is
@@ -43,10 +43,10 @@ for agents: [`.cursor/AGENTS.md`](.cursor/AGENTS.md).
 - Configurations live in `modules/hosts/<name>.nix`: a `host-<name>` module that
   composes features by name, plus the `<name>` configuration (and
   `connorfuhrman@<name>` home configuration) built from it.
-- Home hosts import **`homeManager.standard`** (base + emacs + coreutils + mosh +
-  obsidian-config) — do not re-list those modules per host. Exception:
+- Home hosts import **`homeManager.standard`** (base + emacs + coreutils + gh +
+  mosh + obsidian-config) — do not re-list those modules per host. Exception:
   `ubuntu@cursor-cloud` imports `homeManager.cursor-cloud` (base + coreutils +
-  emacs only; no mosh / obsidian-config).
+  emacs + gh; no mosh / obsidian-config).
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
   through the top-level module system; lower-level modules close over `inputs`
   lexically where needed.
@@ -66,7 +66,7 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
+modules/home/           homeManager: base, emacs, coreutils, gh, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
 .cursor/AGENTS.md       AI-only Cursor Cloud first-time Nix setup (not human docs)
