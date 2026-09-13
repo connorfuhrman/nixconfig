@@ -6,6 +6,12 @@
 # closures (needed on native mac-mini as well as smaller Linux VMs).
 set -euo pipefail
 
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  # shellcheck source=/dev/null
+  source "$(dirname "$0")/mac-mini-env.sh"
+  wait_for_linux_builder
+fi
+
 system=$(nix eval --raw --impure --expr builtins.currentSystem)
 
 echo "--- :nix: flake apps (${system})"

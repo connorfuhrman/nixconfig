@@ -3,8 +3,10 @@
 # Usage: build-installer-media.sh <iso|asahi-iso|rpi-iso>
 set -euo pipefail
 
-# mac-mini Buildkite agents run with a minimal PATH (no coreutils).
-export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  # shellcheck source=/dev/null
+  source "$(dirname "$0")/mac-mini-env.sh"
+fi
 
 target="${1:?usage: build-installer-media.sh <iso|asahi-iso|rpi-iso>}"
 
@@ -12,8 +14,9 @@ gc_linux_builder() {
   echo "--- :broom: gc linux-builder (free disk before large installer image)"
   # Best-effort; installer images are multi-GB and parallel mac-mini steps can
   # exhaust the persistent linux-builder VM disk (see build #95 / #101).
+  wait_for_linux_builder
   nix store gc --store 'ssh-ng://builder@linux-builder' 2>/dev/null \
-    || ssh -o BatchMode=yes -o ConnectTimeout=10 builder@linux-builder \
+    || ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
       'nix-collect-garbage -d' 2>/dev/null \
     || true
 }
