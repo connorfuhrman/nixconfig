@@ -1,8 +1,7 @@
-{ writeShellScriptBin, _1password-cli }:
+{ writeShellScriptBin }:
 writeShellScriptBin "mac-mini-buildkite-install-token" ''
   set -euo pipefail
 
-  OP=${_1password-cli}/bin/op
   TOKEN_PATH=/etc/buildkite-agent/cluster.token
   OP_VAULT=Private
   OP_ITEM=Buildkite
@@ -11,6 +10,17 @@ writeShellScriptBin "mac-mini-buildkite-install-token" ''
     echo "error: $*" >&2
     exit 1
   }
+
+  # Nix-pinned op lacks the Homebrew CLI sign-in session; use system op until integrated.
+  if [[ -z "''${OP:-}" ]]; then
+    if [[ -x /opt/homebrew/bin/op ]]; then
+      OP=/opt/homebrew/bin/op
+    elif OP=$(command -v op 2>/dev/null); then
+      :
+    else
+      die "1Password CLI (op) not found. Install via Homebrew (brew install 1password-cli) or set OP to the op binary path."
+    fi
+  fi
 
   op_hint() {
     cat >&2 <<'EOF'

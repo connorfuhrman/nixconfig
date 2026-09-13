@@ -59,7 +59,8 @@ op read "op://Private/Buildkite/credential"
 # should print a bkct_… token
 ```
 
-Install to the host (mac-mini only):
+Install to the host (mac-mini only). Sign in with Homebrew `op` first (`eval "$(op signin)"`);
+the install script uses `/opt/homebrew/bin/op` (or `$OP`), not the Nix-pinned CLI.
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
