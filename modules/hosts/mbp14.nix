@@ -1,4 +1,4 @@
-{ config, inputs, ... }: {
+{ config, inputs, self, ... }: {
   # EXPERIMENTAL — see flake.hostStatus.mbp14 (Asahi install not yet validated).
   flake.modules.nixos.host-mbp14 = {
     imports = [
@@ -14,17 +14,20 @@
       ./mbp14/_hardware-configuration.nix
     ];
 
-    # apple-silicon-support (main) expects pkgs.avd-fw from the upstream overlay.
-    nixpkgs.overlays = [ inputs.nixos-apple-silicon.overlays.default ];
-
     networking.hostName = "mbp14";
     system.stateVersion = "25.11";
   };
 
-  flake.nixosConfigurations.mbp14 = inputs.nixpkgs.lib.nixosSystem {
-    system = "aarch64-linux";
-    modules = [ config.flake.modules.nixos.host-mbp14 ];
-  };
+  # apple-silicon-support (main) references pkgs.avd-fw, which exists in
+  # nixos-apple-silicon's pinned nixpkgs but not our monorepo nixpkgs yet.
+  flake.nixosConfigurations.mbp14 =
+    inputs.nixos-apple-silicon.inputs.nixpkgs.lib.nixosSystem {
+      system = "aarch64-linux";
+      modules = [
+        { nixpkgs.overlays = [ self.overlays.default ]; }
+        config.flake.modules.nixos.host-mbp14
+      ];
+    };
 
   flake.homeConfigurations."connorfuhrman@mbp14" = inputs.home-manager.lib.homeManagerConfiguration {
     pkgs = config.flake.lib.pkgsFor "aarch64-linux";
