@@ -49,18 +49,19 @@ If no Buildkite item exists, create a **Password** item titled `Buildkite` in
 vault `Private` and paste the `bkct_…` cluster agent token into the password
 field (Buildkite → Agents → Default cluster → Agent tokens).
 
-Verify read access before install:
+Verify read access before install (desktop app unlock is enough — `op whoami` may fail):
 
 ```sh
-eval "$(op signin --account aztec_fuhrmans)"
 op read "op://Private/Buildkite/credential"
 # or, for a Login item:
 # op read "op://Private/Buildkite/password"
 # should print a bkct_… token
+# if read fails: eval "$(op signin --account aztec_fuhrmans)"
 ```
 
-Install to the host (mac-mini only). Sign in with Homebrew `op` first (`eval "$(op signin)"`);
-the install script uses `/opt/homebrew/bin/op` (or `$OP`), not the Nix-pinned CLI.
+Install to the host (mac-mini only). Bootstrap uses Homebrew `op` from your shell
+(`/opt/homebrew/bin/op` or `$OP`), not `nix run` — so desktop integration applies.
+Token-only reinstall: `nix run .#mac-mini-buildkite-install-token` (no whoami gate).
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
@@ -84,12 +85,12 @@ cluster. Remaining steps on mac-mini:
 
 ```sh
 cd ~/nixconfig && git pull origin main   # or your feature branch until merged
-eval "$(op signin --account aztec_fuhrmans)"
+op read "op://Private/Buildkite/credential"   # sanity check (desktop unlock is enough)
 ./scripts/mac-mini-buildkite-bootstrap.sh
 ```
 
-The bootstrap script calls `nix run .#mac-mini-buildkite-install-token` when the
-token file is missing, then `darwin-rebuild switch`.
+The bootstrap script reads the token with shell `op` when the file is missing (no
+`op whoami` gate), then `darwin-rebuild switch`.
 
 **Token only** (skip darwin-rebuild):
 
@@ -97,10 +98,22 @@ token file is missing, then `darwin-rebuild switch`.
 nix run .#mac-mini-buildkite-install-token
 ```
 
-**Manual fallback** (if 1Password is unavailable):
+**Manual fallback** (if bootstrap / `nix run` is unavailable):
+
+From 1Password (BSD `install` on macOS does not accept `/dev/stdin` — use a temp file):
+
+```sh
+sudo mkdir -p /etc/buildkite-agent
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+op read "op://Private/Buildkite/credential" > "$tmp"
+sudo install -m 600 -o root -g wheel "$tmp" /etc/buildkite-agent/cluster.token
+```
+
+Or from a saved token file:
 
 1. Create a cluster agent token in Buildkite → Agents → Default cluster → Agent tokens
-2. `sudo install -m 600 -o root -g wheel /path/to/token /etc/buildkite-agent/cluster.token`
+2. `sudo mkdir -p /etc/buildkite-agent && sudo install -m 600 -o root -g wheel /path/to/token /etc/buildkite-agent/cluster.token`
 3. `sudo darwin-rebuild switch --flake .#mac-mini`
 4. Confirm agents connected; token sync copies token into the VM
 5. Re-run or trigger nixconfig / t-hex builds on the correct queues

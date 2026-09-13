@@ -23,8 +23,9 @@ writeShellScriptBin "mac-mini-buildkite-install-token" ''
   fi
 
   op_signin_hint() {
-    echo "  Run: eval \"\$($OP signin)\"" >&2
-    echo "  Or:  eval \"\$($OP signin --account <shorthand>)\"" >&2
+    echo "  With 1Password desktop app unlocked, op read often works without op whoami." >&2
+    echo "  Otherwise run: eval \"\$($OP signin)\"" >&2
+    echo "  Or:           eval \"\$($OP signin --account <shorthand>)\"" >&2
   }
 
   op_hint() {
@@ -61,29 +62,6 @@ EOF
     fi
   }
 
-  signed_in=false
-  if "$OP" whoami &>/dev/null; then
-    signed_in=true
-  else
-    fallback_account=$(resolve_op_account || true)
-    if [[ -n "$fallback_account" ]]; then
-      op_account="$fallback_account"
-      if "$OP" whoami --account "$op_account" &>/dev/null; then
-        signed_in=true
-      fi
-    fi
-  fi
-
-  if [[ "$signed_in" != true ]]; then
-    echo "error: 1Password CLI is not signed in." >&2
-    if [[ -n "$op_account" ]]; then
-      echo "  (tried unscoped session and account: $op_account)" >&2
-    fi
-    op_signin_hint
-    op_hint
-    exit 1
-  fi
-
   read_field() {
     local field=$1
     local uri="op://$OP_VAULT/$OP_ITEM/$field"
@@ -112,6 +90,7 @@ EOF
     if [[ -n "$acct" ]]; then
       echo "  account fallback: $acct" >&2
     fi
+    echo "  op whoami is not required when desktop integration unlocks op read." >&2
     op_signin_hint
     op_hint
     exit 1
@@ -125,6 +104,9 @@ EOF
 
   echo "Installing cluster agent token to $TOKEN_PATH (sudo required)…"
   sudo mkdir -p /etc/buildkite-agent
-  printf '%s' "$token" | sudo install -m 600 -o root -g wheel /dev/stdin "$TOKEN_PATH"
+  tmp=$(mktemp)
+  trap 'rm -f "$tmp"' EXIT
+  printf '%s' "$token" > "$tmp"
+  sudo install -m 600 -o root -g wheel "$tmp" "$TOKEN_PATH"
   echo "Installed $TOKEN_PATH (0600, root:wheel)."
 ''
