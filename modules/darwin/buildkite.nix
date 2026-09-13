@@ -55,6 +55,7 @@
 
       services.buildkite-agents.macos = {
         tokenPath = "/etc/buildkite-agent/cluster.token";
+        extraConfig = "debug=true";
         tags = {
           queue = "mac-mini-macos";
           os = "macos";
