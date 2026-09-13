@@ -63,7 +63,11 @@ steps:
 
   - group: ":cd: Installer media"
     key: installer-media
-    depends_on: flake-check
+    # Wait for mac-mini package/nixos steps so they do not fill linux-builder
+    # disk during asahi-iso (build #125 ENOSPC during linux-asahi unpack).
+    depends_on:
+      - flake-check
+      - mac-mini-macos-ci
     <<: *branch-if
     steps:
       - label: ":cd: x86_64 installer ISO"

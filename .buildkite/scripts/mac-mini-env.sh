@@ -31,8 +31,8 @@ configure_mac_mini_installer_build() {
   # linux-asahi kernel compiles are RAM-heavy on the 8GiB linux-builder VM.
   # Start with more parallelism and step down after failures (see ladder below).
   # Override rung via INSTALLER_PARALLEL_RUNG (1-4) on retry builds.
-  # Default rung 2 after build #122 platform-mismatch on linux-builder (rung 1).
-  local rung="${INSTALLER_PARALLEL_RUNG:-2}"
+  # Default rung 3 after build #125 ENOSPC on linux-builder at rung 2.
+  local rung="${INSTALLER_PARALLEL_RUNG:-3}"
   local max_jobs cores
   case "${rung}" in
     1) max_jobs=2; cores=6 ;;

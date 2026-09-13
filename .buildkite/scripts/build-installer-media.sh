@@ -24,14 +24,17 @@ gc_linux_builder() {
   echo "+++ linux-builder disk before gc"
   log_linux_builder_disk
 
-  # Tier 1: daemon GC via ssh-ng store (respects active builds).
-  nix store gc --store 'ssh-ng://builder@linux-builder' 2>&1 || true
+  # Tier 1: daemon GC via ssh-ng store (works without agent reading builder_ed25519).
+  for _ in 1 2 3; do
+    nix store gc --store 'ssh-ng://builder@linux-builder' 2>&1 || true
+  done
 
-  # Tier 2: drop old generations then unreachable store paths on the VM.
+  # Tier 2: direct ssh GC when the agent can read builder@linux-builder keys.
   ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
     'nix-collect-garbage -d --delete-older-than 7d' 2>&1 || true
   ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
     'nix-collect-garbage -d' 2>&1 || true
+  nix store gc --store 'ssh-ng://builder@linux-builder' 2>&1 || true
 
   echo "+++ linux-builder disk after gc"
   log_linux_builder_disk
@@ -63,7 +66,12 @@ if [[ "${target}" != "iso" ]]; then
 fi
 
 echo "--- :nix: build ${attr}"
-out_path=$(nix build --accept-flake-config -L --no-link --print-out-paths "${attr}")
+nix_build_args=(--accept-flake-config -L --no-link --print-out-paths)
+if [[ "${target}" != "iso" ]]; then
+  # Mirror configure_mac_mini_installer_build caps on the CLI (build #120/#125).
+  nix_build_args+=(--max-jobs 1 --cores "${NIX_BUILD_CORES:-2}")
+fi
+out_path=$(nix build "${nix_build_args[@]}" "${attr}")
 echo "out path: ${out_path}"
 
 artifacts=()
