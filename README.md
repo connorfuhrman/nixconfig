@@ -15,7 +15,7 @@ pattern: features are modules under `modules/`, composed by name per host.
 | Host | System | Role | Status |
 |---|---|---|---|
 | `mbp14` | `aarch64-linux` (NixOS / Asahi) | MacBook Pro 14" M2 — desktop (KDE Plasma 6) | **experimental** |
-| `nuc` | `x86_64-linux` (NixOS) | Intel NUC — headless server (plain, no clustering) | **experimental** |
+| `nuc` | `x86_64-linux` (NixOS) | Intel NUC — headless server + Buildkite (`nuc-linux`) | **experimental** |
 | `nuc-cluster-head` | `x86_64-linux` (NixOS) | Role closure on the NUC — Ray head node | **experimental** |
 | `nuc-cluster-worker` | `x86_64-linux` (NixOS) | Role closure on the second NUC — Ray worker | **experimental** |
 | `rpi-cluster-head` | `aarch64-linux` (NixOS) | Prototype Raspberry Pi 4 — alternate Ray head | **experimental** |
@@ -65,10 +65,13 @@ home-manager switch --flake .#connorfuhrman@macbook
 
 Every push and pull request targeting `main` runs
 [`nix flake check`](./modules/checks.nix) in
-[Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) inside the
-official [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container image.
+[Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) on self-hosted
+queues `mac-mini-macos` (native Darwin) and `nuc-linux` (native x86_64 NixOS),
+plus a soft-fail hosted `linux-medium` backup in
+[`nixos/nix`](https://hub.docker.com/r/nixos/nix).
 The check evaluates all host configurations without building full system
-closures. Merges require the Buildkite status check to pass.
+closures. Package and NixOS toplevel steps also run on the self-hosted
+queues. Merges require the Buildkite status check to pass.
 
 ## Layout
 
@@ -80,7 +83,7 @@ modules/
   checks.nix              eval-only checks for all configs
   pkgs.nix                overlay export + packages.* + lib.pkgsFor
   nixos/                  NixOS features (system, desktop, server, asahi,
-                          nuc-cluster, ray-cluster, onepassword, …)
+                          nuc-cluster, ray-cluster, buildkite, onepassword, …)
   darwin/                 nix-darwin features (system, linux-builder, roon, …)
   home/                   home-manager (standard = base+emacs+coreutils+mosh+obsidian-config)
   generic/                shared features (tailscale, mac-mini-builder)
@@ -130,6 +133,13 @@ it advertises **both** `aarch64-linux` and `x86_64-linux`). Clients (`macbook`,
 `mbp14`, `nuc`, the cluster role closures) offload via
 `generic.mac-mini-builder` over SSH host
 `mac-mini` (existing key / SSH config as `connorfuhrman`).
+
+### NUC Buildkite agent
+
+The plain `nuc` host runs a self-hosted Buildkite agent on queue `nuc-linux`
+(`spawn=2`, native x86_64-linux). Cluster role closures do not. Token from
+1Password via `nix run .#nuc-buildkite-install-token`. Runbook:
+[docs/plans/nuc-buildkite.md](./docs/plans/nuc-buildkite.md).
 
 ### Roon Core (mac-mini)
 
