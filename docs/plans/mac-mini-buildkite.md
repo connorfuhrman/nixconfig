@@ -8,10 +8,12 @@ persistent `nix.linux-builder` VM as a remote builder — not a separate CI host
 
 | Queue | Where jobs run | Use for |
 |---|---|---|
-| `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, macOS-only work; can offload `aarch64-linux` / `x86_64-linux` via `nix.linux-builder` when jobs need Linux Nix |
+| `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, **docker-buildkite-plugin** via Podman Machine, Linux Nix offload through `nix.linux-builder` |
 
 Hosted `linux-small` / `linux-medium` remain for native x86_64 speed and
-pipeline upload. Self-hosted steps use **native Nix** — no Docker plugin.
+pipeline upload. Queue `mac-mini-macos` is a general Docker runner: any job
+may use `docker#` / `docker run -v $PWD:...` the same way as on Linux. Linux
+Nix *without* containers still offloads to `nix.linux-builder`.
 
 ## Linux builds (remote builder, not a CI agent)
 
@@ -163,7 +165,10 @@ sudo darwin-rebuild switch --flake .#mac-mini
 `.buildkite/pipeline.yml` includes:
 
 - `flake-check` — hosted `linux-medium` + Docker (existing)
-- `flake-check-mac-mini-macos` — queue `mac-mini-macos`
+- `flake-check-mac-mini-macos` — queue `mac-mini-macos` (native Darwin Nix)
+- `flake-check-mac-mini-container` — queue `mac-mini-macos` + `docker#v5.14.0`
+  (`nixos/nix:2.28.2`); **canary** that `docker run -v $PWD:/workdir` works
+  on the runner. Do not replace this with a per-pipeline `docker cp` wrapper.
 
 ### t-hex
 
@@ -210,10 +215,41 @@ sudo tail -20 /var/log/podman-machine.log
 ```
 
 `podman machine init` is **not** automated — launchd ensures rootful mode,
-sets machine memory to 10240 MiB (stop/set/start if the running VM differs),
-starts the VM, and maintains `/var/run/docker.sock`. After reboot, the root
-`org.nixos.podman-machine` daemon runs without a login session (`RunAtLoad` +
-`StartInterval` + retry on failure).
+sets machine memory to 10240 MiB, virtiofs-mounts `/Users` and
+`/var/lib/buildkite-agent-macos` at the **same absolute path** in the VM
+(stop + patch applehv machine JSON `Mounts` + start: `podman machine set`
+has no `--volume` on 5.8), starts the VM, and maintains `/var/run/docker.sock`.
+After reboot, the root `org.nixos.podman-machine` daemon runs without a login
+session (`RunAtLoad` + `StartInterval` + retry on failure).
+
+Darwin `/var` is a symlink to `private/var`. Default virtiofs of `/private`
+makes the checkout visible at `/private/var/lib/buildkite-agent-macos` in the
+guest, but `docker run -v $PWD` uses `/var/lib/buildkite-agent-macos/...` —
+the Linux engine `statfs`s that path inside the VM and fails with
+`no such file or directory` unless a same-path share exists. `/Users` is
+already a default share (needed if `build-path` ever moves under `$HOME`).
+
+Unix sockets cannot ride virtiofs. `modules/darwin/buildkite.nix` sets
+`job-api=false` on the Darwin agent so docker-buildkite-plugin does not
+bind-mount `BUILDKITE_AGENT_JOB_API_SOCKET`. That is agent-wide; do not rely
+on step env (agent 3.129 overwrites an empty value).
+
+**Volumes + Job API need `darwin-rebuild`.** Do not retry CI until this host
+has switched to a generation that includes those launchd changes:
+
+```sh
+cd ~/nixconfig && git pull
+sudo darwin-rebuild switch --flake .#mac-mini
+```
+
+Then confirm guest mounts (expect virtiofs, or a bind of `/private/var/lib/...`
+if applehv ignored the JSON share):
+
+```sh
+python3 -c 'import json; m=json.load(open("/Users/connorfuhrman/.config/containers/podman/machine/applehv/podman-machine-default.json"))["Mounts"]; print([ (x["Source"], x["Target"]) for x in m ])'
+podman machine ssh -- grep -E 'Users|private|folders|buildkite' /proc/mounts
+docker run --rm -v /var/lib/buildkite-agent-macos:/workdir alpine:3.20 ls /workdir
+```
 
 The mini is 16 GiB and `nix.linux-builder` is already 8 GiB. 8096 MiB still
 OOM-killed `nix flake check` in `nixos/nix:2.28.2` (~7.4 GiB nix RSS during
@@ -230,6 +266,7 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.DOCKER_HOST
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.extraConfig
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.path # includes *-podman-docker-compat-*/bin
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.KeepAlive
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program

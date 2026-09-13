@@ -18,9 +18,14 @@
 
       services.buildkite-agents.macos = {
         tokenPath = "/etc/buildkite-agent/cluster.token";
+        # Unix sockets cannot ride virtiofs. docker-buildkite-plugin bind-mounts
+        # BUILDKITE_AGENT_JOB_API_SOCKET when set; agent 3.129 overwrites an
+        # empty step env. Disable Job API on this Darwin agent so every pipeline
+        # can use docker# without a per-step hack.
         extraConfig = ''
           debug=true
           plugins-path="${agentHome}/plugins"
+          job-api=false
         '';
         tags = {
           queue = "mac-mini-macos";

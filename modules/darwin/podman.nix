@@ -16,11 +16,87 @@
       # SIGKILL 137. 10 GiB is the bump that can finish eval without adding
       # another full 8 GiB VM on a 16 GiB host (idle builder pages compress).
       desiredMemoryMiB = "10240";
+      # Must match modules/darwin/buildkite.nix agentHome. Default applehv
+      # virtiofs is $HOME only (/Users,/private,/var/folders); the agent
+      # checkout is /var/lib/buildkite-agent-macos — docker-buildkite-plugin
+      # bind-mounts $PWD and the Linux engine statfs's that path in the VM.
+      agentCheckoutRoot = "/var/lib/buildkite-agent-macos";
       scriptPath = lib.makeBinPath [
         podman
         pkgs.coreutils
         pkgs.gnugrep
       ];
+
+      # `podman machine set` has no --volume on 5.8. Tags are sha256(source)[:36]
+      # (same as podman machine init -v).
+      volumeEnsurePy = pkgs.writeText "podman-machine-ensure-volumes.py" ''
+        import hashlib
+        import json
+        import os
+        import sys
+
+        def parse_specs(specs):
+            wanted = []
+            for spec in specs:
+                source, target = spec.split(":", 1)
+                wanted.append((source, target))
+            return wanted
+
+        def load(path):
+            with open(path, encoding="utf-8") as fh:
+                return json.load(fh)
+
+        def missing_mounts(cfg, wanted):
+            mounts = cfg.get("Mounts") or []
+            have = {(m.get("Source"), m.get("Target")) for m in mounts}
+            return [item for item in wanted if item not in have]
+
+        def apply(path, wanted):
+            cfg = load(path)
+            missing = missing_mounts(cfg, wanted)
+            if not missing:
+                print("unchanged")
+                return 0
+            mounts = list(cfg.get("Mounts") or [])
+            for source, target in missing:
+                tag = hashlib.sha256(source.encode()).hexdigest()[:36]
+                mounts.append({
+                    "OriginalInput": "{}:{}".format(source, target),
+                    "ReadOnly": False,
+                    "Source": source,
+                    "Tag": tag,
+                    "Target": target,
+                    "Type": "virtiofs",
+                    "VSockNumber": None,
+                })
+                print("add virtiofs {} -> {}".format(source, target), file=sys.stderr)
+            cfg["Mounts"] = mounts
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(cfg, fh, separators=(",", ":"))
+                fh.write("\n")
+            os.replace(tmp, path)
+            print("changed")
+            return 0
+
+        def main(argv):
+            if len(argv) < 4:
+                print("usage: ensure-volumes.py --status|--apply JSON SRC:TGT...", file=sys.stderr)
+                return 1
+            mode, path = argv[1], argv[2]
+            wanted = parse_specs(argv[3:])
+            if mode == "--status":
+                missing = missing_mounts(load(path), wanted)
+                print("needed" if missing else "unchanged")
+                return 0
+            if mode == "--apply":
+                return apply(path, wanted)
+            print("unknown mode {}".format(mode), file=sys.stderr)
+            return 1
+
+        if __name__ == "__main__":
+            sys.exit(main(sys.argv))
+      '';
 
       dockerWrapper = pkgs.writeShellScript "docker-via-podman" ''
         export DOCKER_HOST="''${DOCKER_HOST:-unix:///var/run/docker.sock}"
@@ -61,8 +137,12 @@
         # /tmp/podman/... while the real socket lives under /var/folders/.../T/.
         userTmpDir="$("$sudo" -u "$primaryUser" "$getconf" DARWIN_USER_TEMP_DIR)"
 
+        as_user() {
+          "$sudo" -u "$primaryUser" env HOME="$home" TMPDIR="$userTmpDir" PATH="${scriptPath}:$PATH" "$@"
+        }
+
         podman_as_user() {
-          "$sudo" -u "$primaryUser" env HOME="$home" TMPDIR="$userTmpDir" PATH="${scriptPath}:$PATH" "$podman" "$@"
+          as_user "$podman" "$@"
         }
 
         if ! podman_as_user machine inspect "$machine" >/dev/null 2>&1; then
@@ -94,6 +174,23 @@
             state=stopped
           fi
           podman_as_user machine set --memory "$desiredMemory" "$machine"
+        fi
+
+        # Virtiofs the Buildkite checkout at the same absolute path in the VM.
+        # `podman machine set` has no --volume; applehv reads Mounts at start.
+        checkoutRoot="${agentCheckoutRoot}"
+        mkdir -p "$checkoutRoot"
+        jsonPath="$(podman_as_user machine inspect "$machine" --format '{{.ConfigDir.Path}}')/$machine.json"
+        volumePy="${volumeEnsurePy}"
+        python="${pkgs.python3}/bin/python3"
+        vol_status="$("$python" "$volumePy" --status "$jsonPath" "/Users:/Users" "$checkoutRoot:$checkoutRoot")"
+        if [ "$vol_status" = "needed" ]; then
+          echo "Podman machine virtiofs: adding /Users and $checkoutRoot (same guest path)"
+          if [ "$state" = "running" ]; then
+            podman_as_user machine stop "$machine"
+            state=stopped
+          fi
+          as_user "$python" "$volumePy" --apply "$jsonPath" "/Users:/Users" "$checkoutRoot:$checkoutRoot"
         fi
 
         if [ "$state" != "running" ]; then
@@ -178,7 +275,16 @@
           sleep 1
         done
 
-        echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB); proxy $listen -> $sock"
+        # After the API is up, SSH works. If JSON Mounts did not attach
+        # (applehv ignored the extra share), bind the already-virtiofs'd
+        # /private tree so docker -v $PWD still statfs's a real guest path.
+        if ! podman_as_user machine ssh "$machine" -- grep -F " $checkoutRoot " /proc/mounts >/dev/null 2>&1; then
+          echo "WARNING: virtiofs $checkoutRoot missing in guest; bind-mounting /private$checkoutRoot"
+          podman_as_user machine ssh "$machine" -- sudo mkdir -p "$checkoutRoot"
+          podman_as_user machine ssh "$machine" -- sudo mount --bind "/private$checkoutRoot" "$checkoutRoot"
+        fi
+
+        echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB, virtiofs $checkoutRoot); proxy $listen -> $sock"
       '';
 
       podmanDockerProxy = pkgs.writeShellScript "podman-docker-proxy" ''

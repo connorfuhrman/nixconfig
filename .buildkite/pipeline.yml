@@ -28,9 +28,14 @@ steps:
 
       - label: ":docker: flake check (container / Podman)"
         key: flake-check-mac-mini-container
-        # No docker-buildkite-plugin: Podman Machine cannot bind-mount Darwin
-        # paths (statfs fails). The wrapper copies the checkout into the VM.
-        command: .buildkite/scripts/flake-check-container.sh
+        command: .buildkite/scripts/flake-check.sh
+        plugins:
+          - docker#v5.14.0:
+              image: "nixos/nix:2.28.2"
+              mount-checkout: true
+              propagate-environment: true
+              environment:
+                - "NIX_CONFIG=experimental-features = nix-command flakes"
         <<: [*mac-mini-macos, *timeout-retry]
 
       - label: ":package: build packages"
