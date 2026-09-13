@@ -9,6 +9,8 @@
       config.flake.modules.darwin.onepassword
       config.flake.modules.darwin.obsidian
       config.flake.modules.generic.tailscale
+      config.flake.modules.generic.nix-store-trust
+      config.flake.modules.darwin.nix-store-sign
     ];
 
     networking.hostName = "mac-mini";

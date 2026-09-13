@@ -65,9 +65,9 @@ modules/pkgs.nix        flake.overlays.default + packages.* + lib.pkgsFor
 modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwin
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
-modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
+modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus, nix-store-sign
 modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
-modules/generic/        class-agnostic features: tailscale, mac-mini-builder
+modules/generic/        class-agnostic features: tailscale, mac-mini-builder, nix-store-trust
 modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
 .cursor/AGENTS.md       AI-only Cursor Cloud first-time Nix setup (not human docs)
 docs/                   human-facing notes (plans/, rfcs/, research/) — long answers go here
@@ -126,6 +126,8 @@ nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
+nix eval .#darwinConfigurations.mac-mini.config.nix.settings.secret-key-files  # ["/etc/nix/keys/mac-mini-1.secret"]
+nix eval .#darwinConfigurations.macbook.config.nix.settings.extra-trusted-public-keys --apply 'ks: builtins.any (k: builtins.match "mac-mini-1:.*" k != null) ks'  # true
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
 nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
@@ -231,6 +233,9 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   Interactive SSH keys → 1Password agent long-term; see
   `docs/plans/1password-ssh-workplan.md`. Dual-NUC scale-out:
   `docs/rfcs/0001-dual-nuc-cluster.md`.
+- **Store-path signing:** mac-mini signs local builds (`darwin.nix-store-sign`);
+  clients trust `mac-mini-1` (`generic.nix-store-trust`). Runbook:
+  `docs/plans/nix-store-signing.md`.
 - **Roon on macOS:** nixpkgs `roon-server` is x86_64-linux only and Roon ships
   no standalone headless macOS server — Roon.app (brew cask) IS the Core and
   manages its own `RoonServer` login item. No nix launchd unit; autostart =
