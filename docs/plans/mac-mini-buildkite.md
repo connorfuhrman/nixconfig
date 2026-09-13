@@ -84,6 +84,8 @@ nix run .#mac-mini-buildkite-install-token
   after activation
 - `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`) used
   as a Nix remote builder (not a Buildkite agent host)
+- `modules/darwin/podman.nix` — nixpkgs Podman + docker compat + launchd machine
+  helper (see **Podman** below)
 - Imported from `modules/hosts/mac-mini.nix`
 
 All agent setup (user workdir, token permissions, launchd ProcessType, service
@@ -168,6 +170,33 @@ sudo darwin-rebuild switch --flake .#mac-mini
 For Linux Nix work from the macOS agent, rely on `nix.linux-builder` remote
 builds rather than a dedicated Linux Buildkite queue.
 
+## Podman (mac-mini-macos Linux containers)
+
+nix-darwin has no `virtualisation.podman` — `modules/darwin/podman.nix` installs
+nixpkgs `podman` (vfkit + gvproxy on Apple Silicon), a `docker` → `podman` compat
+alias, launchd `podman-machine` (start VM + symlink socket), and a `docker` group
+so `buildkite-agent-macos` can reach the socket.
+
+**One-time after the first rebuild that imports `darwin.podman`:**
+
+```sh
+# as connorfuhrman — downloads a Linux VM image (~500 MiB) on first init
+podman machine init --rootful podman-machine-default
+sudo darwin-rebuild switch --flake .#mac-mini   # kickstarts podman-machine launchd job
+```
+
+Verify:
+
+```sh
+podman machine list
+docker run --rm quay.io/podman/hello
+ls -l /var/run/docker.sock   # symlink → ~/.local/share/containers/podman/machine/.../podman.sock
+```
+
+`podman machine init` is **not** automated — only `podman machine start` and the
+`/var/run/docker.sock` symlink run from launchd. Re-init is rarely needed; delete
+the machine only when intentionally resetting Podman state.
+
 ## Validation
 
 Eval gates (from any machine with the flake):
@@ -177,6 +206,7 @@ nix flake check .
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.UserName
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
 ```
 
