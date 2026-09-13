@@ -80,6 +80,7 @@ steps:
 
       - label: ":apple: Asahi installer ISO"
         key: build-asahi-iso
+        depends_on: build-iso
         command: .buildkite/scripts/build-installer-media.sh asahi-iso
         artifact_paths:
           - "installer-artifacts/asahi-iso/**/*"

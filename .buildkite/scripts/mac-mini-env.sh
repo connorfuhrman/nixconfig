@@ -27,12 +27,29 @@ ensure_linux_builder_ssh() {
     | grep -v '^#' >> "${ssh_dir}/known_hosts" || true
 }
 
+wait_linux_builder_store() {
+  # build #126: asahi-iso hit platform mismatch when linux-builder VM was down
+  # (Connection closed on 127.0.0.1:31022). Poll via nix daemon, not agent ssh.
+  echo "--- :hourglass: wait for linux-builder store"
+  local attempt
+  for attempt in $(seq 1 60); do
+    if nix store info --store 'ssh-ng://builder@linux-builder' &>/dev/null; then
+      echo "+++ linux-builder store ready (attempt ${attempt})"
+      return 0
+    fi
+    echo "linux-builder not ready (${attempt}/60), sleeping 10s..."
+    sleep 10
+  done
+  echo "linux-builder store unreachable after 10 minutes" >&2
+  return 1
+}
+
 configure_mac_mini_installer_build() {
   # linux-asahi kernel compiles are RAM-heavy on the 8GiB linux-builder VM.
   # Start with more parallelism and step down after failures (see ladder below).
   # Override rung via INSTALLER_PARALLEL_RUNG (1-4) on retry builds.
-  # Default rung 3 after build #125 ENOSPC on linux-builder at rung 2.
-  local rung="${INSTALLER_PARALLEL_RUNG:-3}"
+  # Default rung 4 after build #126 platform mismatch (linux-builder down).
+  local rung="${INSTALLER_PARALLEL_RUNG:-4}"
   local max_jobs cores
   case "${rung}" in
     1) max_jobs=2; cores=6 ;;
