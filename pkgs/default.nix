@@ -4,5 +4,6 @@ final: prev: {
   obsidian-nix-sync-plugins = final.callPackage ./obsidian-nix-sync-plugins.nix { };
   cursor-cloud-setup = final.callPackage ./cursor-cloud-setup.nix { };
   mac-mini-buildkite-install-token = final.callPackage ./mac-mini-buildkite-install-token.nix { };
+  mac-mini-buildkite-fix-perms = final.callPackage ./mac-mini-buildkite-fix-perms.nix { };
   origin = final.callPackage ./origin.nix { };
 }

@@ -16,7 +16,8 @@ pipeline upload. Self-hosted steps use **native Nix** — no Docker plugin.
 ## Cluster agent token
 
 - **Path on host and guest:** `/etc/buildkite-agent/cluster.token`
-- **Permissions:** `0600`, root-owned
+- **Permissions (host):** `0640`, `root:buildkite-agent-macos` (agent user must read the token)
+- **Permissions (linux-builder guest):** `0640`, `root:buildkite-agent-linux` (installed by token-sync)
 - **Never** commit the token value or put it in the Nix store
 - One cluster-scoped token; each agent selects its queue via `tags.queue`
 
@@ -64,6 +65,13 @@ Install to the host (mac-mini only). Both paths use Homebrew `op`
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
+```
+
+After install or if agents show exit 78 / "waiting for agent", fix permissions
+and restart launchd (mac-mini only):
+
+```sh
+nix run .#mac-mini-buildkite-fix-perms
 ```
 
 ## Nix modules

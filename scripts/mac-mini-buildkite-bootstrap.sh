@@ -73,9 +73,8 @@ sudo launchctl print system/org.nixos.buildkite-agent-macos 2>/dev/null | head -
 echo "Token readable by buildkite-agent-macos?"
 sudo -u buildkite-agent-macos test -r "$TOKEN_PATH" \
   && echo "  yes" || echo "  NO — run: sudo chgrp buildkite-agent-macos $TOKEN_PATH && sudo chmod 640 $TOKEN_PATH"
-echo "Recent agent log:"
-sudo tail -20 /var/lib/buildkite-agent-macos/buildkite-agent.log 2>/dev/null \
-  || echo "  (no log yet)"
+echo "Fixing token permissions and restarting agents…"
+nix run .#mac-mini-buildkite-fix-perms
 
 echo "Done. Confirm agents at:"
 echo "  https://buildkite.com/organizations/$ORG/clusters/$CLUSTER_ID"

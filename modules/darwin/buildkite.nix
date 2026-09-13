@@ -122,7 +122,10 @@
           chmod 600 "$tmp"
           scp -q "$tmp" linux-builder:/tmp/buildkite-cluster.token
           rm -f "$tmp"
-          ssh linux-builder sudo ${toString installBuildkiteClusterToken} /tmp/buildkite-cluster.token
+          if ! ssh linux-builder sudo ${toString installBuildkiteClusterToken} /tmp/buildkite-cluster.token; then
+            echo "token install in linux-builder failed — run: sudo darwin-rebuild switch --flake .#mac-mini" >&2
+            exit 1
+          fi
         '';
         serviceConfig = {
           RunAtLoad = true;
