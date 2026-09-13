@@ -83,6 +83,7 @@ steps:
 
       - label: ":raspberry_pi: Pi SD image"
         key: build-rpi-iso
+        depends_on: build-asahi-iso
         command: .buildkite/scripts/build-installer-media.sh rpi-iso
         artifact_paths:
           - "installer-artifacts/rpi-iso/**/*"

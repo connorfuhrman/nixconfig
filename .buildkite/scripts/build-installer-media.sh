@@ -3,7 +3,20 @@
 # Usage: build-installer-media.sh <iso|asahi-iso|rpi-iso>
 set -euo pipefail
 
+# mac-mini Buildkite agents run with a minimal PATH (no coreutils).
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
 target="${1:?usage: build-installer-media.sh <iso|asahi-iso|rpi-iso>}"
+
+gc_linux_builder() {
+  echo "--- :broom: gc linux-builder (free disk before large installer image)"
+  # Best-effort; installer images are multi-GB and parallel mac-mini steps can
+  # exhaust the persistent linux-builder VM disk (see build #95 / #101).
+  nix store gc --store 'ssh-ng://builder@linux-builder' 2>/dev/null \
+    || ssh -o BatchMode=yes -o ConnectTimeout=10 builder@linux-builder \
+      'nix-collect-garbage -d' 2>/dev/null \
+    || true
+}
 
 case "${target}" in
   iso)
@@ -25,17 +38,30 @@ case "${target}" in
     ;;
 esac
 
+if [[ "${target}" != "iso" ]]; then
+  gc_linux_builder
+fi
+
 echo "--- :nix: build ${attr}"
 out_path=$(nix build --accept-flake-config -L --no-link --print-out-paths "${attr}")
 echo "out path: ${out_path}"
 
-mapfile -t artifacts < <(
-  find -L "${out_path}" -type f \( -name '*.iso' -o -name '*.img.zst' -o -name '*.img' \) | sort
-)
+artifacts=()
+if [[ -f "${out_path}" ]]; then
+  case "${out_path}" in
+    *.iso|*.img.zst|*.img) artifacts=("${out_path}") ;;
+  esac
+elif [[ -d "${out_path}" ]]; then
+  mapfile -t artifacts < <(
+    find -L "${out_path}" -type f \( -name '*.iso' -o -name '*.img.zst' -o -name '*.img' \) | sort
+  )
+fi
 
 if [[ ${#artifacts[@]} -eq 0 ]]; then
-  echo "+++ :x: no installer media under ${out_path}" >&2
-  find -L "${out_path}" -type f >&2 || true
+  echo "+++ :x: no installer media at ${out_path}" >&2
+  if [[ -d "${out_path}" ]]; then
+    find -L "${out_path}" -type f >&2 || true
+  fi
   exit 1
 fi
 
