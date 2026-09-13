@@ -33,6 +33,7 @@
         eval-home-ubuntu-cursor-cloud = evalOnly "home-ubuntu-cursor-cloud" self.homeConfigurations."ubuntu@cursor-cloud".activationPackage.drvPath;
         eval-obsidian-plugins = evalOnly "obsidian-plugins" self.packages.${sys}.obsidian-plugins.drvPath;
         eval-cursor-cloud-setup = evalOnly "cursor-cloud-setup" self.packages.${sys}.cursor-cloud-setup.drvPath;
+        eval-origin = evalOnly "origin" self.packages.${sys}.origin.drvPath;
       };
     };
 }

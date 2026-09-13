@@ -4,20 +4,26 @@
 # package files as modules.
 { self, inputs, ... }:
 let
+  inherit (inputs.nixpkgs) lib;
   overlay = import ../pkgs;
 
   # Shared helper: nixpkgs for a system with our overlay applied.
+  # Origin CLI is unfree (Cursor proprietary binary); scoped here so
+  # standalone home configs and `nix build .#origin` evaluate without
+  # --impure / NIXPKGS_ALLOW_UNFREE.
   pkgsFor =
     system:
     import inputs.nixpkgs {
       inherit system;
       overlays = [ overlay ];
+      config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "origin" ];
     };
 
   packageNames = [
     "obsidian-plugins"
     "obsidian-nix-sync-plugins"
     "cursor-cloud-setup"
+    "origin"
   ];
 in
 {
