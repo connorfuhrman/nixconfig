@@ -12,17 +12,16 @@ Podman Machine (follow-up) is ~10 GiB. Higher spawn oversubscribes RAM when
 jobs use the builder or containers. One launchd process — do not add a second
 `services.buildkite-agents.*` entry.
 
-Container / `docker#` on `mac-mini-macos` (Podman Machine) is a follow-up and
-is not part of this landing.
-
 ## Queues (Default cluster)
 
 | Queue | Where jobs run | Use for |
 |---|---|---|
-| `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, package builds, NixOS toplevel via `nix.linux-builder` |
+| `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, **docker-buildkite-plugin** via Podman Machine, Linux Nix offload through `nix.linux-builder` |
 
 Hosted `linux-small` / `linux-medium` remain for native x86_64 speed and
-pipeline upload. Linux Nix from the macOS agent offloads to `nix.linux-builder`.
+pipeline upload. Queue `mac-mini-macos` is a general Docker runner: any job
+may use `docker#` / `docker run -v $PWD:...` the same way as on Linux. Linux
+Nix *without* containers still offloads to `nix.linux-builder`.
 
 ## Linux builds (remote builder, not a CI agent)
 
@@ -96,6 +95,8 @@ nix run .#mac-mini-buildkite-install-token
   and launchd kickstart of the macOS agent after activation
 - `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`) used
   as a Nix remote builder (not a Buildkite agent host)
+- `modules/darwin/podman.nix` — nixpkgs Podman + docker compat + launchd machine
+  helper (see **Podman** below)
 - Imported from `modules/hosts/mac-mini.nix`
 
 All agent setup (user workdir, token permissions, launchd ProcessType, service
@@ -216,6 +217,9 @@ switch). The private key is never replaced by a rebuild.
 
 - `flake-check-hosted-linux-medium` — hosted `linux-medium` + Docker (existing backup)
 - `flake-check-mac-mini-macos` — queue `mac-mini-macos` (native Darwin Nix)
+- `flake-check-mac-mini-container` — queue `mac-mini-macos` + `docker#v5.14.0`
+  (`nixos/nix:2.28.2`); **canary** that `docker run -v $PWD:/workdir` works
+  on the runner. Do not replace this with a per-pipeline `docker cp` wrapper.
 - `build-packages-mac-mini-macos` — autodiscover `.#packages` and build
 - `build-nixos-rpi-cluster-head` — realize the lightest NixOS toplevel via linux-builder
 
@@ -225,6 +229,87 @@ Steps run on `main` and pull requests targeting `main`.
 
 For Linux Nix work from the macOS agent, rely on `nix.linux-builder` remote
 builds rather than a dedicated Linux Buildkite queue.
+
+## Podman (mac-mini-macos Linux containers)
+
+nix-darwin has no `virtualisation.podman` — `modules/darwin/podman.nix` installs
+nixpkgs `podman` (vfkit + gvproxy on Apple Silicon), a `docker` → `podman` compat
+alias, a **rootful-only** launchd `podman-machine` job (start VM + symlink socket),
+and a `docker` group so `buildkite-agent-macos` can reach the socket.
+
+**Rootless Podman is not compatible with Buildkite on this host.** The docker
+plugin and agent expect `/var/run/docker.sock` (or `DOCKER_HOST`); rootless mode
+puts the API socket under the primary user's `/var/folders/…/T/podman/` temp dir,
+which `buildkite-agent-macos` cannot access. Privileged ports and some images
+also fail rootless.
+
+**One-time setup** (machine already exists from a rootless trial — no re-init):
+
+```sh
+# as connorfuhrman
+podman machine stop podman-machine-default
+podman machine set --rootful podman-machine-default
+sudo darwin-rebuild switch --flake .#mac-mini   # kickstarts podman-machine launchd job
+```
+
+If the machine does not exist yet, init rootful once (~500 MiB VM download):
+
+```sh
+podman machine init --rootful podman-machine-default
+sudo darwin-rebuild switch --flake .#mac-mini
+```
+
+Verify:
+
+```sh
+podman machine inspect podman-machine-default --format '{{.Rootful}}'   # true
+podman machine list
+docker run --rm quay.io/podman/hello
+ls -l /var/run/docker.sock   # symlink → Podman API socket (ConnectionInfo.PodmanSocket.Path)
+sudo tail -20 /var/log/podman-machine.log
+```
+
+`podman machine init` is **not** automated — launchd ensures rootful mode,
+sets machine memory to 10240 MiB, starts the VM, and maintains
+`/var/run/docker.sock`. After reboot, the root `org.nixos.podman-machine`
+daemon runs without a login session (`RunAtLoad` + `StartInterval`;
+`KeepAlive.SuccessfulExit = false` so a finished ensure does not restart-loop).
+
+Darwin `/var` is a symlink to `private/var`. Default virtiofs of `/private`
+makes the checkout visible at `/private/var/lib/buildkite-agent-macos` in the
+guest, but `docker run -v $PWD` uses `/var/lib/buildkite-agent-macos/...` —
+the Linux engine `statfs`s that path inside the VM. Ensure **symlinks** the
+Darwin path to the `/private` tree in the guest. Do **not** add a second
+virtiofs of `/var/lib/buildkite-agent-macos` (nested inside `/private`):
+CoreOS never mounts the extra tag, and vfkit has been dying seconds after
+start with that device. `/Users` is already a default share.
+
+Unix sockets cannot ride virtiofs. `modules/darwin/buildkite.nix` sets
+`job-api=false` on the Darwin agent so docker-buildkite-plugin does not
+bind-mount `BUILDKITE_AGENT_JOB_API_SOCKET`. That is agent-wide; do not rely
+on step env (agent 3.129 overwrites an empty value).
+
+**Volumes + Job API need `darwin-rebuild`.** Do not retry CI until this host
+has switched to a generation that includes those launchd changes:
+
+```sh
+cd ~/nixconfig && git pull
+sudo darwin-rebuild switch --flake .#mac-mini
+```
+
+Then confirm the guest path (symlink to `/private/var/lib/...`, plus default
+`/Users` `/private` `/var/folders` virtiofs only — no extra checkout share):
+
+```sh
+python3 -c 'import json; m=json.load(open("/Users/connorfuhrman/.config/containers/podman/machine/applehv/podman-machine-default.json"))["Mounts"]; print([ (x["Source"], x["Target"]) for x in m ])'
+podman machine ssh -- 'readlink /var/lib/buildkite-agent-macos; ls /var/lib/buildkite-agent-macos | head'
+docker run --rm -v /var/lib/buildkite-agent-macos:/workdir alpine:3.20 ls /workdir
+```
+
+The mini is 16 GiB and `nix.linux-builder` is already 8 GiB. 8096 MiB still
+OOM-killed `nix flake check` in `nixos/nix:2.28.2` (~7.4 GiB nix RSS during
+emacs-overlay unpack). 10 GiB is the encoded bump; do not `podman machine set`
+by hand — rebuild so launchd applies it.
 
 ## Validation
 
@@ -237,6 +322,10 @@ nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.name
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.extraConfig
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.DOCKER_HOST
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.extraConfig
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.path # includes *-podman-docker-compat-*/bin
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.KeepAlive
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-origin-ssh.program
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.GIT_CONFIG_GLOBAL

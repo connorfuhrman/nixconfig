@@ -42,10 +42,15 @@
         # Host is 16 GiB; linux-builder is ~8 GiB. spawn=2 is two concurrent
         # Darwin jobs; 4+ oversubscribes RAM if those jobs also use the builder
         # (or Podman Machine, once that lands).
+        # Unix sockets cannot ride virtiofs. docker-buildkite-plugin bind-mounts
+        # BUILDKITE_AGENT_JOB_API_SOCKET when set; agent 3.129 overwrites an
+        # empty step env. Disable Job API on this Darwin agent so every pipeline
+        # can use docker# without a per-step hack.
         extraConfig = ''
           debug=true
           plugins-path="${agentHome}/plugins"
           spawn=2
+          job-api=false
         '';
         tags = {
           queue = "mac-mini-macos";
@@ -59,6 +64,7 @@
           pkgs.coreutils
           pkgs.gnutar
           pkgs.gzip
+          pkgs.podman
         ];
       };
 
@@ -71,6 +77,9 @@
         # insteadOf HTTPS Origin clones → SSH. Store path is public (no secrets).
         environment.GIT_CONFIG_GLOBAL = "${originGitconfig}";
         environment.GIT_SSH_COMMAND = "ssh -i ${originSshKey} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${originKnownHosts}";
+        environment.DOCKER_HOST = "unix:///var/run/docker.sock";
+        # Podman honors CONTAINER_HOST, not DOCKER_HOST.
+        environment.CONTAINER_HOST = "unix:///var/run/docker.sock";
         serviceConfig.ProcessType = lib.mkForce "Standard";
       };
 

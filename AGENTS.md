@@ -180,8 +180,15 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `%hostname-macos-%spawn`) on the Default cluster: `mac-mini-macos`
   (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
   as a remote builder (aarch64-linux native; x86_64-linux via qemu-user binfmt in
-  the VM) — not a separate Buildkite agent. Container / `docker#` on this queue
-  is a follow-up. Cluster agent token path:
+  the VM) — not a separate Buildkite agent. `docker#` / `docker run -v $PWD`
+  works on this queue: launchd shares `/private` into Podman Machine (Darwin
+  `/var` lives under that tree) and the ensure script symlinks
+  `/var/lib/buildkite-agent-macos` in the guest to
+  `/private/var/lib/buildkite-agent-macos` so `docker run -v $PWD` statfs's the
+  same path. Do not add a nested virtiofs of that checkout — CoreOS never
+  mounts the extra tag and vfkit exits shortly after start. The agent sets
+  `job-api=false` (unix sockets cannot ride virtiofs). Do
+  not add per-pipeline `docker cp` wrappers. Cluster agent token path:
   `/etc/buildkite-agent/cluster.token` (never in the Nix store). Install on
   mac-mini via `nix run .#mac-mini-buildkite-install-token` (reads `bkct_`
   token from 1Password account `aztec_fuhrmans`,
