@@ -70,9 +70,9 @@ The merge gate is GitHub check `buildkite/nixconfig` (all steps green). After
 the first green run on `develop` / `main`, require that check in branch
 protection.
 
-**Secrets:** store `CURSOR_API_KEY` (Cursor Dashboard → API Keys) as a
-Buildkite cluster secret on the Default cluster. Confirm the team has Cursor
-Cloud MCP enabled.
+**Secrets:** the `cursor-env-build` step uses the Buildkite cluster secret
+`CURSOR_AUTOMATION_WEBHOOK_TOKEN` (same token as t-hex; `CURSOR_API_KEY` is a
+fallback). Confirm the team has Cursor Cloud MCP enabled.
 
 Agents in normal development should **not** trigger environment Builds; CI
 owns that path via `.buildkite/scripts/cursor-env-build.sh` and

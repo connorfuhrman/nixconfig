@@ -11,8 +11,9 @@ readonly TIMEOUT_SEC=$((90 * 60))
 readonly EXIT_BUILD_FAILED=2
 readonly EXIT_INFRA=1
 
-if [[ -z "${CURSOR_API_KEY:-}" ]]; then
-  echo "cursor-env-build: CURSOR_API_KEY is not set (Buildkite cluster secret)" >&2
+cursor_token="${CURSOR_AUTOMATION_WEBHOOK_TOKEN:-${CURSOR_API_KEY:-}}"
+if [[ -z "$cursor_token" ]]; then
+  echo "cursor-env-build: CURSOR_AUTOMATION_WEBHOOK_TOKEN (or CURSOR_API_KEY) is not set (Buildkite cluster secret)" >&2
   exit "$EXIT_INFRA"
 fi
 
@@ -61,7 +62,7 @@ create_response="$(mktemp)"
 trap 'rm -f "$create_response"' EXIT
 
 http_code="$(curl -sS -w "%{http_code}" -o "$create_response" \
-  -u "${CURSOR_API_KEY}:" \
+  -u "${cursor_token}:" \
   -H "Content-Type: application/json" \
   -X POST "${API_BASE}/agents" \
   -d "$payload")"
@@ -98,7 +99,7 @@ terminal_status=""
 result_text=""
 
 while (( SECONDS < deadline )); do
-  run_response="$(curl -sS -u "${CURSOR_API_KEY}:" \
+  run_response="$(curl -sS -u "${cursor_token}:" \
     "${API_BASE}/agents/${agent_id}/runs/${run_id}")"
 
   terminal_status="$(jq -r '.status // empty' <<<"$run_response")"

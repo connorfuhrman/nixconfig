@@ -4,15 +4,18 @@ Pipeline: [connor-m-fuhrman/nixconfig](https://buildkite.com/connor-m-fuhrman/ni
 
 ## One-time setup
 
-### `CURSOR_API_KEY` cluster secret
+### Cursor API token (cluster secret)
 
-The `cursor-env-build` step needs a Cursor Cloud Agents API key:
+The `cursor-env-build` step authenticates to the Cloud Agents API with
+**`CURSOR_AUTOMATION_WEBHOOK_TOKEN`** (same secret used by the t-hex pipeline).
+**`CURSOR_API_KEY`** is accepted as a fallback.
 
-1. Cursor Dashboard → **API Keys** → create a user or service-account key.
-2. Buildkite → **Clusters** → **Default** → **Secrets** → add `CURSOR_API_KEY`.
+1. Reuse the existing Buildkite cluster secret `CURSOR_AUTOMATION_WEBHOOK_TOKEN`
+   (Cursor automation “Generate auth header” value, `crsr_…` without `Bearer`).
+2. Or add **`CURSOR_API_KEY`** from Cursor Dashboard → API Keys.
 3. Confirm **Cursor Cloud MCP** is enabled for the team (Agents → MCP settings).
 
-Never commit the key. The step fails immediately when the secret is missing.
+Never commit tokens. The step fails immediately when neither secret is set.
 
 ### GitHub branch protection (after first green run)
 
