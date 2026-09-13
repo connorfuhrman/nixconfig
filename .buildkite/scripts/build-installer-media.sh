@@ -22,28 +22,32 @@ case "${target}" in
 esac
 
 echo "--- :nix: build ${attr}"
-nix build --accept-flake-config -L -o result "${attr}"
+out_path=$(nix build --accept-flake-config -L --no-link --print-out-paths "${attr}")
+echo "out path: ${out_path}"
 
 mapfile -t artifacts < <(
-  find result -type f \( -name '*.iso' -o -name '*.img.zst' \) | sort
+  find -L "${out_path}" -type f \( -name '*.iso' -o -name '*.img.zst' -o -name '*.img' \) | sort
 )
 
 if [[ ${#artifacts[@]} -eq 0 ]]; then
-  echo "+++ :x: no *.iso or *.img.zst under result/" >&2
-  find result -type f >&2 || true
+  echo "+++ :x: no installer media under ${out_path}" >&2
+  find -L "${out_path}" -type f >&2 || true
   exit 1
 fi
 
 echo "+++ :package: artifacts"
 printf '  %s\n' "${artifacts[@]}"
 
-# Copy out of the nix store (result is often a symlink) so hosted Docker steps
-# and artifact_paths can see files on the mounted checkout after the step ends.
+# Copy out of the nix store so hosted Docker steps and artifact_paths can
+# see files on the mounted checkout after the container exits.
 out_dir="installer-artifacts/${target}"
 rm -rf "${out_dir}"
 mkdir -p "${out_dir}"
+df -h . >&2 || true
 for path in "${artifacts[@]}"; do
-  cp -L "${path}" "${out_dir}/$(basename "${path}")"
+  dest="${out_dir}/$(basename "${path}")"
+  echo "copying ${path} -> ${dest}"
+  cp -L "${path}" "${dest}"
 done
 
 if command -v buildkite-agent >/dev/null 2>&1; then
