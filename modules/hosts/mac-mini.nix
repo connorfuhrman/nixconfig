@@ -3,6 +3,8 @@
     imports = [
       config.flake.modules.darwin.system
       config.flake.modules.darwin.linux-builder
+      config.flake.modules.darwin.buildkite
+      config.flake.modules.darwin.podman
       config.flake.modules.darwin.server
       config.flake.modules.darwin.roon-server
       config.flake.modules.darwin.onepassword

@@ -16,13 +16,20 @@ let
     import inputs.nixpkgs {
       inherit system;
       overlays = [ overlay ];
-      config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "origin" ];
+      config.allowUnfreePredicate = pkg:
+        builtins.elem (lib.getName pkg) [
+          "origin"
+          "_1password-cli"
+          "1password-cli"
+        ];
     };
 
   packageNames = [
     "obsidian-plugins"
     "obsidian-nix-sync-plugins"
     "cursor-cloud-setup"
+    "mac-mini-buildkite-install-token"
+    "mac-mini-buildkite-install-origin-ssh"
     "origin"
   ];
 in
@@ -43,6 +50,14 @@ in
       apps.cursor-cloud-setup = {
         type = "app";
         program = "${pkgs.cursor-cloud-setup}/bin/cursor-cloud-setup";
+      };
+      apps.mac-mini-buildkite-install-token = {
+        type = "app";
+        program = "${pkgs.mac-mini-buildkite-install-token}/bin/mac-mini-buildkite-install-token";
+      };
+      apps.mac-mini-buildkite-install-origin-ssh = {
+        type = "app";
+        program = "${pkgs.mac-mini-buildkite-install-origin-ssh}/bin/mac-mini-buildkite-install-origin-ssh";
       };
     };
 }
