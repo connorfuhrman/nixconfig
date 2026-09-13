@@ -33,10 +33,16 @@ install_cluster_token() {
   tmp=$(mktemp)
   trap 'rm -f "$tmp"' EXIT
   printf '%s' "$token" > "$tmp"
-  sudo install -m 600 -o root -g wheel "$tmp" /etc/buildkite-agent/cluster.token
+  if dscl . -read /Groups/buildkite-agent-macos >/dev/null 2>&1; then
+    sudo install -m 640 -o root -g buildkite-agent-macos "$tmp" "$TOKEN_PATH"
+    echo "Installed $TOKEN_PATH (0640, root:buildkite-agent-macos)."
+  else
+    sudo install -m 600 -o root -g wheel "$tmp" "$TOKEN_PATH"
+    echo "Installed $TOKEN_PATH (0600, root:wheel)."
+    echo "darwin-rebuild below will fix group/mode for buildkite-agent-macos."
+  fi
   rm -f "$tmp"
   trap - EXIT
-  echo "Installed $TOKEN_PATH (0600, root:wheel)."
 }
 
 if [[ ! -f "$TOKEN_PATH" ]]; then
@@ -59,10 +65,17 @@ for _ in $(seq 1 60); do
 done
 sudo ssh linux-builder uname -m
 
-echo "Buildkite launchd jobs (expect buildkite-agent-macos + buildkite-token-sync):"
-launchctl list 2>/dev/null | grep buildkite || true
+echo "Buildkite launchd jobs (system domain — use sudo):"
+sudo launchctl list 2>/dev/null | grep buildkite || true
 echo "macOS agent daemon status:"
-launchctl print system/org.nixos.buildkite-agent-macos 2>/dev/null | head -20 || echo "  (org.nixos.buildkite-agent-macos not loaded yet)"
+sudo launchctl print system/org.nixos.buildkite-agent-macos 2>/dev/null | head -25 \
+  || echo "  (org.nixos.buildkite-agent-macos not loaded yet)"
+echo "Token readable by buildkite-agent-macos?"
+sudo -u buildkite-agent-macos test -r "$TOKEN_PATH" \
+  && echo "  yes" || echo "  NO — run: sudo chgrp buildkite-agent-macos $TOKEN_PATH && sudo chmod 640 $TOKEN_PATH"
+echo "Recent agent log:"
+sudo tail -20 /var/lib/buildkite-agent-macos/buildkite-agent.log 2>/dev/null \
+  || echo "  (no log yet)"
 
 echo "Done. Confirm agents at:"
 echo "  https://buildkite.com/organizations/$ORG/clusters/$CLUSTER_ID"

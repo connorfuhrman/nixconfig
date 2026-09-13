@@ -5,7 +5,8 @@
         set -euo pipefail
         src="$1"
         mkdir -p /etc/buildkite-agent
-        install -m 600 -o root -g root "$src" /etc/buildkite-agent/cluster.token
+        chmod 755 /etc/buildkite-agent
+        install -m 640 -o root -g buildkite-agent-linux "$src" /etc/buildkite-agent/cluster.token
         rm -f "$src"
       '';
     in
@@ -31,6 +32,23 @@
         "connorfuhrman"
         "buildkite-agent-macos"
       ];
+
+      system.activationScripts.buildkiteTokenDir.text = ''
+        mkdir -p /etc/buildkite-agent
+        chmod 755 /etc/buildkite-agent
+      '';
+
+      # Token is read at agent start by buildkite-agent-macos (not root). Install
+      # scripts may run before the user exists; activation fixes group/mode.
+      system.activationScripts.buildkiteTokenPermissions = {
+        deps = [ "users" ];
+        text = ''
+          if [ -f /etc/buildkite-agent/cluster.token ]; then
+            chown root:buildkite-agent-macos /etc/buildkite-agent/cluster.token
+            chmod 640 /etc/buildkite-agent/cluster.token
+          fi
+        '';
+      };
 
       nix.linux-builder.config = { ... }: {
         services.buildkite-agents.linux = {
@@ -60,6 +78,16 @@
           mkdir -p /etc/buildkite-agent
           chmod 755 /etc/buildkite-agent
         '';
+
+        system.activationScripts.buildkiteTokenPermissions = {
+          deps = [ "users" ];
+          text = ''
+            if [ -f /etc/buildkite-agent/cluster.token ]; then
+              chown root:buildkite-agent-linux /etc/buildkite-agent/cluster.token
+              chmod 640 /etc/buildkite-agent/cluster.token
+            fi
+          '';
+        };
 
         security.sudo.extraRules = [
           {
@@ -96,6 +124,8 @@
           RunAtLoad = true;
           StartInterval = 300;
           WatchPaths = [ "/etc/buildkite-agent/cluster.token" ];
+          StandardOutPath = "/var/log/buildkite-token-sync.log";
+          StandardErrorPath = "/var/log/buildkite-token-sync.log";
         };
       };
     };

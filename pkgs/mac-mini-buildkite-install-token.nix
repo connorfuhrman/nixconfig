@@ -21,8 +21,14 @@ writeShellScriptBin "mac-mini-buildkite-install-token" ''
   tmp=$(mktemp)
   trap 'rm -f "$tmp"' EXIT
   printf '%s' "$token" > "$tmp"
-  sudo install -m 600 -o root -g wheel "$tmp" "$TOKEN_PATH"
+  if dscl . -read /Groups/buildkite-agent-macos >/dev/null 2>&1; then
+    sudo install -m 640 -o root -g buildkite-agent-macos "$tmp" "$TOKEN_PATH"
+    echo "Installed $TOKEN_PATH (0640, root:buildkite-agent-macos)."
+  else
+    sudo install -m 600 -o root -g wheel "$tmp" "$TOKEN_PATH"
+    echo "Installed $TOKEN_PATH (0600, root:wheel)."
+    echo "Run darwin-rebuild switch to grant buildkite-agent-macos read access."
+  fi
   rm -f "$tmp"
   trap - EXIT
-  echo "Installed $TOKEN_PATH (0600, root:wheel)."
 ''
