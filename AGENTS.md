@@ -9,7 +9,7 @@ working in this repo.
 | Host | Platform | Type | Status | Notes |
 |---|---|---|---|---|
 | `mbp14` | `aarch64-linux` | NixOS | **experimental** | Asahi Linux, MacBook Pro 14" M2 Pro/Max (KDE Plasma 6) |
-| `nuc` | `x86_64-linux` | NixOS | **experimental** | Intel Nuc, headless server (plain — no clustering) |
+| `nuc` | `x86_64-linux` | NixOS | **experimental** | Intel Nuc, headless server (plain — no clustering) + Buildkite agent (`nuc-linux`) |
 | `nuc-cluster-head` | `x86_64-linux` | NixOS | **experimental** | Role closure on the nuc hardware — Ray head node |
 | `nuc-cluster-worker` | `x86_64-linux` | NixOS | **experimental** | Role closure on the second Nuc — Ray worker |
 | `rpi-cluster-head` | `aarch64-linux` | NixOS | **experimental** | Prototype Raspberry Pi head node (generalized `hosts/rpi/` template) |
@@ -64,7 +64,7 @@ pkgs/                   custom packages (callPackage); overlay = pkgs/default.ni
 modules/pkgs.nix        flake.overlays.default + packages.* + lib.pkgsFor
 modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwin
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
-modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
+modules/nixos/          NixOS features: system, desktop, server, asahi, buildkite, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
 modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
@@ -121,6 +121,9 @@ nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # tru
 nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
 nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["mac-mini"]
+nix eval .#nixosConfigurations.nuc.config.services.buildkite-agents.linux.tags.queue  # "nuc-linux"
+nix eval .#apps.x86_64-linux.nuc-buildkite-install-token.program
+nix eval .#apps.x86_64-linux.nuc-buildkite-install-origin-ssh.program
 nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 's: builtins.filter (n: builtins.match "ray.*" n != null) (builtins.attrNames s)'  # ["ray-head"]
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
@@ -187,6 +190,15 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   token from 1Password account `aztec_fuhrmans`,
   `op://Private/Buildkite/credential`).
   Runbook: [`docs/plans/mac-mini-buildkite.md`](docs/plans/mac-mini-buildkite.md).
+- **nuc Buildkite** runs one self-hosted agent (`spawn=2`, names
+  `%hostname-linux-%spawn`) on the Default cluster: `nuc-linux`
+  (native x86_64-linux jobs). Same cluster token path
+  `/etc/buildkite-agent/cluster.token`. Install on nuc via
+  `nix run .#nuc-buildkite-install-token` (headless: `eval "$(op signin
+  --account aztec_fuhrmans)"` first). Origin SSH:
+  `nix run .#nuc-buildkite-install-origin-ssh`. Not imported by cluster
+  role closures. Runbook:
+  [`docs/plans/nuc-buildkite.md`](docs/plans/nuc-buildkite.md).
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.roon-server` enables it (and any other
   host that needs brew).
