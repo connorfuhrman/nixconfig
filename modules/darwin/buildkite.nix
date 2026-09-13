@@ -42,24 +42,12 @@
         agentUser
       ];
 
-      # build #129: installer steps need to restart linux-builder after ENOSPC crashes.
-      security.sudo.extraRules = [
-        {
-          users = [ agentUser ];
-          commands = [
-            {
-              command = "/usr/bin/launchctl";
-              options = [ "NOPASSWD" ];
-              args = [ "kickstart" "-k" "system/org.nixos.linux-builder" ];
-            }
-            {
-              command = "/usr/bin/launchctl";
-              options = [ "NOPASSWD" ];
-              args = [ "kickstart" "system/org.nixos.linux-builder" ];
-            }
-          ];
-        }
-      ];
+      # build #129/#137: installer steps restart linux-builder after ENOSPC crashes.
+      # nix-darwin exposes security.sudo.extraConfig (not NixOS extraRules).
+      security.sudo.extraConfig = lib.mkAfter ''
+        ${agentUser} ALL = (ALL) NOPASSWD: /usr/bin/launchctl kickstart -k system/org.nixos.linux-builder
+        ${agentUser} ALL = (ALL) NOPASSWD: /usr/bin/launchctl kickstart system/org.nixos.linux-builder
+      '';
 
       launchd.daemons.buildkite-agent-macos = {
         serviceConfig.ProcessType = lib.mkForce "Standard";
