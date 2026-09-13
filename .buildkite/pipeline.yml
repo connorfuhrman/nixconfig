@@ -1,63 +1,51 @@
+# Shared fragments. Buildkite expands YAML anchors / merge keys at upload.
+x-branch-if: &branch-if
+  if: |
+    build.branch == "main" ||
+    build.branch == "cursor/mac-mini-buildkite" ||
+    build.pull_request.base_branch == "main"
+
+x-mac-mini-macos: &mac-mini-macos
+  agents:
+    queue: mac-mini-macos
+
+x-timeout-retry: &timeout-retry
+  timeout_in_minutes: 180
+  retry:
+    automatic:
+      - exit_status: "*"
+        limit: 1
+
 steps:
   - group: ":mac: mac-mini-macos CI"
     key: mac-mini-macos-ci
-    if: |
-      build.branch == "main" ||
-      build.branch == "cursor/mac-mini-buildkite" ||
-      build.pull_request.base_branch == "main"
+    <<: *branch-if
     steps:
       - label: ":nix: flake check (native macOS)"
         key: flake-check-mac-mini-macos
         command: .buildkite/scripts/flake-check.sh
-        agents:
-          queue: mac-mini-macos
-        timeout_in_minutes: 90
-        retry:
-          automatic:
-            - exit_status: "*"
-              limit: 1
+        <<: [*mac-mini-macos, *timeout-retry]
 
       - label: ":docker: flake check (container / Podman)"
         key: flake-check-mac-mini-container
         # No docker-buildkite-plugin: Podman Machine cannot bind-mount Darwin
         # paths (statfs fails). The wrapper copies the checkout into the VM.
         command: .buildkite/scripts/flake-check-container.sh
-        agents:
-          queue: mac-mini-macos
-        timeout_in_minutes: 90
-        retry:
-          automatic:
-            - exit_status: "*"
-              limit: 1
+        <<: [*mac-mini-macos, *timeout-retry]
 
       - label: ":package: build packages"
         key: build-packages-mac-mini-macos
         command: .buildkite/scripts/build-packages.sh
-        agents:
-          queue: mac-mini-macos
-        timeout_in_minutes: 180
-        retry:
-          automatic:
-            - exit_status: "*"
-              limit: 1
+        <<: [*mac-mini-macos, *timeout-retry]
 
       - label: ":nixos: build nixos (rpi-cluster-head)"
         key: build-nixos-rpi-cluster-head
         command: .buildkite/scripts/build-nixos.sh
-        agents:
-          queue: mac-mini-macos
-        timeout_in_minutes: 180
-        retry:
-          automatic:
-            - exit_status: "*"
-              limit: 1
+        <<: [*mac-mini-macos, *timeout-retry]
 
   - label: ":nix: flake check (hosted backup)"
     key: flake-check-hosted-linux-medium
-    if: |
-      build.branch == "main" ||
-      build.branch == "cursor/mac-mini-buildkite" ||
-      build.pull_request.base_branch == "main"
+    <<: *branch-if
     soft_fail: true
     command: .buildkite/scripts/flake-check.sh
     plugins:
