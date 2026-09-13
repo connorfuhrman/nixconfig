@@ -94,9 +94,12 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 
 - **Flakes and `nix-command` are enabled** in system config
   (`nix.settings.experimental-features`). Use plain `nix flake` / `nix eval`.
-- **Evaluation only — never build system closures.** No `nixos-rebuild`,
-  `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
-  and `nix eval` are the validation tools.
+- **Evaluation only from dev machines — never build system closures locally.**
+  No `nixos-rebuild`, `darwin-rebuild`, or `home-manager` from the dev
+  machine. `nix flake check` and `nix eval` are the validation tools. CI
+  (Buildkite) additionally **realizes** the three generic installer media
+  (`.#iso`, `.#asahi-iso`, `.#rpi-iso`); aarch64 builds run on the
+  `mac-mini-macos` queue.
 - This **is** a git repo. Prefer `develop` for commits (see Workflow). Do not
   force-push or commit secrets / `firmware/` blobs to a public remote.
 - `flake show` displays `darwinConfigurations`, `homeConfigurations`,

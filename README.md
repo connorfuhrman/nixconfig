@@ -72,12 +72,22 @@ See [INSTALL.md](./INSTALL.md) for Asahi / mbp14 (uses `.#asahi-iso`).
 
 ## CI
 
-Every push and pull request targeting `develop` or `main` runs
-[`nix flake check`](./modules/checks.nix) in
-[Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) inside the
-official [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container image.
-The check evaluates all host configurations without building full system
-closures. Merges require the Buildkite status check to pass.
+Every push and pull request targeting `develop` or `main` runs in
+[Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) (see
+[`.buildkite/pipeline.yml`](./.buildkite/pipeline.yml)):
+
+1. **`:nix: flake check`** — fast eval-only gate in the official
+   [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container on the
+   `linux-medium` queue ([`modules/checks.nix`](./modules/checks.nix)).
+2. **Installer media builds** (after flake check passes) — real `nix build`
+   of the three generic boot images, with `*.iso` / `*.img.zst` uploaded as
+   Buildkite artifacts:
+   - `.#iso` — `linux-medium` (native x86_64-linux in Docker)
+   - `.#asahi-iso` — `mac-mini-macos` (aarch64-linux via mac-mini
+     `nix.linux-builder`)
+   - `.#rpi-iso` — `mac-mini-macos` (same builder)
+
+Merges require the Buildkite status check to pass.
 
 ## Layout
 

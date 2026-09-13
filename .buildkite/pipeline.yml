@@ -1,22 +1,59 @@
+# Shared fragments. Buildkite expands YAML anchors / merge keys at upload.
+x-branch-if: &branch-if
+  if: |
+    build.branch == "develop" || build.branch == "main" ||
+    build.pull_request.base_branch == "develop" ||
+    build.pull_request.base_branch == "main"
+
+x-nix-docker: &nix-docker
+  plugins:
+    - docker#v5.14.0:
+        image: "nixos/nix:2.28.2"
+        mount-checkout: true
+        propagate-environment: true
+        environment:
+          - "NIX_CONFIG=experimental-features = nix-command flakes"
+
+x-mac-mini-macos: &mac-mini-macos
+  agents:
+    queue: mac-mini-macos
+
+x-linux-medium: &linux-medium
+  agents:
+    queue: linux-medium
+
+x-retry-once: &retry-once
+  retry:
+    automatic:
+      - exit_status: "*"
+        limit: 1
+
 steps:
   - label: ":nix: flake check"
     key: flake-check
-    if: |
-      build.branch == "develop" || build.branch == "main" ||
-      build.pull_request.base_branch == "develop" ||
-      build.pull_request.base_branch == "main"
     command: .buildkite/scripts/flake-check.sh
-    plugins:
-      - docker#v5.14.0:
-          image: "nixos/nix:2.28.2"
-          mount-checkout: true
-          propagate-environment: true
-          environment:
-            - "NIX_CONFIG=experimental-features = nix-command flakes"
-    agents:
-      queue: linux-medium
     timeout_in_minutes: 90
-    retry:
-      automatic:
-        - exit_status: "*"
-          limit: 1
+    <<: [*branch-if, *nix-docker, *linux-medium, *retry-once]
+
+  - group: ":cd: Installer media"
+    key: installer-media
+    depends_on: flake-check
+    <<: [*branch-if]
+    steps:
+      - label: ":cd: x86_64 installer ISO"
+        key: build-iso
+        command: .buildkite/scripts/build-installer-media.sh iso
+        timeout_in_minutes: 180
+        <<: [*nix-docker, *linux-medium, *retry-once]
+
+      - label: ":apple: Asahi installer ISO"
+        key: build-asahi-iso
+        command: .buildkite/scripts/build-installer-media.sh asahi-iso
+        timeout_in_minutes: 240
+        <<: [*mac-mini-macos, *retry-once]
+
+      - label: ":raspberry_pi: Pi SD image"
+        key: build-rpi-iso
+        command: .buildkite/scripts/build-installer-media.sh rpi-iso
+        timeout_in_minutes: 240
+        <<: [*mac-mini-macos, *retry-once]
