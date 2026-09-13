@@ -83,8 +83,9 @@ nix run .#mac-mini-buildkite-install-token
 
 - `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`,
   `trusted-users`, agent workdir + token permissions via `postActivation`,
-  headless `ProcessType = Standard`, and launchd kickstart of the macOS agent
-  after activation
+  Origin `insteadOf` gitconfig + pinned `known_hosts`, launchd
+  `GIT_CONFIG_GLOBAL` / `GIT_SSH_COMMAND`, headless `ProcessType = Standard`,
+  and launchd kickstart of the macOS agent after activation
 - `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`) used
   as a Nix remote builder (not a Buildkite agent host)
 - Imported from `modules/hosts/mac-mini.nix`
@@ -102,6 +103,12 @@ mac-mini:
 
    ```sh
    nix run .#mac-mini-buildkite-install-token
+   ```
+
+   Origin SSH deploy key (once, if Origin HTTPS checkout fails):
+
+   ```sh
+   nix run .#mac-mini-buildkite-install-origin-ssh
    ```
 
 2. Apply nix-darwin — this is the only system command needed:
@@ -153,6 +160,40 @@ sudo darwin-rebuild switch --flake .#mac-mini
 
 - **GitHub** (nixconfig, emacs): rely on the Buildkite GitHub app first. If clone
   fails, add a deploy key and store as a cluster secret.
+- **Origin** (t-hex and any `https://origin.cursor.com/git/…` clone): the Darwin
+  agent rewrites HTTPS to SSH via git `insteadOf` and a **file-based** deploy
+  key. Connor’s interactive `origin auth login` / keychain does not apply to
+  `buildkite-agent-macos`. Do **not** put Origin credentials in pipeline YAML.
+
+| Piece | Value |
+|---|---|
+| insteadOf | `https://origin.cursor.com/git/` → `git@origin.cursor.com:` |
+| SSH clone | `git@origin.cursor.com:connor-fuhrman/t-hex.git` (no `/git/` prefix) |
+| Private key | `/var/lib/buildkite-agent-macos/.ssh/origin_cursor` (mode 600, agent-owned; **never** the Nix store or git) |
+| Agent gitconfig | `/var/lib/buildkite-agent-macos/.gitconfig` (also `GIT_CONFIG_GLOBAL` on the launchd job) |
+
+Install (or rotate) the key on mac-mini. Registers the public key with Origin
+(`origin ssh-key add`, title `mac-mini-buildkite-agent`) and writes gitconfig +
+`~/.ssh/config` for the agent. Source order: existing agent key, then optional
+1Password item `Buildkite Origin SSH` (private key field), then
+`~/.ssh/buildkite-agent-origin` if present, otherwise a new ed25519 key:
+
+```sh
+nix run .#mac-mini-buildkite-install-origin-ssh
+```
+
+`sudo -n` is not enough — this prompts for Connor’s password, like the cluster
+token installer. After install (no darwin-rebuild required for the key itself):
+
+```sh
+sudo -u buildkite-agent-macos -H git ls-remote \
+  https://origin.cursor.com/git/connor-fuhrman/t-hex.git HEAD
+```
+
+Durable copies of gitconfig / ssh_config / known_hosts are also written by
+nix-darwin `postActivation` on `darwin-rebuild switch`. Rebuild **is** required
+for launchd `GIT_CONFIG_GLOBAL` / `GIT_SSH_COMMAND` (jobs started after the
+switch). The private key is never replaced by a rebuild.
 
 ## Pipelines
 
@@ -182,6 +223,8 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
+nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-origin-ssh.program
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.GIT_CONFIG_GLOBAL
 ```
 
 On mac-mini after `darwin-rebuild switch`:
