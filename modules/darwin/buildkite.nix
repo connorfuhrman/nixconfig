@@ -40,7 +40,10 @@
         agentUser
       ];
 
-      launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType = lib.mkForce "Standard";
+      launchd.daemons.buildkite-agent-macos = {
+        environment.DOCKER_HOST = "unix:///var/run/docker.sock";
+        serviceConfig.ProcessType = lib.mkForce "Standard";
+      };
 
       # nix-darwin only runs hardcoded activation scripts (users, launchd,
       # postActivation, …). Custom script names are ignored; use postActivation

@@ -1,9 +1,10 @@
 { ... }: {
   # Podman on macOS for Linux containers (Buildkite docker plugin on mac-mini-macos).
   #
-  # nix-darwin has no virtualisation.podman — use nixpkgs podman (podman-remote +
-  # vfkit/gvproxy on Apple Silicon) with a launchd helper and a /var/run/docker.sock
-  # symlink for docker API compat.
+  # Rootless Podman is incompatible with the Buildkite agent: the API socket lives
+  # under the primary user's /var/folders temp dir, which buildkite-agent-macos
+  # cannot reach. Requires rootful mode plus a root launchd job that symlinks
+  # /var/run/docker.sock for docker API compat.
   flake.modules.darwin.podman = { config, lib, pkgs, ... }:
     let
       primaryUser = config.system.primaryUser;
@@ -30,25 +31,51 @@
 
       podmanMachineEnsure = pkgs.writeShellScript "podman-machine-ensure" ''
         set -euo pipefail
-        export HOME="/Users/${primaryUser}"
-        export PATH="${lib.makeBinPath [ podman ]}:$PATH"
 
+        primaryUser="${primaryUser}"
+        home="/Users/${primaryUser}"
         machine=podman-machine-default
+        podman="${podman}/bin/podman"
+        sudo="/usr/bin/sudo"
 
-        if ! podman machine list --format '{{.Name}}' 2>/dev/null | grep -qx "$machine"; then
-          echo "podman machine $machine missing — run once as ${primaryUser}:" >&2
+        podman_as_user() {
+          "$sudo" -u "$primaryUser" env HOME="$home" PATH="${lib.makeBinPath [ podman ]}:$PATH" "$podman" "$@"
+        }
+
+        if ! podman_as_user machine list --format '{{.Name}}' 2>/dev/null | grep -qx "$machine"; then
+          echo "ERROR: podman machine '$machine' missing — run once as $primaryUser:" >&2
           echo "  podman machine init --rootful $machine" >&2
           exit 1
         fi
 
-        state="$(podman machine inspect "$machine" --format '{{.State}}' 2>/dev/null || true)"
-        if [ "$state" != "running" ]; then
-          podman machine start "$machine"
+        rootful="$(podman_as_user machine inspect "$machine" --format '{{.Rootful}}' 2>/dev/null || echo false)"
+        if [ "$rootful" != "true" ]; then
+          state="$(podman_as_user machine inspect "$machine" --format '{{.State}}' 2>/dev/null || echo unknown)"
+          if [ "$state" = "running" ]; then
+            echo "ERROR: $machine is rootless (Rootful=false). Stop it, then run once as $primaryUser:" >&2
+            echo "  podman machine stop $machine && podman machine set --rootful $machine" >&2
+            exit 1
+          fi
+          echo "Converting $machine to rootful mode..."
+          podman_as_user machine set --rootful "$machine"
         fi
 
-        sock="$(find "$HOME/.local/share/containers/podman/machine" -name podman.sock -print -quit 2>/dev/null || true)"
+        state="$(podman_as_user machine inspect "$machine" --format '{{.State}}' 2>/dev/null || echo stopped)"
+        if [ "$state" != "running" ]; then
+          podman_as_user machine start "$machine"
+        fi
+
+        sock=""
+        for _ in $(seq 1 30); do
+          sock="$(podman_as_user machine inspect "$machine" --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null || true)"
+          if [ -n "$sock" ] && [ -S "$sock" ]; then
+            break
+          fi
+          sleep 1
+        done
+
         if [ -z "$sock" ] || [ ! -S "$sock" ]; then
-          echo "podman machine socket not found under $HOME/.local/share/containers/podman/machine" >&2
+          echo "ERROR: Podman API socket not found (ConnectionInfo.PodmanSocket.Path)" >&2
           exit 1
         fi
 
@@ -56,6 +83,8 @@
         ln -sf "$sock" /var/run/docker.sock
         chgrp docker "$sock"
         chmod 660 "$sock"
+
+        echo "podman $machine running (rootful); /var/run/docker.sock -> $sock"
       '';
     in
     {
@@ -70,13 +99,17 @@
         members = [ primaryUser agentUser ];
       };
 
+      # Root launchd: podman machine is owned by primaryUser, but /var/run/docker.sock
+      # must be writable only by root. Runs at boot without a login session.
       launchd.daemons.podman-machine = {
         path = [ podman ];
         script = "${podmanMachineEnsure}";
         serviceConfig = {
-          UserName = primaryUser;
           RunAtLoad = true;
           StartInterval = 300;
+          KeepAlive = {
+            SuccessfulExit = false;
+          };
           StandardOutPath = "/var/log/podman-machine.log";
           StandardErrorPath = "/var/log/podman-machine.log";
         };

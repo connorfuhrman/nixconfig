@@ -174,28 +174,45 @@ builds rather than a dedicated Linux Buildkite queue.
 
 nix-darwin has no `virtualisation.podman` — `modules/darwin/podman.nix` installs
 nixpkgs `podman` (vfkit + gvproxy on Apple Silicon), a `docker` → `podman` compat
-alias, launchd `podman-machine` (start VM + symlink socket), and a `docker` group
-so `buildkite-agent-macos` can reach the socket.
+alias, a **rootful-only** launchd `podman-machine` job (start VM + symlink socket),
+and a `docker` group so `buildkite-agent-macos` can reach the socket.
 
-**One-time after the first rebuild that imports `darwin.podman`:**
+**Rootless Podman is not compatible with Buildkite on this host.** The docker
+plugin and agent expect `/var/run/docker.sock` (or `DOCKER_HOST`); rootless mode
+puts the API socket under the primary user's `/var/folders/…/T/podman/` temp dir,
+which `buildkite-agent-macos` cannot access. Privileged ports and some images
+also fail rootless.
+
+**One-time setup** (machine already exists from a rootless trial — no re-init):
 
 ```sh
-# as connorfuhrman — downloads a Linux VM image (~500 MiB) on first init
-podman machine init --rootful podman-machine-default
+# as connorfuhrman
+podman machine stop podman-machine-default
+podman machine set --rootful podman-machine-default
 sudo darwin-rebuild switch --flake .#mac-mini   # kickstarts podman-machine launchd job
+```
+
+If the machine does not exist yet, init rootful once (~500 MiB VM download):
+
+```sh
+podman machine init --rootful podman-machine-default
+sudo darwin-rebuild switch --flake .#mac-mini
 ```
 
 Verify:
 
 ```sh
+podman machine inspect podman-machine-default --format '{{.Rootful}}'   # true
 podman machine list
 docker run --rm quay.io/podman/hello
-ls -l /var/run/docker.sock   # symlink → ~/.local/share/containers/podman/machine/.../podman.sock
+ls -l /var/run/docker.sock   # symlink → Podman API socket (ConnectionInfo.PodmanSocket.Path)
+sudo tail -20 /var/log/podman-machine.log
 ```
 
-`podman machine init` is **not** automated — only `podman machine start` and the
-`/var/run/docker.sock` symlink run from launchd. Re-init is rarely needed; delete
-the machine only when intentionally resetting Podman state.
+`podman machine init` is **not** automated — launchd only ensures rootful mode,
+starts the VM, and maintains `/var/run/docker.sock`. After reboot, the root
+`org.nixos.podman-machine` daemon runs without a login session (`RunAtLoad` +
+`StartInterval` + retry on failure).
 
 ## Validation
 
@@ -206,7 +223,8 @@ nix flake check .
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
-nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.UserName
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.DOCKER_HOST
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.KeepAlive
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
 ```
 
