@@ -16,23 +16,18 @@
       # SIGKILL 137. 10 GiB is the bump that can finish eval without adding
       # another full 8 GiB VM on a 16 GiB host (idle builder pages compress).
       desiredMemoryMiB = "10240";
-      # Must match modules/darwin/buildkite.nix agentHome. applehv already
-      # virtiofs-shares /private; Darwin /var is a symlink into that tree, so
-      # the checkout is in the guest at /private/var/lib/buildkite-agent-macos.
-      # docker-buildkite-plugin bind-mounts $PWD; the Linux engine statfs's
-      # /var/lib/buildkite-agent-macos inside the VM — a guest symlink makes
-      # that Darwin path real. Do not add a second virtiofs of this path:
-      # it nests inside the /private share, CoreOS never mounts the extra tag,
+      # Must match modules/darwin/buildkite.nix agentHome / dataDir.
+      # applehv already virtiofs-shares /Users; docker run -v $PWD works
+      # there with no guest symlink. /private/var/lib/... wedges virtiofs
+      # (guest ls/umount hang). Do not add a nested virtiofs of this path
+      # (or the old /var/lib checkout): CoreOS never mounts the extra tag
       # and vfkit has been exiting seconds after start with that device.
-      agentCheckoutRoot = "/var/lib/buildkite-agent-macos";
-      # podman machine ssh exec's `ssh` from PATH. Launchd's default PATH is
-      # only the nix bins below; without openssh the guest checkout symlink
-      # exits 127 and KeepAlive crash-loops.
+      agentCheckoutRoot = "/Users/Shared/buildkite-agent-macos";
+      oldCheckoutRoot = "/var/lib/buildkite-agent-macos";
       scriptPath = lib.makeBinPath [
         podman
         pkgs.coreutils
         pkgs.gnugrep
-        pkgs.openssh
       ] + ":/usr/bin";
 
       # Drop nested virtiofs sources from applehv JSON (applied only while stopped).
@@ -166,21 +161,22 @@
           podman_as_user machine set --memory "$desiredMemory" "$machine"
         fi
 
-        # Same-path checkout: prune any nested virtiofs of $checkoutRoot, then
-        # symlink it in the guest onto the existing /private share.
+        # Checkout is on the default /Users share. Prune leftover nested
+        # virtiofs of the new path or the old /var/lib checkout.
         checkoutRoot="${agentCheckoutRoot}"
+        oldCheckoutRoot="${oldCheckoutRoot}"
         mkdir -p "$checkoutRoot"
         jsonPath="$(podman_as_user machine inspect "$machine" --format '{{.ConfigDir.Path}}')/$machine.json"
         volumePy="${volumeEnsurePy}"
         python="${pkgs.python3}/bin/python3"
-        vol_status="$(as_user "$python" "$volumePy" --status "$jsonPath" "$checkoutRoot")"
+        vol_status="$(as_user "$python" "$volumePy" --status "$jsonPath" "$checkoutRoot" "$oldCheckoutRoot")"
         if [ "$vol_status" = "needed" ]; then
-          echo "Podman machine virtiofs: dropping nested $checkoutRoot (covered by /private)"
+          echo "Podman machine virtiofs: dropping nested checkout shares (covered by /Users)"
           if [ "$state" = "running" ]; then
             podman_as_user machine stop "$machine"
             state=stopped
           fi
-          as_user "$python" "$volumePy" --prune "$jsonPath" "$checkoutRoot"
+          as_user "$python" "$volumePy" --prune "$jsonPath" "$checkoutRoot" "$oldCheckoutRoot"
         fi
 
         if [ "$state" = "starting" ]; then
@@ -274,32 +270,9 @@
           sleep 1
         done
 
-        # After the API is up, SSH works. Never fail the daemon here: missing
-        # ssh on PATH used to exit 127, KeepAlive-restart, and race
-        # `podman machine start` against a live VM. Guest symlink persists on
-        # the FCOS /var disk; rmdir only an empty placeholder (never rm -rf).
-        ssh_ready=0
-        for _ in $(seq 1 30); do
-          if podman_as_user machine ssh "$machine" -- true >/dev/null 2>&1; then
-            ssh_ready=1
-            break
-          fi
-          sleep 1
-        done
-        if [ "$ssh_ready" != 1 ]; then
-          echo "WARNING: podman machine ssh not ready; guest checkout symlink skipped" >&2
-        else
-          echo "Guest: $checkoutRoot -> /private$checkoutRoot"
-          guestParent="$(dirname "$checkoutRoot")"
-          # umount(8) follows symlinks. If $checkoutRoot is already the
-          # /private mapping, umount would target the virtiofs share and hang
-          # (~12+ min). Skip umount/rmdir when the path is a symlink.
-          podman_as_user machine ssh "$machine" -- "if [ -L '$checkoutRoot' ]; then echo 'guest $checkoutRoot already symlink'; else sudo umount '$checkoutRoot' >/dev/null 2>&1 || true; fi"
-          podman_as_user machine ssh "$machine" -- "if [ -d '$checkoutRoot' ] && [ ! -L '$checkoutRoot' ]; then sudo rmdir '$checkoutRoot' || true; fi"
-          podman_as_user machine ssh "$machine" -- "sudo mkdir -p '$guestParent' && sudo ln -sfn '/private$checkoutRoot' '$checkoutRoot'" || true
-        fi
-
-        echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB, guest $checkoutRoot -> /private$checkoutRoot); proxy $listen -> $sock"
+        # Never umount / SSH-stat guest checkout paths. umount of a symlink
+        # onto /private virtiofs wedges the share; [ -d ] follows it and hangs.
+        echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB, checkout $checkoutRoot on /Users virtiofs); proxy $listen -> $sock"
       '';
 
       podmanDockerProxy = pkgs.writeShellScript "podman-docker-proxy" ''
@@ -351,7 +324,7 @@
       # Root launchd: machine is owned by primaryUser; the proxy listen sock is
       # root:docker so the agent never opens the 700 TMPDIR path.
       launchd.daemons.podman-machine = {
-        path = with pkgs; [ podman coreutils gnugrep openssh ];
+        path = with pkgs; [ podman coreutils gnugrep ];
         script = "${podmanMachineEnsure}";
         serviceConfig = {
           RunAtLoad = true;

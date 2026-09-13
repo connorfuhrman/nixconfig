@@ -2,7 +2,11 @@
   flake.modules.darwin.buildkite = { config, lib, pkgs, ... }:
     let
       agentUser = "buildkite-agent-macos";
-      agentHome = "/var/lib/${agentUser}";
+      # Under the default applehv /Users virtiofs share. /var/lib lives in
+      # Darwin /private; guest ls/umount of that tree wedges virtiofs, and a
+      # nested virtiofs of /var/lib/... kills vfkit. /Users/Shared is not
+      # Connor's home. Must match modules/darwin/podman.nix agentCheckoutRoot.
+      agentHome = "/Users/Shared/${agentUser}";
       originSshKey = "${agentHome}/.ssh/origin_cursor";
       # Public only — private key is installed by
       # `nix run .#mac-mini-buildkite-install-origin-ssh`, never the Nix store.
@@ -30,11 +34,12 @@
       users.users.buildkite-agent-macos = {
         uid = lib.mkDefault 536;
         gid = lib.mkDefault config.users.groups.buildkite-agent-macos.gid;
-        # createhomedir fails on /var/lib (errno 62); postActivation creates the workdir.
+        # Shared workdir, not a login home; postActivation creates it.
         createHome = lib.mkForce false;
       };
 
       services.buildkite-agents.macos = {
+        dataDir = agentHome;
         tokenPath = "/etc/buildkite-agent/cluster.token";
         # Buildkite requires %spawn in the name when spawn>1 shares build-path.
         # Default is "%hostname-macos-%n"; %n is not the spawn index.
@@ -53,6 +58,7 @@
         extraConfig = ''
           debug=true
           plugins-path="${agentHome}/plugins"
+          build-path="${agentHome}/builds"
           spawn=2
           bootstrap-script="${config.services.buildkite-agents.macos.package}/bin/buildkite-agent bootstrap --no-job-api"
         '';
@@ -94,13 +100,21 @@
       # (after users) so buildkite-agent-macos exists before chgrp/chown.
       system.activationScripts.postActivation.text = lib.mkAfter ''
         agent_home=${agentHome}
+        old_home=/var/lib/${agentUser}
         mkdir -p "$agent_home/builds" "$agent_home/plugins" "$agent_home/.ssh"
-        chown -R ${agentUser}:${agentUser} "$agent_home"
+        # Keep Origin SSH across the /var/lib → /Users/Shared move.
+        if [ -f "$old_home/.ssh/origin_cursor" ] && [ ! -f "$agent_home/.ssh/origin_cursor" ]; then
+          install -m 600 -o ${agentUser} -g ${agentUser} "$old_home/.ssh/origin_cursor" "$agent_home/.ssh/origin_cursor"
+          if [ -f "$old_home/.ssh/origin_cursor.pub" ]; then
+            install -m 644 -o ${agentUser} -g ${agentUser} "$old_home/.ssh/origin_cursor.pub" "$agent_home/.ssh/origin_cursor.pub"
+          fi
+        fi
+        chown -R ${agentUser}:docker "$agent_home"
         chmod 755 "$agent_home"
         chmod 755 "$agent_home/builds"
         chmod 755 "$agent_home/plugins"
         chmod 700 "$agent_home/.ssh"
-        install -m 644 -o ${agentUser} -g ${agentUser} ${originGitconfig} "$agent_home/.gitconfig"
+        install -m 644 -o ${agentUser} -g docker ${originGitconfig} "$agent_home/.gitconfig"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originSshConfig} "$agent_home/.ssh/config"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originKnownHosts} "$agent_home/.ssh/known_hosts"
         if [ -f ${originSshKey} ]; then

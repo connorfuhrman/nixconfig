@@ -126,6 +126,7 @@ nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.dataDir  # "/Users/Shared/buildkite-agent-macos"
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
 nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
@@ -181,12 +182,11 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
   as a remote builder (aarch64-linux native; x86_64-linux via qemu-user binfmt in
   the VM) — not a separate Buildkite agent. `docker#` / `docker run -v $PWD`
-  works on this queue: launchd shares `/private` into Podman Machine (Darwin
-  `/var` lives under that tree) and the ensure script symlinks
-  `/var/lib/buildkite-agent-macos` in the guest to
-  `/private/var/lib/buildkite-agent-macos` so `docker run -v $PWD` statfs's the
-  same path. Do not add a nested virtiofs of that checkout — CoreOS never
-  mounts the extra tag and vfkit exits shortly after start. Job API is off
+  works on this queue: checkout lives at `/Users/Shared/buildkite-agent-macos`
+  (`dataDir` / `build-path`) on the default applehv `/Users` virtiofs share so
+  `docker run -v $PWD` works with no guest symlink. Do not put the agent
+  workdir under `/var/lib` (`/private` virtiofs wedges on guest ls/umount) and
+  do not add a nested virtiofs of the checkout. Job API is off
   (`bootstrap --no-job-api` + launchd `BUILDKITE_AGENT_NO_JOB_API=true`);
   unix sockets cannot ride virtiofs and `job-api=false` in extraConfig is
   not an agent-start key. Do not add per-pipeline `docker cp` wrappers. Cluster agent token path:
