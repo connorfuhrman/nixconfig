@@ -89,8 +89,10 @@ nix run .#mac-mini-buildkite-install-token
 ## Nix modules
 
 - `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`
-  (`spawn=2`, name `%hostname-macos-%spawn`, `dataDir` =
-  `/Users/Shared/buildkite-agent-macos`), `trusted-users`, agent workdir + token permissions via `postActivation`,
+  (`spawn=2`, name `%hostname-macos-%spawn`, `dataDir` / user home =
+  `/private/var/lib/buildkite-agent-macos`, `build-path` / `plugins-path` =
+  `/Users/Shared/buildkite-agent-macos/{builds,plugins}`), `trusted-users`,
+  home + checkout dirs + token permissions via `postActivation`,
   Origin `insteadOf` gitconfig + pinned `known_hosts`, launchd
   `GIT_CONFIG_GLOBAL` / `GIT_SSH_COMMAND`, headless `ProcessType = Standard`,
   and launchd kickstart of the macOS agent after activation
@@ -128,14 +130,16 @@ mac-mini:
    sudo darwin-rebuild switch --flake .#mac-mini
    ```
 
-   `postActivation` creates `/Users/Shared/buildkite-agent-macos`, fixes token
-   permissions, and kickstarts the macOS Buildkite launchd daemon.
+   `postActivation` creates `/Users/Shared/buildkite-agent-macos` (`build-path`),
+   keeps Origin SSH under the existing home
+   `/private/var/lib/buildkite-agent-macos`, fixes token permissions, and
+   kickstarts the macOS Buildkite launchd daemon.
 
 3. Confirm **two** agents connected on queue `mac-mini-macos` in
    Buildkite → Agents → Default cluster (`mac-mini-macos-1` and `-2`).
    If launchd still looks like a single process, that is expected (`spawn`
    forks inside one daemon). Check `spawn=` and `bootstrap-script=… --no-job-api`
-   landed in `/Users/Shared/buildkite-agent-macos/buildkite-agent.cfg` (do not paste
+   landed in `/private/var/lib/buildkite-agent-macos/buildkite-agent.cfg` (do not paste
    the token from that file). After kickstart, `launchctl print
    system/org.nixos.buildkite-agent-macos` should show
    `BUILDKITE_AGENT_NO_JOB_API=true`.
@@ -186,8 +190,8 @@ sudo darwin-rebuild switch --flake .#mac-mini
 |---|---|
 | insteadOf | `https://origin.cursor.com/git/` → `git@origin.cursor.com:` |
 | SSH clone | `git@origin.cursor.com:connor-fuhrman/t-hex.git` (no `/git/` prefix) |
-| Private key | `/Users/Shared/buildkite-agent-macos/.ssh/origin_cursor` (mode 600, agent-owned; **never** the Nix store or git) |
-| Agent gitconfig | `/Users/Shared/buildkite-agent-macos/.gitconfig` (also `GIT_CONFIG_GLOBAL` on the launchd job) |
+| Private key | `/private/var/lib/buildkite-agent-macos/.ssh/origin_cursor` (mode 600, agent-owned; **never** the Nix store or git) |
+| Agent gitconfig | `/private/var/lib/buildkite-agent-macos/.gitconfig` (also `GIT_CONFIG_GLOBAL` on the launchd job) |
 
 Install (or rotate) the key on mac-mini. Registers the public key with Origin
 (`origin ssh-key add`, title `mac-mini-buildkite-agent`) and writes gitconfig +
@@ -278,10 +282,13 @@ sets machine memory to 10240 MiB, starts the VM, and maintains
 daemon runs without a login session (`RunAtLoad` + `StartInterval`;
 `KeepAlive.SuccessfulExit = false` so a finished ensure does not restart-loop).
 
-Agent checkout is `/Users/Shared/buildkite-agent-macos` (`dataDir` /
-`build-path`), on the default applehv `/Users` virtiofs share, owned by
+Agent **home** stays `/private/var/lib/buildkite-agent-macos` (`dataDir`, Origin
+SSH, `.gitconfig`). nix-darwin will not change an existing user's home — do
+not set `users.users.buildkite-agent-macos.home` to `/Users/Shared/...`.
+Agent **checkout** is `/Users/Shared/buildkite-agent-macos` (`build-path` /
+`plugins-path`), on the default applehv `/Users` virtiofs share, owned by
 `buildkite-agent-macos:docker`. `docker run -v $PWD` works with no guest
-symlink. Do **not** put the workdir under `/var/lib`: Darwin `/var` is
+symlink. Do **not** put checkout under `/var/lib`: Darwin `/var` is
 `/private/var`, guest `ls`/`umount` of `/private/var/lib/buildkite-agent-macos`
 wedges virtiofs (build 102 hung before flake-check started), and a nested
 virtiofs of that path kills vfkit. Ensure **prunes** extra virtiofs JSON for
@@ -336,6 +343,7 @@ nix flake check .
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.name
+nix eval .#darwinConfigurations.mac-mini.config.users.users.buildkite-agent-macos.home
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.dataDir
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.extraConfig
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.BUILDKITE_AGENT_NO_JOB_API
@@ -352,7 +360,7 @@ On mac-mini after `darwin-rebuild switch`:
 
 ```sh
 sudo launchctl print system/org.nixos.buildkite-agent-macos | grep -E 'state =|last exit'
-sudo tail -20 /Users/Shared/buildkite-agent-macos/buildkite-agent.log
+sudo tail -20 /private/var/lib/buildkite-agent-macos/buildkite-agent.log
 ```
 
 **Done** means Buildkite jobs actually passed on queue `mac-mini-macos` — not

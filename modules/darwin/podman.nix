@@ -16,14 +16,16 @@
       # SIGKILL 137. 10 GiB is the bump that can finish eval without adding
       # another full 8 GiB VM on a 16 GiB host (idle builder pages compress).
       desiredMemoryMiB = "10240";
-      # Must match modules/darwin/buildkite.nix agentHome / dataDir.
-      # applehv already virtiofs-shares /Users; docker run -v $PWD works
-      # there with no guest symlink. /private/var/lib/... wedges virtiofs
-      # (guest ls/umount hang). Do not add a nested virtiofs of this path
-      # (or the old /var/lib checkout): CoreOS never mounts the extra tag
-      # and vfkit has been exiting seconds after start with that device.
+      # Must match modules/darwin/buildkite.nix agentCheckout / build-path.
+      # Agent home stays /private/var/lib/buildkite-agent-macos (nix-darwin
+      # will not move an existing user). applehv virtiofs-shares /Users;
+      # docker run -v $PWD works there with no guest symlink. Guest ls/umount
+      # of /private/var/lib/... wedges virtiofs. Do not add a nested virtiofs
+      # of this path (or the home): CoreOS never mounts the extra tag and
+      # vfkit has been exiting seconds after start with that device.
       agentCheckoutRoot = "/Users/Shared/buildkite-agent-macos";
       oldCheckoutRoot = "/var/lib/buildkite-agent-macos";
+      agentHome = "/private/var/lib/buildkite-agent-macos";
       scriptPath = lib.makeBinPath [
         podman
         pkgs.coreutils
@@ -162,21 +164,22 @@
         fi
 
         # Checkout is on the default /Users share. Prune leftover nested
-        # virtiofs of the new path or the old /var/lib checkout.
+        # virtiofs of the checkout or the agent home (/var/lib or /private/var).
         checkoutRoot="${agentCheckoutRoot}"
         oldCheckoutRoot="${oldCheckoutRoot}"
+        agentHome="${agentHome}"
         mkdir -p "$checkoutRoot"
         jsonPath="$(podman_as_user machine inspect "$machine" --format '{{.ConfigDir.Path}}')/$machine.json"
         volumePy="${volumeEnsurePy}"
         python="${pkgs.python3}/bin/python3"
-        vol_status="$(as_user "$python" "$volumePy" --status "$jsonPath" "$checkoutRoot" "$oldCheckoutRoot")"
+        vol_status="$(as_user "$python" "$volumePy" --status "$jsonPath" "$checkoutRoot" "$oldCheckoutRoot" "$agentHome")"
         if [ "$vol_status" = "needed" ]; then
           echo "Podman machine virtiofs: dropping nested checkout shares (covered by /Users)"
           if [ "$state" = "running" ]; then
             podman_as_user machine stop "$machine"
             state=stopped
           fi
-          as_user "$python" "$volumePy" --prune "$jsonPath" "$checkoutRoot" "$oldCheckoutRoot"
+          as_user "$python" "$volumePy" --prune "$jsonPath" "$checkoutRoot" "$oldCheckoutRoot" "$agentHome"
         fi
 
         if [ "$state" = "starting" ]; then
