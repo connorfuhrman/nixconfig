@@ -70,7 +70,7 @@ echo "--- :nix: build ${attr}"
 nix_build_args=(--accept-flake-config -L --no-link --print-out-paths)
 if [[ "${target}" != "iso" ]]; then
   # Mirror configure_mac_mini_installer_build caps on the CLI (build #120/#125).
-  nix_build_args+=(--max-jobs 1 --cores "${NIX_BUILD_CORES:-1}" --system aarch64-linux)
+  nix_build_args+=(--max-jobs "${INSTALLER_PARALLEL_MAX_JOBS:-1}" --cores "${NIX_BUILD_CORES:-6}" --system aarch64-linux)
 fi
 out_path=$(nix build "${nix_build_args[@]}" "${attr}")
 echo "out path: ${out_path}"
