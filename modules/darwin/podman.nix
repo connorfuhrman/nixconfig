@@ -291,7 +291,10 @@
         else
           echo "Guest: $checkoutRoot -> /private$checkoutRoot"
           guestParent="$(dirname "$checkoutRoot")"
-          podman_as_user machine ssh "$machine" -- "sudo umount '$checkoutRoot' >/dev/null 2>&1 || true"
+          # umount(8) follows symlinks. If $checkoutRoot is already the
+          # /private mapping, umount would target the virtiofs share and hang
+          # (~12+ min). Skip umount/rmdir when the path is a symlink.
+          podman_as_user machine ssh "$machine" -- "if [ -L '$checkoutRoot' ]; then echo 'guest $checkoutRoot already symlink'; else sudo umount '$checkoutRoot' >/dev/null 2>&1 || true; fi"
           podman_as_user machine ssh "$machine" -- "if [ -d '$checkoutRoot' ] && [ ! -L '$checkoutRoot' ]; then sudo rmdir '$checkoutRoot' || true; fi"
           podman_as_user machine ssh "$machine" -- "sudo mkdir -p '$guestParent' && sudo ln -sfn '/private$checkoutRoot' '$checkoutRoot'" || true
         fi

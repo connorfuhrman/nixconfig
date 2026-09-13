@@ -42,15 +42,19 @@
         # Host is 16 GiB; linux-builder is ~8 GiB. spawn=2 is two concurrent
         # Darwin jobs; 4+ oversubscribes RAM if those jobs also use the builder
         # (or Podman Machine, once that lands).
-        # Unix sockets cannot ride virtiofs. docker-buildkite-plugin bind-mounts
-        # BUILDKITE_AGENT_JOB_API_SOCKET when set; agent 3.129 overwrites an
-        # empty step env. Disable Job API on this Darwin agent so every pipeline
-        # can use docker# without a per-step hack.
+        # Unix sockets cannot ride virtiofs. docker-buildkite-plugin v5.14.0
+        # bind-mounts BUILDKITE_AGENT_JOB_API_SOCKET when set
+        # (`[[ -n "${BUILDKITE_AGENT_JOB_API_SOCKET:-}" ]]`). Agent 3.129
+        # overwrites an empty step env and always starts Job API unless
+        # bootstrap gets --no-job-api. `job-api=false` is NOT an agent-start
+        # key (live cfg had it; Job API still ran). nix-darwin has no
+        # commandLine option — extraConfig bootstrap-script + launchd
+        # BUILDKITE_AGENT_NO_JOB_API is the agent-level disable.
         extraConfig = ''
           debug=true
           plugins-path="${agentHome}/plugins"
           spawn=2
-          job-api=false
+          bootstrap-script="${config.services.buildkite-agents.macos.package}/bin/buildkite-agent bootstrap --no-job-api"
         '';
         tags = {
           queue = "mac-mini-macos";
@@ -80,6 +84,8 @@
         environment.DOCKER_HOST = "unix:///var/run/docker.sock";
         # Podman honors CONTAINER_HOST, not DOCKER_HOST.
         environment.CONTAINER_HOST = "unix:///var/run/docker.sock";
+        # Bootstrap EnvVar for --no-job-api (inherited via os.Environ()).
+        environment.BUILDKITE_AGENT_NO_JOB_API = "true";
         serviceConfig.ProcessType = lib.mkForce "Standard";
       };
 

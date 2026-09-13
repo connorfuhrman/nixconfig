@@ -133,9 +133,11 @@ mac-mini:
 3. Confirm **two** agents connected on queue `mac-mini-macos` in
    Buildkite → Agents → Default cluster (`mac-mini-macos-1` and `-2`).
    If launchd still looks like a single process, that is expected (`spawn`
-   forks inside one daemon). Check `spawn=` landed in
-   `/var/lib/buildkite-agent-macos/buildkite-agent.cfg` (do not paste the
-   token from that file).
+   forks inside one daemon). Check `spawn=` and `bootstrap-script=… --no-job-api`
+   landed in `/var/lib/buildkite-agent-macos/buildkite-agent.cfg` (do not paste
+   the token from that file). After kickstart, `launchctl print
+   system/org.nixos.buildkite-agent-macos` should show
+   `BUILDKITE_AGENT_NO_JOB_API=true`.
 
 **Token-only reinstall** (skip darwin-rebuild if config unchanged):
 
@@ -284,10 +286,19 @@ virtiofs of `/var/lib/buildkite-agent-macos` (nested inside `/private`):
 CoreOS never mounts the extra tag, and vfkit has been dying seconds after
 start with that device. `/Users` is already a default share.
 
-Unix sockets cannot ride virtiofs. `modules/darwin/buildkite.nix` sets
-`job-api=false` on the Darwin agent so docker-buildkite-plugin does not
-bind-mount `BUILDKITE_AGENT_JOB_API_SOCKET`. That is agent-wide; do not rely
-on step env (agent 3.129 overwrites an empty value).
+Unix sockets cannot ride virtiofs. docker-buildkite-plugin v5.14.0
+bind-mounts `BUILDKITE_AGENT_JOB_API_SOCKET` when that env is non-empty.
+Agent 3.129 Job API is a **bootstrap** flag (`--no-job-api` /
+`BUILDKITE_AGENT_NO_JOB_API`), not an agent-start key: `job-api=false` in
+`extraConfig` was present on the live cfg and Job API still ran (build 93).
+nix-darwin has no `commandLine` option. Disable it agent-wide via
+`bootstrap-script=… bootstrap --no-job-api` plus launchd
+`BUILDKITE_AGENT_NO_JOB_API=true`. Do not rely on step env (agent overwrites
+an empty `BUILDKITE_AGENT_JOB_API_SOCKET`).
+
+The periodic ensure must not `umount` the guest checkout path when it is
+already a symlink (umount follows the link onto `/private` virtiofs and
+hangs).
 
 **Volumes + Job API need `darwin-rebuild`.** Do not retry CI until this host
 has switched to a generation that includes those launchd changes:
@@ -321,9 +332,9 @@ nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.name
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.extraConfig
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.BUILDKITE_AGENT_NO_JOB_API
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.DOCKER_HOST
-nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.extraConfig
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.path # includes *-podman-docker-compat-*/bin
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.KeepAlive
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program

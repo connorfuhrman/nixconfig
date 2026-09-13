@@ -186,9 +186,10 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `/var/lib/buildkite-agent-macos` in the guest to
   `/private/var/lib/buildkite-agent-macos` so `docker run -v $PWD` statfs's the
   same path. Do not add a nested virtiofs of that checkout — CoreOS never
-  mounts the extra tag and vfkit exits shortly after start. The agent sets
-  `job-api=false` (unix sockets cannot ride virtiofs). Do
-  not add per-pipeline `docker cp` wrappers. Cluster agent token path:
+  mounts the extra tag and vfkit exits shortly after start. Job API is off
+  (`bootstrap --no-job-api` + launchd `BUILDKITE_AGENT_NO_JOB_API=true`);
+  unix sockets cannot ride virtiofs and `job-api=false` in extraConfig is
+  not an agent-start key. Do not add per-pipeline `docker cp` wrappers. Cluster agent token path:
   `/etc/buildkite-agent/cluster.token` (never in the Nix store). Install on
   mac-mini via `nix run .#mac-mini-buildkite-install-token` (reads `bkct_`
   token from 1Password account `aztec_fuhrmans`,
