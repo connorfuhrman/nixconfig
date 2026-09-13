@@ -125,6 +125,8 @@ nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
+nix eval .#darwinConfigurations.macbook.config.nix.settings.trusted-users  # includes "connorfuhrman"
+nix eval .#homeConfigurations.\"connorfuhrman@macbook\".config.home.backupFileExtension  # "backup"
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
