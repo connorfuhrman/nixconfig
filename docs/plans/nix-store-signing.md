@@ -20,34 +20,43 @@ Modules:
 | `generic.nix-store-trust` | mac-mini, macbook, mbp14, nuc, cluster roles | Trust `mac-mini-1` public key; set `trusted-users` |
 | `darwin.nix-store-sign` | mac-mini only | `nix.settings.secret-key-files` |
 
-## One-time key generation (mac-mini only)
+## One-time setup (mac-mini only)
 
-Run on **mac-mini** as a user who can write the secret path and rebuild:
+From the flake checkout on **mac-mini**:
+
+```sh
+nix run .#mac-mini-install-nix-store-signing
+```
+
+This idempotent installer:
+
+1. Creates `/etc/nix/keys/` and installs `/etc/nix/keys/mac-mini-1.secret`
+   (generates via `nix key generate-secret` if missing; validates if present).
+2. Derives the public key and updates `modules/generic/keys/mac-mini.public`
+   when run inside the flake checkout (overwrites the placeholder).
+3. Recursively signs `/run/current-system` when it exists.
+
+Flags:
+
+| Flag | Effect |
+|---|---|
+| `--no-write-public` | Do not update `modules/generic/keys/mac-mini.public` |
+| `--no-sign` | Skip `nix store sign --recursive` on `/run/current-system` |
+
+**Never** commit `/etc/nix/keys/mac-mini-1.secret` or copy it off the machine.
+Optional: back up the secret in 1Password (not automated by the installer).
+
+### Manual fallback
+
+If `nix run` is unavailable:
 
 ```sh
 sudo mkdir -p /etc/nix/keys
-sudo chown root:wheel /etc/nix/keys
-sudo chmod 755 /etc/nix/keys
-
-nix key generate-secret --key-name mac-mini-1 \
-  | sudo tee /etc/nix/keys/mac-mini-1.secret
+nix key generate-secret --key-name mac-mini-1 | sudo tee /etc/nix/keys/mac-mini-1.secret
 sudo chmod 600 /etc/nix/keys/mac-mini-1.secret
-sudo chown root:wheel /etc/nix/keys/mac-mini-1.secret
-```
-
-Alternative layout (`/var/lib/nix/…`) is fine if you update
-`darwin.nix-store-sign` to match — keep the secret **outside** the git repo.
-
-Extract the **public** key (safe to paste into git):
-
-```sh
 nix key convert-secret-to-public < /etc/nix/keys/mac-mini-1.secret
+# paste output into modules/generic/keys/mac-mini.public
 ```
-
-Replace the placeholder in `modules/generic/keys/mac-mini.public` with that
-single line (no comments in the file), commit, and rebuild mac-mini.
-
-**Never** commit `/etc/nix/keys/mac-mini-1.secret` or copy it off the machine.
 
 ## Rebuild mac-mini (signer)
 
@@ -58,24 +67,15 @@ After the public key is in the flake and the secret is on disk:
 sudo darwin-rebuild switch --flake .#mac-mini
 ```
 
-New builds from mac-mini are signed automatically. **Existing** unsigned paths
-still need a one-time recursive sign (on mac-mini):
-
-```sh
-sudo nix store sign --recursive \
-  --key-file /etc/nix/keys/mac-mini-1.secret \
-  /run/current-system
-```
-
-Repeat after major switches if you copy old closures, or sign specific paths:
+New builds from mac-mini are signed automatically. The installer signs
+`/run/current-system` by default; re-run with `--no-write-public` after major
+switches if you need to re-sign, or sign a specific path:
 
 ```sh
 sudo nix store sign --recursive \
   --key-file /etc/nix/keys/mac-mini-1.secret \
   /nix/store/<hash>-darwin-system-<version>
 ```
-
-Agents cannot run `nix store sign` from Nix eval — this is a manual/ops step.
 
 ## Rebuild clients (trust)
 
@@ -122,10 +122,10 @@ Should succeed **without** `--no-check-sigs`.
 ## Validation (eval-only, dev machine)
 
 ```sh
-git add modules/generic/nix-store-trust.nix modules/generic/keys/mac-mini.public \
-  modules/darwin/nix-store-sign.nix docs/plans/nix-store-signing.md
+git add pkgs/mac-mini-install-nix-store-signing.nix pkgs/default.nix modules/pkgs.nix
 nix flake check .
+nix eval .#apps.aarch64-darwin.mac-mini-install-nix-store-signing.program
 nix eval .#darwinConfigurations.mac-mini.config.nix.settings.secret-key-files
-nix eval .#darwinConfigurations.macbook.config.nix.settings.extra-trusted-public-keys --apply 'keys: builtins.elem "mac-mini-1:PLACEHOLDER_REPLACE_WITH_nix_key_convert-secret-to-public_OUTPUT" keys'
+nix eval .#darwinConfigurations.macbook.config.nix.settings.extra-trusted-public-keys --apply 'ks: builtins.any (k: builtins.match "mac-mini-1:.*" k != null) ks'
 nix eval .#nixosConfigurations.mbp14.config.nix.settings.trusted-users
 ```

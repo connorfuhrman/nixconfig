@@ -5,5 +5,6 @@ final: prev: {
   cursor-cloud-setup = final.callPackage ./cursor-cloud-setup.nix { };
   mac-mini-buildkite-install-token = final.callPackage ./mac-mini-buildkite-install-token.nix { };
   mac-mini-buildkite-install-origin-ssh = final.callPackage ./mac-mini-buildkite-install-origin-ssh.nix { };
+  mac-mini-install-nix-store-signing = final.callPackage ./mac-mini-install-nix-store-signing.nix { };
   origin = final.callPackage ./origin.nix { };
 }
