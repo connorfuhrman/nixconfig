@@ -42,6 +42,25 @@
         agentUser
       ];
 
+      # build #129: installer steps need to restart linux-builder after ENOSPC crashes.
+      security.sudo.extraRules = [
+        {
+          users = [ agentUser ];
+          commands = [
+            {
+              command = "/usr/bin/launchctl";
+              options = [ "NOPASSWD" ];
+              args = [ "kickstart" "-k" "system/org.nixos.linux-builder" ];
+            }
+            {
+              command = "/usr/bin/launchctl";
+              options = [ "NOPASSWD" ];
+              args = [ "kickstart" "system/org.nixos.linux-builder" ];
+            }
+          ];
+        }
+      ];
+
       launchd.daemons.buildkite-agent-macos = {
         serviceConfig.ProcessType = lib.mkForce "Standard";
       };

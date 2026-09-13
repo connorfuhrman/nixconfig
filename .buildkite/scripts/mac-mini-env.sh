@@ -27,15 +27,35 @@ ensure_linux_builder_ssh() {
     | grep -v '^#' >> "${ssh_dir}/known_hosts" || true
 }
 
+kickstart_linux_builder_vm() {
+  # build #129: VM stayed down 30+ min after mac-mini package/nixos steps; nix
+  # store info never recovered until launchd restarts org.nixos.linux-builder.
+  echo "--- :rocket: kickstart linux-builder VM (launchd)"
+  if sudo -n launchctl kickstart -k system/org.nixos.linux-builder 2>/dev/null; then
+    echo "+++ kickstarted system/org.nixos.linux-builder"
+    return 0
+  fi
+  if sudo -n launchctl kickstart system/org.nixos.linux-builder 2>/dev/null; then
+    echo "+++ started system/org.nixos.linux-builder"
+    return 0
+  fi
+  echo "launchctl kickstart skipped (no passwordless sudo for buildkite agent)"
+  return 0
+}
+
 wait_linux_builder_store() {
   # build #126: asahi-iso hit platform mismatch when linux-builder VM was down
   # (Connection closed on 127.0.0.1:31022). Poll via nix daemon, not agent ssh.
   echo "--- :hourglass: wait for linux-builder store"
+  kickstart_linux_builder_vm
   local attempt
   for attempt in $(seq 1 180); do
     if nix store info --store 'ssh-ng://builder@linux-builder' &>/dev/null; then
       echo "+++ linux-builder store ready (attempt ${attempt})"
       return 0
+    fi
+    if (( attempt % 6 == 0 )); then
+      kickstart_linux_builder_vm
     fi
     echo "linux-builder not ready (${attempt}/180), sleeping 10s..."
     sleep 10
