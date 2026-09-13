@@ -26,6 +26,7 @@
       # linux package set is x86_64-centric; would risk aarch64 eval breakage.
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
+      config.flake.modules.generic.nix-store-trust
       config.flake.modules.nixos.ray-head
       ./rpi/_hardware-configuration.nix
     ];

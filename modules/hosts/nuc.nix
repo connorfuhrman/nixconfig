@@ -8,6 +8,7 @@
       config.flake.modules.nixos.obsidian
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
+      config.flake.modules.generic.nix-store-trust
       ./nuc/_hardware-configuration.nix
     ];
 

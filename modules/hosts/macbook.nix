@@ -6,6 +6,7 @@
       config.flake.modules.darwin.obsidian
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
+      config.flake.modules.generic.nix-store-trust
     ];
 
     networking.hostName = "macbook";

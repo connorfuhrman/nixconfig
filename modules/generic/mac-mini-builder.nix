@@ -7,6 +7,11 @@
   # access must work for root as well (system ssh_config IdentityFile, or a
   # key root can read). Prefer 1Password SSH agent once rolled out — see
   # docs/plans/1password-ssh-workplan.md.
+  #
+  # Closures built on mac-mini must be signed and trusted on clients — see
+  # generic.nix-store-trust and docs/plans/nix-store-signing.md. ssh-ng query
+  # params (e.g. ?trusted=true) do not skip destination signature checks on
+  # `nix copy --from`.
   flake.modules.generic.mac-mini-builder = { lib, ... }: {
     nix.distributedBuilds = true;
 

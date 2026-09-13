@@ -30,6 +30,7 @@ let
     "cursor-cloud-setup"
     "mac-mini-buildkite-install-token"
     "mac-mini-buildkite-install-origin-ssh"
+    "mac-mini-install-nix-store-signing"
     "origin"
   ];
 in
@@ -58,6 +59,10 @@ in
       apps.mac-mini-buildkite-install-origin-ssh = {
         type = "app";
         program = "${pkgs.mac-mini-buildkite-install-origin-ssh}/bin/mac-mini-buildkite-install-origin-ssh";
+      };
+      apps.mac-mini-install-nix-store-signing = {
+        type = "app";
+        program = "${pkgs.mac-mini-install-nix-store-signing}/bin/mac-mini-install-nix-store-signing";
       };
     };
 }
