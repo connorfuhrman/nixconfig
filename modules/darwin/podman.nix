@@ -35,27 +35,41 @@
         builtins.readFile ./_podman/ensure-volumes.py
       );
 
+      # Substitute placeholders at eval time from the *source* files.
+      # `builtins.readFile (pkgs.replaceVars …)` is IFD and forces a Darwin
+      # build when Linux CI evaluates darwinConfigurations.mac-mini.
       podmanMachineEnsure = pkgs.writeShellScript "podman-machine-ensure" (
-        builtins.readFile (pkgs.replaceVars ./_podman/machine-ensure.sh {
-          inherit
+        builtins.replaceStrings
+          [
+            "@scriptPath@"
+            "@primaryUser@"
+            "@desiredMemoryMiB@"
+            "@agentCheckoutRoot@"
+            "@oldCheckoutRoot@"
+            "@agentHome@"
+            "@podman@"
+            "@volumeEnsurePy@"
+            "@python3@"
+          ]
+          [
             scriptPath
             primaryUser
             desiredMemoryMiB
             agentCheckoutRoot
             oldCheckoutRoot
             agentHome
-            ;
-          podman = "${podman}/bin/podman";
-          volumeEnsurePy = "${volumeEnsurePy}";
-          python3 = "${pkgs.python3}/bin/python3";
-        })
+            "${podman}/bin/podman"
+            "${volumeEnsurePy}"
+            "${pkgs.python3}/bin/python3"
+          ]
+          (builtins.readFile ./_podman/machine-ensure.sh)
       );
 
       podmanDockerProxy = pkgs.writeShellScript "podman-docker-proxy" (
-        builtins.readFile (pkgs.replaceVars ./_podman/docker-proxy.sh {
-          inherit dockerGid;
-          socat = "${pkgs.socat}/bin/socat";
-        })
+        builtins.replaceStrings
+          [ "@socat@" "@dockerGid@" ]
+          [ "${pkgs.socat}/bin/socat" dockerGid ]
+          (builtins.readFile ./_podman/docker-proxy.sh)
       );
     in
     {
