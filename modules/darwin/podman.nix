@@ -21,11 +21,15 @@
       # checkout is /var/lib/buildkite-agent-macos — docker-buildkite-plugin
       # bind-mounts $PWD and the Linux engine statfs's that path in the VM.
       agentCheckoutRoot = "/var/lib/buildkite-agent-macos";
+      # podman machine ssh exec's `ssh` from PATH. Launchd's default PATH is
+      # only the nix bins below; without openssh the guest virtiofs check and
+      # /private bind-mount fallback exit 127 and KeepAlive crash-loops.
       scriptPath = lib.makeBinPath [
         podman
         pkgs.coreutils
         pkgs.gnugrep
-      ];
+        pkgs.openssh
+      ] + ":/usr/bin";
 
       # `podman machine set` has no --volume on 5.8. Tags are sha256(source)[:36]
       # (same as podman machine init -v).
@@ -193,9 +197,18 @@
           as_user "$python" "$volumePy" --apply "$jsonPath" "/Users:/Users" "$checkoutRoot:$checkoutRoot"
         fi
 
-        if [ "$state" != "running" ]; then
-          podman_as_user machine start "$machine"
+        if [ "$state" = "starting" ]; then
+          echo "Podman machine already starting; waiting"
+        elif [ "$state" != "running" ]; then
+          podman_as_user machine start "$machine" || true
         fi
+        for _ in $(seq 1 60); do
+          state="$(podman_as_user machine inspect "$machine" --format '{{.State}}' 2>/dev/null || echo stopped)"
+          if [ "$state" = "running" ]; then
+            break
+          fi
+          sleep 1
+        done
 
         resolve_sock() {
           local candidate=""
@@ -278,10 +291,22 @@
         # After the API is up, SSH works. If JSON Mounts did not attach
         # (applehv ignored the extra share), bind the already-virtiofs'd
         # /private tree so docker -v $PWD still statfs's a real guest path.
-        if ! podman_as_user machine ssh "$machine" -- grep -F " $checkoutRoot " /proc/mounts >/dev/null 2>&1; then
+        # Never fail the daemon here: missing ssh on PATH used to exit 127,
+        # KeepAlive-restart, and race `podman machine start` against a live VM.
+        ssh_ready=0
+        for _ in $(seq 1 30); do
+          if podman_as_user machine ssh "$machine" -- true >/dev/null 2>&1; then
+            ssh_ready=1
+            break
+          fi
+          sleep 1
+        done
+        if [ "$ssh_ready" != 1 ]; then
+          echo "WARNING: podman machine ssh not ready; guest virtiofs check skipped" >&2
+        elif ! podman_as_user machine ssh "$machine" -- grep -F " $checkoutRoot " /proc/mounts >/dev/null 2>&1; then
           echo "WARNING: virtiofs $checkoutRoot missing in guest; bind-mounting /private$checkoutRoot"
-          podman_as_user machine ssh "$machine" -- sudo mkdir -p "$checkoutRoot"
-          podman_as_user machine ssh "$machine" -- sudo mount --bind "/private$checkoutRoot" "$checkoutRoot"
+          podman_as_user machine ssh "$machine" -- sudo mkdir -p "$checkoutRoot" || true
+          podman_as_user machine ssh "$machine" -- sudo mount --bind "/private$checkoutRoot" "$checkoutRoot" || true
         fi
 
         echo "podman $machine running (rootful, ${desiredMemoryMiB} MiB, virtiofs $checkoutRoot); proxy $listen -> $sock"
@@ -336,7 +361,7 @@
       # Root launchd: machine is owned by primaryUser; the proxy listen sock is
       # root:docker so the agent never opens the 700 TMPDIR path.
       launchd.daemons.podman-machine = {
-        path = with pkgs; [ podman coreutils gnugrep ];
+        path = with pkgs; [ podman coreutils gnugrep openssh ];
         script = "${podmanMachineEnsure}";
         serviceConfig = {
           RunAtLoad = true;
