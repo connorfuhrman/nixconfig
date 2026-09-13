@@ -19,7 +19,32 @@ pipeline upload. Self-hosted steps use **native Nix** — no Docker plugin.
 - **Permissions:** `0600`, root-owned
 - **Never** commit the token value or put it in the Nix store
 - One cluster-scoped token; each agent selects its queue via `tags.queue`
-- Optional 1Password backup via `op item create` when `op` is signed in
+
+### 1Password item layout
+
+Store the cluster agent token (prefix `bkct_`) in 1Password — not a personal API
+token:
+
+| Property | Value |
+|---|---|
+| Account | Fuhrmans |
+| Vault | Private |
+| Item title | Buildkite |
+| Field | `credential` (or `password` on a Login item) |
+
+Verify read access before install:
+
+```sh
+eval "$(op signin --account Fuhrmans)"
+op read --account Fuhrmans "op://Private/Buildkite/credential"
+# should print a bkct_… token
+```
+
+Install to the host (mac-mini only):
+
+```sh
+nix run .#mac-mini-buildkite-install-token
+```
 
 ## Nix modules
 
@@ -39,13 +64,22 @@ cluster. Remaining steps on mac-mini:
 
 ```sh
 cd ~/nixconfig && git pull origin main   # or your feature branch until merged
-export BUILDKITE_API_TOKEN='…'   # personal token with write_clusters
+eval "$(op signin --account Fuhrmans)"
 ./scripts/mac-mini-buildkite-bootstrap.sh
 ```
 
-**Manual:**
+The bootstrap script calls `nix run .#mac-mini-buildkite-install-token` when the
+token file is missing, then `darwin-rebuild switch`.
 
-1. Create a cluster agent token (Buildkite UI or REST `POST …/clusters/{id}/tokens`)
+**Token only** (skip darwin-rebuild):
+
+```sh
+nix run .#mac-mini-buildkite-install-token
+```
+
+**Manual fallback** (if 1Password is unavailable):
+
+1. Create a cluster agent token in Buildkite → Agents → Default cluster → Agent tokens
 2. `sudo install -m 600 -o root -g root /path/to/token /etc/buildkite-agent/cluster.token`
 3. `sudo darwin-rebuild switch --flake .#mac-mini`
 4. Confirm agents connected; token sync copies token into the VM
@@ -90,6 +124,7 @@ nix flake check .
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.ephemeral
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
+nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
 ```
 
 **Done** means Buildkite jobs actually passed on both self-hosted queues — not
