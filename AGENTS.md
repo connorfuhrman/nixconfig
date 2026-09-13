@@ -240,6 +240,15 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   the Nix installation. `nix.linux-builder` stays. Revisit if it matures.
 - **stateVersion types differ:** NixOS/home-manager use strings (`"25.11"`),
   nix-darwin uses an integer (`5`).
+- **Home-manager clobber on first Darwin activation:** `programs.zsh.enable`
+  manages `~/.zprofile`. The official Nix installer already writes that file
+  on macOS, so standalone `home-manager switch` aborts with "would be
+  clobbered". `home.backupFileExtension = "backup"` in `homeManager.base`
+  renames the existing file to `~/.zprofile.backup`. Do not `force = true`.
+- **Untrusted substituter on Darwin:** flake `nixConfig.extra-substituters`
+  is ignored unless the invoking user is in `nix.settings.trusted-users`.
+  `darwin.system` sets `connorfuhrman`; without it, `nix develop` warns
+  about `nixos-apple-silicon.cachix.org` and `trusted-public-keys`.
 - `_hardware-configuration.nix` files are TEMPLATES — real values come from
   `nixos-generate-config` on target hardware (see INSTALL.md).
 - Keep this repo **private**: `firmware/` contains extracted Apple firmware.

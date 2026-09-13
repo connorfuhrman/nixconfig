@@ -7,6 +7,11 @@
 
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+    # User-level `nix develop` / home-manager honor flake `nixConfig`
+    # extra-substituters only for trusted users. Without this, macbook
+    # ignores nixos-apple-silicon.cachix.org and extra-trusted-public-keys.
+    nix.settings.trusted-users = [ "connorfuhrman" ];
+
     # nix-darwin manages the Nix daemon. Set to false if macOS Nix was
     # installed with the Determinate Systems installer instead.
     nix.enable = true;
