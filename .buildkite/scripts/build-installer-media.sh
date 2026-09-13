@@ -37,8 +37,17 @@ fi
 echo "+++ :package: artifacts"
 printf '  %s\n' "${artifacts[@]}"
 
+# Copy out of the nix store (result is often a symlink) so hosted Docker steps
+# and artifact_paths can see files on the mounted checkout after the step ends.
+out_dir="installer-artifacts/${target}"
+rm -rf "${out_dir}"
+mkdir -p "${out_dir}"
 for path in "${artifacts[@]}"; do
-  buildkite-agent artifact upload "${path}"
+  cp -L "${path}" "${out_dir}/$(basename "${path}")"
 done
+
+if command -v buildkite-agent >/dev/null 2>&1; then
+  buildkite-agent artifact upload "${out_dir}/*"
+fi
 
 echo "+++ :white_check_mark: ${target} build and artifact upload succeeded"

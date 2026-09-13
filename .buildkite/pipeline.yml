@@ -43,17 +43,23 @@ steps:
       - label: ":cd: x86_64 installer ISO"
         key: build-iso
         command: .buildkite/scripts/build-installer-media.sh iso
+        artifact_paths:
+          - "installer-artifacts/iso/**/*"
         timeout_in_minutes: 180
         <<: [*nix-docker, *linux-medium, *retry-once]
 
       - label: ":apple: Asahi installer ISO"
         key: build-asahi-iso
         command: .buildkite/scripts/build-installer-media.sh asahi-iso
+        artifact_paths:
+          - "installer-artifacts/asahi-iso/**/*"
         timeout_in_minutes: 240
         <<: [*mac-mini-macos, *retry-once]
 
       - label: ":raspberry_pi: Pi SD image"
         key: build-rpi-iso
         command: .buildkite/scripts/build-installer-media.sh rpi-iso
+        artifact_paths:
+          - "installer-artifacts/rpi-iso/**/*"
         timeout_in_minutes: 240
         <<: [*mac-mini-macos, *retry-once]
