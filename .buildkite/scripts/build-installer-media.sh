@@ -12,13 +12,29 @@ target="${1:?usage: build-installer-media.sh <iso|asahi-iso|rpi-iso>}"
 
 gc_linux_builder() {
   echo "--- :broom: gc linux-builder (free disk before large installer image)"
-  # Best-effort; installer images are multi-GB and parallel mac-mini steps can
-  # exhaust the persistent linux-builder VM disk (see build #95 / #101).
+  # Best-effort; installer images are multi-GB and the persistent linux-builder
+  # VM disk can fill (build #95 / #101 / #120: `0 store paths deleted`).
   ensure_linux_builder_ssh
-  nix store gc --store 'ssh-ng://builder@linux-builder' 2>/dev/null \
-    || ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
-      'nix-collect-garbage -d' 2>/dev/null \
-    || true
+
+  log_linux_builder_disk() {
+    ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
+      'df -h /nix/store /tmp 2>/dev/null || df -h' 2>/dev/null || true
+  }
+
+  echo "+++ linux-builder disk before gc"
+  log_linux_builder_disk
+
+  # Tier 1: daemon GC via ssh-ng store (respects active builds).
+  nix store gc --store 'ssh-ng://builder@linux-builder' 2>&1 || true
+
+  # Tier 2: drop old generations then unreachable store paths on the VM.
+  ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
+    'nix-collect-garbage -d --delete-older-than 7d' 2>&1 || true
+  ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
+    'nix-collect-garbage -d' 2>&1 || true
+
+  echo "+++ linux-builder disk after gc"
+  log_linux_builder_disk
 }
 
 case "${target}" in
@@ -42,6 +58,7 @@ case "${target}" in
 esac
 
 if [[ "${target}" != "iso" ]]; then
+  configure_mac_mini_installer_build
   gc_linux_builder
 fi
 

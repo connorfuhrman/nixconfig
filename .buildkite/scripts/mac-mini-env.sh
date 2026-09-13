@@ -26,3 +26,15 @@ ensure_linux_builder_ssh() {
   ssh-keyscan -p 31022 -H linux-builder 127.0.0.1 2>/dev/null \
     | grep -v '^#' >> "${ssh_dir}/known_hosts" || true
 }
+
+configure_mac_mini_installer_build() {
+  # build #120: linux-asahi link steps (amdgpu.o, ubifs.o) failed under
+  # linux-builder maxJobs=8 on an 8GiB VM; keep installer media builds gentle.
+  export NIX_BUILD_CORES="${NIX_BUILD_CORES:-2}"
+  local additions=$'max-jobs = 2\nbuilders-use-substitutes = true\nextra-substituters = https://nixos-apple-silicon.cachix.org https://cache.nixos.org\nextra-trusted-public-keys = nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20= cache.nixos.org-1:6NCHdD59X431o0gWyp1MrYtA1W29A03ad25ERVQ9Fb0= cache.nixos.org-1:fj7Fj4A0i1u5w0Wd6T1cxxXZ30KHC4GKn2ax4P4CjY4='
+  if [[ -n "${NIX_CONFIG:-}" ]]; then
+    export NIX_CONFIG="${NIX_CONFIG}"$'\n'"${additions}"
+  else
+    export NIX_CONFIG="${additions}"
+  fi
+}
