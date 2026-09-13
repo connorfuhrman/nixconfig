@@ -126,7 +126,6 @@ nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
 nix eval .#darwinConfigurations.macbook.config.nix.settings.trusted-users  # includes "connorfuhrman"
-nix eval .#homeConfigurations.\"connorfuhrman@macbook\".config.home.backupFileExtension  # "backup"
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
@@ -245,8 +244,10 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 - **Home-manager clobber on first Darwin activation:** `programs.zsh.enable`
   manages `~/.zprofile`. The official Nix installer already writes that file
   on macOS, so standalone `home-manager switch` aborts with "would be
-  clobbered". `home.backupFileExtension = "backup"` in `homeManager.base`
-  renames the existing file to `~/.zprofile.backup`. Do not `force = true`.
+  clobbered". There is no standalone `home.backupFileExtension` option —
+  `homeManager.base` exports `HOME_MANAGER_BACKUP_EXT=backup` before
+  `checkLinkTargets`, and `switch-darwin` also passes `-b backup`. The
+  existing file becomes `~/.zprofile.backup`. Do not `force = true`.
 - **Untrusted substituter on Darwin:** flake `nixConfig.extra-substituters`
   is ignored unless the invoking user is in `nix.settings.trusted-users`.
   `darwin.system` sets `connorfuhrman`; without it, `nix develop` warns
