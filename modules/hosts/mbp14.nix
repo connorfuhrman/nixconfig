@@ -14,6 +14,9 @@
       ./mbp14/_hardware-configuration.nix
     ];
 
+    # apple-silicon-support (main) expects pkgs.avd-fw from the upstream overlay.
+    nixpkgs.overlays = [ inputs.nixos-apple-silicon.overlays.default ];
+
     networking.hostName = "mbp14";
     system.stateVersion = "25.11";
   };
