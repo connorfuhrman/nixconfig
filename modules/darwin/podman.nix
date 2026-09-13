@@ -356,6 +356,10 @@
           KeepAlive = {
             SuccessfulExit = false;
           };
+          # `podman machine start` leaves vfkit+gvproxy in this job's process
+          # group. launchd otherwise SIGTERMs them when the one-shot ensure
+          # exits 0 (~1 min after "started successfully").
+          AbandonProcessGroup = true;
           StandardOutPath = "/var/log/podman-machine.log";
           StandardErrorPath = "/var/log/podman-machine.log";
         };
