@@ -16,7 +16,7 @@ pipeline upload. Self-hosted steps use **native Nix** — no Docker plugin.
 ## Cluster agent token
 
 - **Path on host and guest:** `/etc/buildkite-agent/cluster.token`
-- **Permissions (host):** `0640`, `root:buildkite-agent-macos` (agent user must read the token)
+- **Permissions (host):** `0640`, `root:buildkite-agent-macos` (set by nix-darwin `postActivation`)
 - **Permissions (linux-builder guest):** `0640`, `root:buildkite-agent-linux` (installed by token-sync)
 - **Never** commit the token value or put it in the Nix store
 - One cluster-scoped token; each agent selects its queue via `tags.queue`
@@ -59,55 +59,64 @@ op read "op://Private/Buildkite/credential" \
 # if read fails: eval "$(op signin --account aztec_fuhrmans)"
 ```
 
-Install to the host (mac-mini only). Both paths use Homebrew `op`
-(`/opt/homebrew/bin/op` or `$OP`) and write via `mktemp` + `install -g wheel`
+Install to the host (mac-mini only). Uses Homebrew `op`
+(`/opt/homebrew/bin/op` or `$OP`) and writes via `mktemp` + `install -g wheel`
 (BSD `install` rejects `/dev/stdin`).
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
 ```
 
-After install or if agents show exit 78 / "waiting for agent", fix permissions
-and restart launchd (mac-mini only):
-
-```sh
-nix run .#mac-mini-buildkite-fix-perms
-```
-
 ## Nix modules
 
 - `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`,
   guest `services.buildkite-agents.linux` (merged into `nix.linux-builder.config`),
-  `trusted-users`, and launchd `buildkite-token-sync` (scp token into VM)
+  `trusted-users`, launchd `buildkite-token-sync` (scp token into VM), agent
+  workdir + token permissions via `postActivation`, headless `ProcessType =
+  Standard`, and launchd kickstart after activation
 - `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`),
   sized for agent + Nix store (8 cores, 8 GiB RAM, 124 GiB disk, `maxJobs = 8`)
 - Imported from `modules/hosts/mac-mini.nix`
+
+All agent setup (user workdir, token permissions, launchd ProcessType, token
+sync SSH, service reload) is handled by nix-darwin. **No manual `chgrp`,
+`chmod`, or `launchctl kickstart` is required.**
 
 ## Bootstrap order
 
 Queues `mac-mini-macos` and `mac-mini-aarch64-linux` already exist on the Default
 cluster. Remaining steps on mac-mini:
 
-**One-shot (recommended):**
+1. Install the cluster agent token (once, if missing):
 
-```sh
-cd ~/nixconfig && git pull origin main   # or your feature branch until merged
-op read "op://Private/Buildkite/credential"   # sanity check (desktop unlock is enough)
-./scripts/mac-mini-buildkite-bootstrap.sh
-```
+   ```sh
+   nix run .#mac-mini-buildkite-install-token
+   ```
 
-The bootstrap script calls `install_cluster_token` (shell `op`, direct `op read`,
-`mktemp` + `install -g wheel`) when the file is missing, then `darwin-rebuild switch`.
+2. Apply nix-darwin — this is the only system command needed:
 
-**Token only** (skip darwin-rebuild):
+   ```sh
+   cd ~/nixconfig && git pull
+   sudo darwin-rebuild switch --flake .#mac-mini
+   ```
+
+   `postActivation` creates `/var/lib/buildkite-agent-macos`, fixes token
+   permissions, and kickstarts the Buildkite launchd daemons. `buildkite-token-sync`
+   copies the token into the linux-builder VM over SSH (`/etc/nix/builder_ed25519`).
+
+3. Confirm agents connected in Buildkite → Agents → Default cluster.
+
+**Token-only reinstall** (skip darwin-rebuild if config unchanged):
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
+sudo darwin-rebuild switch --flake .#mac-mini   # re-applies permissions + kickstarts sync
 ```
 
-**Manual fallback** (if bootstrap / `nix run` is unavailable):
+### Manual token fallback
 
-From 1Password (BSD `install` on macOS does not accept `/dev/stdin` — use a temp file):
+If `nix run .#mac-mini-buildkite-install-token` is unavailable, write the token
+with a temp file (BSD `install` on macOS does not accept `/dev/stdin`):
 
 ```sh
 op_bin=${OP:-/opt/homebrew/bin/op}
@@ -121,15 +130,8 @@ printf '%s' "$token" | tr -d '[:space:]' > "$tmp"
 sudo install -m 600 -o root -g wheel "$tmp" /etc/buildkite-agent/cluster.token
 rm -f "$tmp"
 trap - EXIT
+sudo darwin-rebuild switch --flake .#mac-mini
 ```
-
-Or from a saved token file:
-
-1. Create a cluster agent token in Buildkite → Agents → Default cluster → Agent tokens
-2. `sudo mkdir -p /etc/buildkite-agent && sudo install -m 600 -o root -g wheel /path/to/token /etc/buildkite-agent/cluster.token`
-3. `sudo darwin-rebuild switch --flake .#mac-mini`
-4. Confirm agents connected; token sync copies token into the VM
-5. Re-run or trigger nixconfig / t-hex builds on the correct queues
 
 ## Git checkout for self-hosted jobs
 
@@ -170,7 +172,16 @@ nix flake check .
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.ephemeral
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.serviceConfig.ProcessType
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
+```
+
+On mac-mini after `darwin-rebuild switch`:
+
+```sh
+sudo launchctl print system/org.nixos.buildkite-agent-macos | grep -E 'state =|last exit'
+sudo tail -20 /var/lib/buildkite-agent-macos/buildkite-agent.log
+sudo tail -10 /var/log/buildkite-token-sync.log
 ```
 
 **Done** means Buildkite jobs actually passed on both self-hosted queues — not
