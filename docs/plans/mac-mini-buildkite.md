@@ -1,0 +1,90 @@
+# Mac mini Buildkite self-hosted compute
+
+Runbook for the Mac mini (`mac-mini`) as Buildkite self-hosted compute: a Darwin
+agent plus a Linux agent inside the persistent `linux-builder` NixOS VM.
+
+## Queues (Default cluster)
+
+| Queue | Where jobs run | Use for |
+|---|---|---|
+| `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, macOS-only work |
+| `mac-mini-aarch64-linux` | linux-builder VM (aarch64 Linux) | Native `aarch64-linux` Nix; `x86_64-linux` via qemu-user binfmt on the same VM |
+
+Hosted `linux-small` / `linux-medium` remain for native x86_64 speed and
+pipeline upload. Self-hosted steps use **native Nix** — no Docker plugin.
+
+## Cluster agent token
+
+- **Path on host and guest:** `/etc/buildkite-agent/cluster.token`
+- **Permissions:** `0600`, root-owned
+- **Never** commit the token value or put it in the Nix store
+- One cluster-scoped token; each agent selects its queue via `tags.queue`
+- Optional 1Password backup via `op item create` when `op` is signed in
+
+## Nix modules
+
+- `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`,
+  guest `services.buildkite-agents.linux` (merged into `nix.linux-builder.config`),
+  `trusted-users`, and launchd `buildkite-token-sync` (scp token into VM)
+- `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`),
+  sized for agent + Nix store (8 cores, 8 GiB RAM, 124 GiB disk, `maxJobs = 8`)
+- Imported from `modules/hosts/mac-mini.nix`
+
+## Bootstrap order
+
+1. Create queues `mac-mini-macos` and `mac-mini-aarch64-linux` on the Default cluster
+2. Create a cluster agent token (Buildkite UI or REST `POST …/clusters/{id}/tokens`)
+3. Install token on host:
+   ```sh
+   sudo install -m 600 -o root -g root /path/to/token /etc/buildkite-agent/cluster.token
+   ```
+4. Apply config on the mini:
+   ```sh
+   cd ~/nixconfig && sudo darwin-rebuild switch --flake .#mac-mini
+   ```
+5. Confirm agents connected in Buildkite; token sync oneshot copies token into the VM
+6. Trigger nixconfig / t-hex builds and verify jobs land on the correct queues
+
+## Git checkout for self-hosted jobs
+
+- **GitHub** (nixconfig, emacs): rely on the Buildkite GitHub app first. If clone
+  fails, add a deploy key and store as a cluster secret.
+- **t-hex** (Origin `https://origin.cursor.com/git/connor-fuhrman/t-hex.git`):
+  use Origin CLI (`origin auth status` / `origin auth login`). Store runtime
+  credentials outside the Nix store; hooks read from a host file if needed.
+
+## Pipelines
+
+### nixconfig
+
+`.buildkite/pipeline.yml` includes:
+
+- `flake-check` — hosted `linux-medium` + Docker (existing)
+- `flake-check-mac-mini-linux` — queue `mac-mini-aarch64-linux`
+- `flake-check-mac-mini-macos` — queue `mac-mini-macos`
+
+### t-hex
+
+Add `flake-check-aarch64` on queue `mac-mini-aarch64-linux` (parallel to hosted
+x86 step). Nested virt: do not run NixOS tests requiring KVM inside the VM on
+Apple Silicon.
+
+## Podman fallback
+
+Only if `darwin-rebuild switch` fails with “a `aarch64-linux` … is required” or
+the ephemeral disk cannot realize the new image. See plan in
+`.cursor/plans/mac_mini_buildkite_*.plan.md`. Steady state stays `nix.linux-builder`.
+
+## Validation
+
+Eval gates (from any machine with the flake):
+
+```sh
+nix flake check .
+nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable
+nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.ephemeral
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.tags.queue
+```
+
+**Done** means Buildkite jobs actually passed on both self-hosted queues — not
+eval-only success.
