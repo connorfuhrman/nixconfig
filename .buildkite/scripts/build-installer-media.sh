@@ -10,6 +10,20 @@ fi
 
 target="${1:?usage: build-installer-media.sh <iso|asahi-iso|rpi-iso>}"
 
+# mac-mini Buildkite jobs export a minimal PATH; nix profile find is not guaranteed.
+find_installer_media() {
+  local root="$1"
+  local find_bin="/usr/bin/find"
+  if [[ ! -x "${find_bin}" ]]; then
+    find_bin="$(command -v find || true)"
+  fi
+  if [[ -z "${find_bin}" ]]; then
+    echo "find: command not found (need /usr/bin/find on PATH)" >&2
+    return 127
+  fi
+  "${find_bin}" -L "${root}" -type f \( -name '*.iso' -o -name '*.img.zst' -o -name '*.img' \)
+}
+
 gc_linux_builder() {
   echo "--- :broom: gc linux-builder (free disk before large installer image)"
   # Best-effort; installer images are multi-GB and the persistent linux-builder
@@ -81,15 +95,13 @@ if [[ -f "${out_path}" ]]; then
     *.iso|*.img.zst|*.img) artifacts=("${out_path}") ;;
   esac
 elif [[ -d "${out_path}" ]]; then
-  mapfile -t artifacts < <(
-    find -L "${out_path}" -type f \( -name '*.iso' -o -name '*.img.zst' -o -name '*.img' \) | sort
-  )
+  mapfile -t artifacts < <(find_installer_media "${out_path}" | sort)
 fi
 
 if [[ ${#artifacts[@]} -eq 0 ]]; then
   echo "+++ :x: no installer media at ${out_path}" >&2
   if [[ -d "${out_path}" ]]; then
-    find -L "${out_path}" -type f >&2 || true
+    find_installer_media "${out_path}" >&2 || true
   fi
   exit 1
 fi

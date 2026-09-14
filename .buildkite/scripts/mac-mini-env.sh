@@ -116,7 +116,7 @@ configure_mac_mini_installer_build() {
   # (see modules/darwin/linux-builder.nix); darwin-rebuild on mac-mini required.
   # Start with more client parallelism and step down after compile/OOM failures.
   # Override rung via INSTALLER_PARALLEL_RUNG (1-4) on retry builds.
-  local rung="${INSTALLER_PARALLEL_RUNG:-1}"
+  local rung="${INSTALLER_PARALLEL_RUNG:-2}"
   local max_jobs cores
   case "${rung}" in
     1) max_jobs=2; cores=6 ;;
