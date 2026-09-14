@@ -5,10 +5,16 @@
   "repositoryDependencies": [
     "github.com/connorfuhrman/nixconfig"
   ],
+  "egressMode": "allow_all",
   "egressAllowlist": [
     "cache.nixos.org",
+    "channels.nixos.org",
+    "releases.nixos.org",
     "install.determinate.systems",
     "api.github.com",
-    "github.com"
+    "github.com",
+    "codeload.github.com",
+    "objects.githubusercontent.com",
+    "raw.githubusercontent.com"
   ]
 }
