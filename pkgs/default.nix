@@ -7,7 +7,10 @@ final: prev: {
   mac-mini-buildkite-install-origin-ssh = final.callPackage ./mac-mini-buildkite-install-origin-ssh.nix { };
   origin = final.callPackage ./origin.nix { };
   podman-docker-compat = final.callPackage ./podman-docker-compat.nix { };
+  nono = final.callPackage ./nono.nix { };
+  nono-profiles = final.callPackage ./nono-profiles.nix { };
   pi-plan-mode = final.callPackage ./pi-plan-mode.nix { };
   pi-subagents = final.callPackage ./pi-subagents.nix { };
   pi-goal = final.callPackage ./pi-goal.nix { };
+  pi-nono = final.callPackage ./pi-nono.nix { };
 }
