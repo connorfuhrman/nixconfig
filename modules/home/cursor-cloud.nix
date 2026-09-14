@@ -1,6 +1,5 @@
 { config, ... }: {
   # Cursor Cloud Agent home: base + coreutils + emacs only.
-  # No gh — Cloud Agent uses the GitHub MCP, not the CLI.
   # Must be a module function so imports resolve lazily (same as standard).
   flake.modules.homeManager.cursor-cloud = { lib, ... }: {
     imports = [
