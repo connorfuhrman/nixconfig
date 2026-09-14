@@ -29,6 +29,10 @@
       originKnownHosts = pkgs.writeText "buildkite-agent-ssh-known-hosts" ''
         origin.cursor.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaMKo6HCtmngBwlSH2ATs8+A6eTr+cCON5RKZX/3/MO
       '';
+      # Agent-global environment hook: runs before checkout (repo hooks are not).
+      dockerEnvironmentHook = pkgs.writeShellScript "buildkite-docker-environment" (
+        builtins.readFile ../../.buildkite/hooks/environment
+      );
     in
     {
       # nix-darwin only creates users/groups listed in knownUsers/knownGroups.
@@ -62,6 +66,7 @@
         extraConfig = ''
           debug=true
           plugins-path="${agentCheckout}/plugins"
+          hooks-path="${agentCheckout}/hooks"
           build-path="${agentCheckout}/builds"
           spawn=2
           bootstrap-script="${config.services.buildkite-agents.macos.package}/bin/buildkite-agent bootstrap --no-job-api"
@@ -114,13 +119,15 @@
         agent_home=${agentHome}
         checkout=${agentCheckout}
         mkdir -p "$agent_home/.ssh"
-        mkdir -p "$checkout/builds" "$checkout/plugins"
+        mkdir -p "$checkout/builds" "$checkout/plugins" "$checkout/hooks"
+        install -m 755 ${dockerEnvironmentHook} "$checkout/hooks/environment"
         chown -R ${agentUser}:${agentUser} "$agent_home"
         chown -R ${agentUser}:docker "$checkout"
         chmod 755 "$agent_home"
         chmod 755 "$checkout"
         chmod 755 "$checkout/builds"
         chmod 755 "$checkout/plugins"
+        chmod 755 "$checkout/hooks"
         chmod 700 "$agent_home/.ssh"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originGitconfig} "$agent_home/.gitconfig"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originSshConfig} "$agent_home/.ssh/config"
