@@ -43,15 +43,24 @@ kickstart_linux_builder_vm() {
   return 0
 }
 
+linux_builder_probe() {
+  # build #142: nix store info --store ssh-ng://... stayed false for 30min while
+  # mac-mini package builds still used linux-builder via the daemon. Probe with
+  # the same routing a real aarch64-linux build uses.
+  nix build --accept-flake-config --max-jobs 1 --no-link --system aarch64-linux \
+    --expr 'with import <nixpkgs> { system = "aarch64-linux"; }; hello' \
+    &>/dev/null
+}
+
 wait_linux_builder_store() {
   # build #126: asahi-iso hit platform mismatch when linux-builder VM was down
-  # (Connection closed on 127.0.0.1:31022). Poll via nix daemon, not agent ssh.
-  echo "--- :hourglass: wait for linux-builder store"
+  # (Connection closed on 127.0.0.1:31022).
+  echo "--- :hourglass: wait for linux-builder"
   kickstart_linux_builder_vm
   local attempt
   for attempt in $(seq 1 180); do
-    if nix store info --store 'ssh-ng://builder@linux-builder' &>/dev/null; then
-      echo "+++ linux-builder store ready (attempt ${attempt})"
+    if linux_builder_probe; then
+      echo "+++ linux-builder ready (attempt ${attempt})"
       return 0
     fi
     if (( attempt % 6 == 0 )); then
@@ -60,7 +69,7 @@ wait_linux_builder_store() {
     echo "linux-builder not ready (${attempt}/180), sleeping 10s..."
     sleep 10
   done
-  echo "linux-builder store unreachable after 30 minutes" >&2
+  echo "linux-builder unreachable after 30 minutes" >&2
   return 1
 }
 
