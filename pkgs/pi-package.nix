@@ -18,6 +18,10 @@
 #   hash       SRI hash of the npm tarball
 #   deps       runtime dependency closure, pinned to upstream's lockfile:
 #              [ { name; version; hash } ] — each entry zero-dependency
+#   deps       runtime dependency closure, pinned to upstream's lockfile:
+#              [ { name; version; hash } ] — each entry zero-dependency
+#   postInstall  extra installPhase shell commands, run after the package
+#                and node_modules are copied (has $pkgOut in scope)
 #   description / homepage / license   meta passthrough
 {
   lib,
@@ -29,6 +33,7 @@
   version,
   hash,
   deps ? [ ],
+  postInstall ? "",
   description,
   homepage,
   license,
@@ -74,6 +79,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     mkdir -p "$pkgOut"
     cp -r . "$pkgOut/"
     cp -r "${nodeModules}" "$pkgOut/node_modules"
+
+    ${postInstall}
 
     runHook postInstall
   '';
