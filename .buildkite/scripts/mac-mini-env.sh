@@ -66,12 +66,15 @@ ensure_linux_builder_ssh() {
 kickstart_linux_builder_vm() {
   # build #129: VM stayed down 30+ min after mac-mini package/nixos steps; nix
   # store info never recovered until launchd restarts org.nixos.linux-builder.
+  # sudoers allows only full paths (modules/darwin/buildkite.nix), not PATH lookup.
+  local launchctl_bin=/bin/launchctl
+  [[ -x "${launchctl_bin}" ]] || launchctl_bin=/usr/bin/launchctl
   echo "--- :rocket: kickstart linux-builder VM (launchd)"
-  if sudo -n launchctl kickstart -k system/org.nixos.linux-builder 2>/dev/null; then
+  if sudo -n "${launchctl_bin}" kickstart -k system/org.nixos.linux-builder 2>/dev/null; then
     echo "+++ kickstarted system/org.nixos.linux-builder"
     return 0
   fi
-  if sudo -n launchctl kickstart system/org.nixos.linux-builder 2>/dev/null; then
+  if sudo -n "${launchctl_bin}" kickstart system/org.nixos.linux-builder 2>/dev/null; then
     echo "+++ started system/org.nixos.linux-builder"
     return 0
   fi
