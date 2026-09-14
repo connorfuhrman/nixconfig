@@ -104,6 +104,13 @@ fi
 out_path=$(nix build "${nix_build_args[@]}" "${attr}")
 echo "out path: ${out_path}"
 
+# ssh-ng builds live on linux-builder; eval-store auto records the path locally
+# but the ISO/img bytes are remote until copied (build #230: nix build ok, -f failed).
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  echo "--- :arrow_down: copy installer output from linux-builder store to local"
+  nix copy --from 'ssh-ng://builder@linux-builder' --to 'auto' "${out_path}"
+fi
+
 artifacts=()
 if [[ -f "${out_path}" ]]; then
   case "${out_path}" in
