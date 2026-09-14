@@ -8,7 +8,6 @@
       jq
       gtop
       gping
-      gh
       origin
     ];
 

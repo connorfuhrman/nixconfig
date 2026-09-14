@@ -43,8 +43,8 @@ for agents: [`.cursor/AGENTS.md`](.cursor/AGENTS.md).
 - Configurations live in `modules/hosts/<name>.nix`: a `host-<name>` module that
   composes features by name, plus the `<name>` configuration (and
   `connorfuhrman@<name>` home configuration) built from it.
-- Home hosts import **`homeManager.standard`** (base + emacs + coreutils + mosh +
-  obsidian-config) — do not re-list those modules per host. Exception:
+- Home hosts import **`homeManager.standard`** (base + emacs + coreutils + gh +
+  mosh + obsidian-config) — do not re-list those modules per host. Exception:
   `ubuntu@cursor-cloud` imports `homeManager.cursor-cloud` (base + coreutils +
   emacs only; no mosh / obsidian-config).
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
@@ -66,7 +66,7 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
+modules/home/           homeManager: base, emacs, coreutils, gh, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
 .cursor/AGENTS.md       AI-only Cursor Cloud first-time Nix setup (not human docs)
