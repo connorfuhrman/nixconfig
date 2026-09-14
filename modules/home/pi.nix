@@ -20,5 +20,8 @@
         pkgs.pi-lsp.piPackagePath
       ];
     };
+    # Agent addendum appended to pi's system prompt on boot: documents the
+    # installed extensions and where their docs/skills live.
+    home.file.".pi/agent/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;
   };
 }
