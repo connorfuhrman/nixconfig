@@ -1,6 +1,10 @@
 # pi-plan-mode: plan mode for the pi coding agent (@narumitw/pi-plan-mode).
 # Published from the narumiruna/pi-extensions monorepo; peer deps
 # (@earendil-works/pi-*, range `*`) are provided by pi's bundled runtime.
+# tuiPolyfill: the plan-mode widget renderer imports stripTerminalSequences
+# from @earendil-works/pi-tui (added in pi-tui 0.84; pi 0.80.10 lacks it) —
+# without the polyfill, /plan crashes the whole TUI (uncaughtException in
+# renderPlanModeWidget).
 {
   callPackage,
   lib,
@@ -10,6 +14,7 @@ callPackage ./pi-package.nix {
   npmName = "@narumitw/pi-plan-mode";
   version = "0.58.0";
   hash = "sha256-K1wobYWW6tfQjx79Io4gTev4PPvYd8CVE0m88ZGoL2w=";
+  tuiPolyfill = true;
   # Runtime deps pinned to upstream's package-lock.json (0.58.0).
   deps = [
     {

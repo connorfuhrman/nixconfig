@@ -1,7 +1,8 @@
 # pi-goal: autonomous single-objective /goal completion for the pi coding
 # agent (@narumitw/pi-goal). Published from the narumiruna/pi-extensions
-# monorepo; peer deps (@earendil-works/pi-* and typebox, range `*`) are
-# provided by pi's bundled runtime.
+# monorepo; peer deps (@earendil-works/pi-*, range `*`) are provided by pi's
+# bundled runtime. tuiPolyfill: pi-goal imports stripTerminalSequences from
+# @earendil-works/pi-tui, which pi 0.80.10 lacks (crashes goal mode).
 {
   callPackage,
   lib,
@@ -11,6 +12,7 @@ callPackage ./pi-package.nix {
   npmName = "@narumitw/pi-goal";
   version = "0.54.4";
   hash = "sha256-s/qHmedg12sm+YBJ3g7DKLnaLDVb5Ra0hOp7CJLDihc=";
+  tuiPolyfill = true;
   # Runtime deps pinned to upstream's package-lock.json (0.54.4) — same
   # tree as pi-plan-mode.
   deps = [
