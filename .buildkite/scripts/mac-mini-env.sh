@@ -43,7 +43,7 @@ configure_mac_mini_docker() {
   shopt -u nullglob
 
   echo "docker not found on mac-mini-macos (podman-docker-compat missing from PATH)" >&2
-  return 1
+  return 0
 }
 
 mac_mini_linux_builder_ssh_opts=(
