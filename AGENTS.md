@@ -44,7 +44,7 @@ for agents: [`.cursor/AGENTS.md`](.cursor/AGENTS.md).
   composes features by name, plus the `<name>` configuration (and
   `connorfuhrman@<name>` home configuration) built from it.
 - Home hosts import **`homeManager.standard`** (base + emacs + coreutils + gh +
-  mosh + obsidian-config) — do not re-list those modules per host. Exception:
+  pi + mosh + obsidian-config) — do not re-list those modules per host. Exception:
   `ubuntu@cursor-cloud` imports `homeManager.cursor-cloud` (base + coreutils +
   emacs only; no mosh / obsidian-config).
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
@@ -66,7 +66,7 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager: base, emacs, coreutils, gh, cursor, cursor-cloud, obsidian-config, standard
+modules/home/           homeManager: base, emacs, coreutils, gh, pi, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
 .cursor/AGENTS.md       AI-only Cursor Cloud first-time Nix setup (not human docs)
@@ -174,6 +174,10 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `pkgs.code-cursor` via `home.packages` (no `programs.vscode`). Unfree
   predicate scoped in the cursor HM module; Darwin system predicate extended in
   `darwin.onepassword`. Settings/extensions stay in Cursor's UI.
+- **Pi:** `homeManager.pi` is part of `homeManager.standard` —
+  `programs.pi-coding-agent` (nixpkgs `pi-coding-agent`, extra PATH: nodejs).
+  Auth stays in `~/.pi/agent` (`pi` then `/login`, or `OPENROUTER_API_KEY`);
+  do not put API keys in Nix.
 - **mosh:** client on all systems; `programs.mosh.enable` on NixOS servers
   (nuc); package on darwin server (mac-mini).
 - **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
