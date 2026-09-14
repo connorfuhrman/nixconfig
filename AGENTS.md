@@ -126,6 +126,8 @@ nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
+nix eval .#darwinConfigurations.mac-mini.config.users.users.buildkite-agent-macos.home  # "/private/var/lib/buildkite-agent-macos"
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.dataDir  # "/private/var/lib/buildkite-agent-macos"
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
 nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
@@ -180,8 +182,18 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `%hostname-macos-%spawn`) on the Default cluster: `mac-mini-macos`
   (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
   as a remote builder (aarch64-linux native; x86_64-linux via qemu-user binfmt in
-  the VM) — not a separate Buildkite agent. Container / `docker#` on this queue
-  is a follow-up. Cluster agent token path:
+  the VM) — not a separate Buildkite agent. `docker#` / `docker run -v $PWD`
+  works on this queue: jobs check out under `/Users/Shared/buildkite-agent-macos`
+  (`build-path` / `plugins-path`) on the default applehv `/Users` virtiofs share so
+  `docker run -v $PWD` works with no guest symlink. Agent home / `dataDir` stay
+  `/private/var/lib/buildkite-agent-macos` — nix-darwin will not move an existing
+  user's home (`/var` → `/private/var` on Darwin). Do not put checkout under
+  `/var/lib` (guest ls/umount of `/private/var` hangs virtiofs) and do not add a
+  nested virtiofs of the checkout. Origin SSH / `.gitconfig` live in that home.
+  Job API is off (`bootstrap --no-job-api` + launchd `BUILDKITE_AGENT_NO_JOB_API=true`)
+  because unix sockets cannot ride virtiofs and docker-buildkite-plugin
+  bind-mounts `BUILDKITE_AGENT_JOB_API_SOCKET` when that env is set.
+  `job-api=false` in extraConfig is not an agent-start key. Cluster agent token path:
   `/etc/buildkite-agent/cluster.token` (never in the Nix store). Install on
   mac-mini via `nix run .#mac-mini-buildkite-install-token` (reads `bkct_`
   token from 1Password account `aztec_fuhrmans`,
