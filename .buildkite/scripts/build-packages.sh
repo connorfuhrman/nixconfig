@@ -37,16 +37,53 @@ fi
 
 echo "${discovered}"
 
+is_linux_system() {
+  case "$1" in
+    *-linux) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 section_emoji() {
   case "$1" in
-    *-darwin) printf ':apple:' ;;
     *-linux)  printf ':penguin:' ;;
+    *-darwin) printf ':apple:' ;;
     *)        printf ':package:' ;;
   esac
 }
 
 current_system=""
 installables=()
+
+nix_build_installable() {
+  local inst="$1"
+  local system="$2"
+  local -a args=(--accept-flake-config -L)
+
+  if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+    if is_linux_system "${system}"; then
+      # build #206/#211: remote-only + explicit system; never build linux on darwin.
+      args+=(--builders 'ssh-ng://builder@linux-builder' --max-jobs 0 --system "${system}")
+    else
+      args+=(--builders '')
+    fi
+  fi
+
+  if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]] \
+    && is_linux_system "${system}"; then
+    local attempt
+    for attempt in $(seq 1 36); do
+      if nix build "${args[@]}" "${inst}"; then
+        return 0
+      fi
+      echo "linux-builder busy or unreachable (${attempt}/36), retrying in 10s..."
+      sleep 10
+    done
+    return 1
+  fi
+
+  nix build "${args[@]}" "${inst}"
+}
 
 build_group() {
   if [[ -z "${current_system}" ]]; then
@@ -55,12 +92,13 @@ build_group() {
   local emoji
   emoji=$(section_emoji "${current_system}")
   echo "--- ${emoji} ${current_system} packages (${#installables[@]} installables) ---"
-  if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" && "${current_system}" == *-linux ]]; then
+  if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]] \
+    && is_linux_system "${current_system}"; then
     wait_linux_builder_store
   fi
   local inst
   for inst in "${installables[@]}"; do
-    nix build --accept-flake-config -L "${inst}"
+    nix_build_installable "${inst}" "${current_system}"
   done
 }
 

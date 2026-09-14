@@ -86,11 +86,11 @@ linux_builder_ssh_ng_probe() {
 
 linux_builder_probe() {
   # build #142: ssh-ng alone stayed false for 30min while mac-mini package builds
-  # still used linux-builder via the daemon. Also try the routing real builds use.
-  if linux_builder_ssh_ng_probe; then
-    return 0
-  fi
-  nix build --accept-flake-config --max-jobs 1 --no-link --system aarch64-linux \
+  # still used linux-builder via the daemon. build #211: ssh-ng true while
+  # `nix build` still hit platform mismatch — verify the daemon can schedule
+  # linux-builder (remote-only, same flags as package/installer builds).
+  linux_builder_ssh_ng_probe || return 1
+  nix build --accept-flake-config --max-jobs 0 --no-link --system aarch64-linux \
     --expr 'with import <nixpkgs> { system = "aarch64-linux"; }; hello' \
     &>/dev/null
 }
