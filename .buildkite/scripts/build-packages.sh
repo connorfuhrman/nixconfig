@@ -62,9 +62,9 @@ nix_build_installable() {
 
   if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
     if is_linux_system "${system}"; then
-      # build #211/#212: URL-only --builders is ignored; Nix needs platform(s) after
-      # the store URI (see nix manual distributed builds). Remote-only + --system.
-      args+=(--builders "ssh-ng://builder@linux-builder aarch64-linux,x86_64-linux 1" --max-jobs 0 --system "${system}")
+      # build #228: --builders + max-jobs 0 never scheduled flake packages (cursor-cloud-setup)
+      # while the hello probe passed. Match turing-pi / probe: ssh-ng store + eval-store auto.
+      args+=(--impure --store 'ssh-ng://builder@linux-builder' --eval-store auto --max-jobs 1 --system "${system}")
     else
       args+=(--builders '')
     fi
