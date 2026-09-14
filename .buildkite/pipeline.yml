@@ -61,6 +61,10 @@ steps:
       - label: ":package: build packages"
         key: build-packages-mac-mini-macos
         command: .buildkite/scripts/build-packages.sh
+        # build #206: parallel with build-nixos saturated linux-builder (max-jobs=1)
+        # and bulk `nix build` goals saw platform mismatch on aarch64-linux.
+        depends_on:
+          - build-nixos-rpi-cluster-head
         <<: [*mac-mini-macos, *timeout-retry]
 
       - label: ":nixos: build nixos (rpi-cluster-head)"

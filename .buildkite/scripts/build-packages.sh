@@ -8,6 +8,7 @@ set -euo pipefail
 if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
   # shellcheck source=/dev/null
   source "$(dirname "$0")/mac-mini-env.sh"
+  ensure_linux_builder_ssh
 fi
 
 echo "--- :nix: discover flake packages"
@@ -53,8 +54,14 @@ build_group() {
   fi
   local emoji
   emoji=$(section_emoji "${current_system}")
-  echo "--- ${emoji} ${current_system} packages ---"
-  nix build --accept-flake-config -L "${installables[@]}"
+  echo "--- ${emoji} ${current_system} packages (${#installables[@]} installables) ---"
+  if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" && "${current_system}" == *-linux ]]; then
+    wait_linux_builder_store
+  fi
+  local inst
+  for inst in "${installables[@]}"; do
+    nix build --accept-flake-config -L "${inst}"
+  done
 }
 
 while IFS= read -r line; do
