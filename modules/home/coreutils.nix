@@ -8,6 +8,10 @@
       jq
       gtop
       gping
+      gh
+      htop
+      btop
+      flow
       origin
     ];
 
