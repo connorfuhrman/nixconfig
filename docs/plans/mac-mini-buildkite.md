@@ -19,9 +19,10 @@ builder or containers. One launchd process — do not add a second
 | `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, **docker-buildkite-plugin** via Podman Machine, Linux Nix offload through `nix.linux-builder` |
 
 Hosted `linux-small` / `linux-medium` remain for native x86_64 speed. The
-`:pipeline:` upload step must target `queue: mac-mini-macos` (or another queue
-with a live agent): routing upload to hosted `linux-small` alone caused builds
-#169–#174 to cancel in under one second with no job log. Queue `mac-mini-macos`
+`:pipeline:` upload step uses `queue: linux-medium` (see
+`.buildkite/bootstrap-pipeline.yml`) so branch builds are not blocked behind
+long mac-mini jobs; `linux-small` had no agents and uploads failed instantly
+(#169–#174). Queue `mac-mini-macos`
 is a general Docker runner: any job
 may use `docker#` / `docker run -v $PWD:...` the same way as on Linux. Linux
 Nix *without* containers still offloads to `nix.linux-builder`.

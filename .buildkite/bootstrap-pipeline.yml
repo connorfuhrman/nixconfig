@@ -1,0 +1,7 @@
+# Static step in Buildkite pipeline settings (not uploaded from the repo).
+# Keep in sync via: Buildkite → nixconfig → Settings → Steps.
+steps:
+  - label: ":pipeline:"
+    command: buildkite-agent pipeline upload
+    agents:
+      queue: linux-medium
