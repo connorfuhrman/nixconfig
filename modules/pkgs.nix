@@ -36,6 +36,11 @@ let
     "pi-goal"
     "nono"
     "pi-nono"
+    "pi-tasks"
+    "pi-usage"
+    "pi-diff-review"
+    "pi-worktree"
+    "pi-lsp"
   ];
 in
 {

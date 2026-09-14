@@ -13,10 +13,18 @@
         pkgs.pi-plan-mode.piPackagePath
         pkgs.pi-subagents.piPackagePath
         pkgs.pi-goal.piPackagePath
+        pkgs.pi-tasks.piPackagePath
+        pkgs.pi-usage.piPackagePath
+        pkgs.pi-diff-review.piPackagePath
+        pkgs.pi-worktree.piPackagePath
+        pkgs.pi-lsp.piPackagePath
       ];
     };
     # Sandboxed variant: same pi, run under the nono sandbox (store-backed
     # profile; stock `pi` stays available unsandboxed).
     home.packages = [pkgs.pi-nono];
+    # Agent addendum appended to pi's system prompt on boot: documents the
+    # installed extensions and where their docs/skills live.
+    home.file.".pi/agent/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;
   };
 }
