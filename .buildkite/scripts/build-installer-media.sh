@@ -81,7 +81,8 @@ fi
 
 if [[ "${target}" != "iso" || "${iso_on_mac_mini}" == "true" ]]; then
   configure_mac_mini_installer_build
-  wait_linux_builder_store
+  # VM down without sudo kickstart: fail fast (~3m) instead of 30m × parallel steps.
+  wait_linux_builder_store 18 0
   gc_linux_builder
 fi
 

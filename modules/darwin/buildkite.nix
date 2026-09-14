@@ -96,6 +96,8 @@
       # build #129/#137: installer steps restart linux-builder after ENOSPC crashes.
       # nix-darwin exposes security.sudo.extraConfig (not NixOS extraRules).
       security.sudo.extraConfig = lib.mkAfter ''
+        ${agentUser} ALL = (ALL) NOPASSWD: /bin/launchctl kickstart -k system/org.nixos.linux-builder
+        ${agentUser} ALL = (ALL) NOPASSWD: /bin/launchctl kickstart system/org.nixos.linux-builder
         ${agentUser} ALL = (ALL) NOPASSWD: /usr/bin/launchctl kickstart -k system/org.nixos.linux-builder
         ${agentUser} ALL = (ALL) NOPASSWD: /usr/bin/launchctl kickstart system/org.nixos.linux-builder
       '';

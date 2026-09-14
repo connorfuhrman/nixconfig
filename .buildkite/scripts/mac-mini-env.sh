@@ -97,23 +97,26 @@ linux_builder_probe() {
 }
 
 wait_linux_builder_store() {
+  # Optional: max_attempts (default 180 × 10s = 30m), kickstart_every (0 = initial only).
+  local max_attempts="${1:-180}"
+  local kickstart_every="${2:-6}"
   # build #126: asahi-iso hit platform mismatch when linux-builder VM was down
   # (Connection closed on 127.0.0.1:31022).
   echo "--- :hourglass: wait for linux-builder"
   kickstart_linux_builder_vm
   local attempt
-  for attempt in $(seq 1 180); do
+  for attempt in $(seq 1 "${max_attempts}"); do
     if linux_builder_probe; then
       echo "+++ linux-builder ready (attempt ${attempt})"
       return 0
     fi
-    if (( attempt % 6 == 0 )); then
+    if [[ "${kickstart_every}" -gt 0 ]] && (( attempt % kickstart_every == 0 )); then
       kickstart_linux_builder_vm
     fi
-    echo "linux-builder not ready (${attempt}/180), sleeping 10s..."
+    echo "linux-builder not ready (${attempt}/${max_attempts}), sleeping 10s..."
     sleep 10
   done
-  echo "linux-builder unreachable after 30 minutes" >&2
+  echo "linux-builder unreachable after $((max_attempts * 10 / 60)) minutes" >&2
   return 1
 }
 
