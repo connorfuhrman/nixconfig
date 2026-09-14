@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Runs before plugin hooks so docker# can exec `docker` on mac-mini-macos.
+set -euo pipefail
+
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  # shellcheck source=/dev/null
+  source "$(dirname "$0")/../scripts/mac-mini-env.sh"
+  configure_mac_mini_docker
+fi

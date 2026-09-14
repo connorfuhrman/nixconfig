@@ -10,6 +10,31 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
 export NIX_SSHOPTS='-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new'
 
+configure_mac_mini_docker() {
+  # Mirror launchd.daemons.buildkite-agent-macos.environment (buildkite.nix) and
+  # podman-docker-compat on runtimePackages (podman.nix). The docker buildkite
+  # plugin runs in the environment hook before command scripts (build #150).
+  export DOCKER_HOST="${DOCKER_HOST:-unix:///var/run/docker.sock}"
+  export CONTAINER_HOST="${CONTAINER_HOST:-unix:///var/run/docker.sock}"
+
+  if command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local docker_bin
+  for docker_bin in \
+    /run/current-system/sw/bin/docker \
+    /nix/var/nix/profiles/system-profile/bin/docker; do
+    if [[ -x "${docker_bin}" ]]; then
+      export PATH="$(dirname "${docker_bin}"):${PATH}"
+      return 0
+    fi
+  done
+
+  echo "docker not found on mac-mini-macos (podman-docker-compat missing from PATH)" >&2
+  return 1
+}
+
 mac_mini_linux_builder_ssh_opts=(
   -o BatchMode=yes
   -o ConnectTimeout=10
