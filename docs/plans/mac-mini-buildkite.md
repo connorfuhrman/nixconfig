@@ -18,14 +18,14 @@ builder or containers. One launchd process — do not add a second
 |---|---|---|
 | `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, **docker-buildkite-plugin** via Podman Machine, Linux Nix offload through `nix.linux-builder` |
 
-Hosted `linux-small` / `linux-medium` remain for native x86_64 speed. The
-static `:pipeline:` upload step (`.buildkite/bootstrap-pipeline.yml`) must
-**not** set `agents.queue`: use the hosted default (`linux-small`, builds
-#120/#150). Explicit `linux-medium` on that bootstrap step canceled in under
-a second with zero logs (#176–#184). Uploaded steps still use `linux-medium`
-where noted in `.buildkite/pipeline.yml`. On pipeline **Settings**, keep
+Hosted `linux-small` / `linux-medium` remain for native x86_64 speed in
+uploaded steps (see `.buildkite/pipeline.yml`). The static `:pipeline:` upload
+step (`.buildkite/bootstrap-pipeline.yml`) uses **`mac-mini-macos`**: it is the
+only connected agent queue in this org; hosted bootstrap queues canceled in
+under a second with zero logs (#174–#185). Upload may wait behind long mac-mini
+jobs (#175) but does not fail immediately. On pipeline **Settings**, keep
 `cancel_running_branch_builds` and `skip_queued_branch_builds` **false** so
-MCP/webhook babysit runs are not superseded (#151–#184). Queue
+MCP/webhook babysit runs are not superseded (#151–#185). Queue
 `mac-mini-macos`
 is a general Docker runner: any job
 may use `docker#` / `docker run -v $PWD:...` the same way as on Linux. Linux

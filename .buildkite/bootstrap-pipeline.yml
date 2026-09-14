@@ -1,10 +1,12 @@
 # Static step in Buildkite pipeline settings (not uploaded from the repo).
 # Keep in sync via: Buildkite → nixconfig → Settings → Steps.
 #
-# Do not set agents.queue here: hosted default (linux-small) ran upload on
-# builds #120/#150. Explicit linux-medium on this step canceled in <1s with
-# zero logs (#176–#184). Uploaded .buildkite/pipeline.yml still targets
-# linux-medium for native x86_64 flake-check backup steps.
+# Use mac-mini-macos for upload: the only connected agent in this org. Hosted
+# default (linux-small) and explicit linux-medium both canceled the bootstrap
+# job in <1s with zero logs (#174–#185). mac-mini schedules upload behind
+# in-flight jobs instead of failing immediately (#175).
 steps:
   - label: ":pipeline:"
     command: buildkite-agent pipeline upload
+    agents:
+      queue: mac-mini-macos
