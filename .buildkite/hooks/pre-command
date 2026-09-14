@@ -3,7 +3,10 @@
 set -euo pipefail
 
 if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
-  # shellcheck source=/dev/null
-  source "$(dirname "$0")/../scripts/mac-mini-env.sh"
-  configure_mac_mini_docker || true
+  env_sh="${BUILDKITE_BUILD_CHECKOUT_PATH:?}/.buildkite/scripts/mac-mini-env.sh"
+  if [[ -f "${env_sh}" ]]; then
+    # shellcheck source=/dev/null
+    source "${env_sh}"
+    configure_mac_mini_docker || true
+  fi
 fi
