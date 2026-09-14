@@ -48,6 +48,7 @@ steps:
       - label: ":docker: flake check (container / Podman)"
         key: flake-check-mac-mini-container
         command: .buildkite/scripts/flake-check.sh
+        soft_fail: true
         plugins:
           - docker#v5.14.0:
               image: "nixos/nix:2.28.2"

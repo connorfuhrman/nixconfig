@@ -21,15 +21,26 @@ configure_mac_mini_docker() {
     return 0
   fi
 
-  local docker_bin
+  local docker_bin dir
   for docker_bin in \
     /run/current-system/sw/bin/docker \
     /nix/var/nix/profiles/system-profile/bin/docker; do
     if [[ -x "${docker_bin}" ]]; then
       export PATH="$(dirname "${docker_bin}"):${PATH}"
-      return 0
+      command -v docker >/dev/null 2>&1 && return 0
     fi
   done
+
+  # nix-darwin buildkite runtimePackages / systemPackages (podman-docker-compat).
+  shopt -s nullglob
+  for docker_bin in /nix/store/*-podman-docker-compat-*/bin/docker; do
+    if [[ -x "${docker_bin}" ]]; then
+      export PATH="$(dirname "${docker_bin}"):${PATH}"
+      shopt -u nullglob
+      command -v docker >/dev/null 2>&1 && return 0
+    fi
+  done
+  shopt -u nullglob
 
   echo "docker not found on mac-mini-macos (podman-docker-compat missing from PATH)" >&2
   return 1
