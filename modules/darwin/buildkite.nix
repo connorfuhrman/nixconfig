@@ -79,6 +79,7 @@
           pkgs.gnutar
           pkgs.gzip
           pkgs.podman
+          pkgs.podman-docker-compat
         ];
       };
 
