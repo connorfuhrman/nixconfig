@@ -125,6 +125,7 @@ nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
+nix eval .#darwinConfigurations.macbook.config.nix.settings.trusted-users  # includes "connorfuhrman"
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
 nix eval .#darwinConfigurations.mac-mini.config.users.users.buildkite-agent-macos.home  # "/private/var/lib/buildkite-agent-macos"
 nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.dataDir  # "/private/var/lib/buildkite-agent-macos"
@@ -252,6 +253,17 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   the Nix installation. `nix.linux-builder` stays. Revisit if it matures.
 - **stateVersion types differ:** NixOS/home-manager use strings (`"25.11"`),
   nix-darwin uses an integer (`5`).
+- **Home-manager clobber on first Darwin activation:** `programs.zsh.enable`
+  manages `~/.zprofile`. The official Nix installer already writes that file
+  on macOS, so standalone `home-manager switch` aborts with "would be
+  clobbered". There is no standalone `home.backupFileExtension` option —
+  `homeManager.base` exports `HOME_MANAGER_BACKUP_EXT=backup` before
+  `checkLinkTargets`, and `switch-darwin` also passes `-b backup`. The
+  existing file becomes `~/.zprofile.backup`. Do not `force = true`.
+- **Untrusted substituter on Darwin:** flake `nixConfig.extra-substituters`
+  is ignored unless the invoking user is in `nix.settings.trusted-users`.
+  `darwin.system` sets `connorfuhrman`; without it, `nix develop` warns
+  about `nixos-apple-silicon.cachix.org` and `trusted-public-keys`.
 - `_hardware-configuration.nix` files are TEMPLATES — real values come from
   `nixos-generate-config` on target hardware (see INSTALL.md).
 - Keep this repo **private**: `firmware/` contains extracted Apple firmware.
