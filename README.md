@@ -103,7 +103,7 @@ modules/
   nixos/                  NixOS features (system, desktop, server, asahi,
                           iso, nuc-cluster, ray-cluster, onepassword, …)
   darwin/                 nix-darwin features (system, linux-builder, roon, …)
-  home/                   home-manager (standard = base+emacs+coreutils+mosh+obsidian-config)
+  home/                   home-manager (standard = base+emacs+coreutils+gh+mosh+obsidian-config)
   generic/                shared features (tailscale, mac-mini-builder)
   hosts/<name>.nix        per-host composition + home config
   hosts/status.nix        host maturity metadata (experimental vs tested)
@@ -125,8 +125,8 @@ Cloud Agents use `ubuntu@cursor-cloud`.
 | | Linux | macOS |
 |---|---|---|
 | **Emacs** | GUI from [connorfuhrman/emacs](https://github.com/connorfuhrman/emacs) | same flake (emacs-macport + packages + `--init-directory`) |
-| **Shell / CLI** | zsh, eza, bat, fzf, ydiff, dust, jq, gtop, gping, gh, origin | same |
-| **Git** | name/email, `master` default branch, auto upstream on push, ydiff pager | same |
+| **Shell / CLI** | zsh, eza, bat, fzf, ydiff, dust, jq, gtop, gping, origin | same |
+| **Git / GitHub** | name/email, `master` default branch, auto upstream on push, ydiff pager; `gh` via `programs.gh` (ssh, git credential helper) | same |
 
 ## Infrastructure notes
 
