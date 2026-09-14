@@ -34,6 +34,8 @@ let
     "pi-plan-mode"
     "pi-subagents"
     "pi-goal"
+    "nono"
+    "pi-nono"
     "pi-tasks"
     "pi-usage"
     "pi-diff-review"
