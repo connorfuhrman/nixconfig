@@ -15,5 +15,8 @@
         pkgs.pi-goal.piPackagePath
       ];
     };
+    # Sandboxed variant: same pi, run under the nono sandbox (store-backed
+    # profile; stock `pi` stays available unsandboxed).
+    home.packages = [pkgs.pi-nono];
   };
 }
