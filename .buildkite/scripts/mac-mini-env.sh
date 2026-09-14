@@ -153,7 +153,7 @@ linux_builder_log_probe_failure() {
   else
     echo "direct ssh failed: ${err}"
   fi
-  if err=$(nix build --accept-flake-config --max-jobs 0 --no-link --system aarch64-linux \
+  if err=$(nix build --impure --accept-flake-config --max-jobs 0 --no-link --system aarch64-linux \
     --builders 'ssh-ng://builder@linux-builder aarch64-linux,x86_64-linux 1' \
     --expr 'with import <nixpkgs> { system = "aarch64-linux"; }; hello' 2>&1); then
     echo "remote-only hello: ok"
@@ -168,7 +168,7 @@ linux_builder_probe() {
   # `nix build` still hit platform mismatch — verify the daemon can schedule
   # linux-builder (remote-only, same flags as package/installer builds).
   linux_builder_ssh_ng_probe || return 1
-  nix build --accept-flake-config --max-jobs 0 --no-link --system aarch64-linux \
+  nix build --impure --accept-flake-config --max-jobs 0 --no-link --system aarch64-linux \
     --builders 'ssh-ng://builder@linux-builder aarch64-linux,x86_64-linux 1' \
     --expr 'with import <nixpkgs> { system = "aarch64-linux"; }; hello' \
     &>/dev/null
