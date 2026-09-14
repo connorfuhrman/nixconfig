@@ -13,6 +13,11 @@
         pkgs.pi-plan-mode.piPackagePath
         pkgs.pi-subagents.piPackagePath
         pkgs.pi-goal.piPackagePath
+        pkgs.pi-tasks.piPackagePath
+        pkgs.pi-usage.piPackagePath
+        pkgs.pi-diff-review.piPackagePath
+        pkgs.pi-worktree.piPackagePath
+        pkgs.pi-lsp.piPackagePath
       ];
     };
   };

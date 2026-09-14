@@ -53,8 +53,9 @@
 
   # Flat node_modules: every dep is zero-dependency, so they hoist to the
   # package root exactly like npm would.
-  nodeModules = runCommand "pi-node-modules-${pname}" { } (
-    lib.concatStringsSep "\n" (
+  nodeModules = runCommand "pi-node-modules-${pname}" { } ''
+    mkdir -p "$out"
+    ${lib.concatStringsSep "\n" (
       map (dep: ''
         mkdir -p "$out/${dep.name}"
         tar -xzf "${
@@ -65,8 +66,8 @@
         }" -C "$out/${dep.name}" --strip-components=1
       '')
       deps
-    )
-  );
+    )}
+  '';
 
   # Polyfill for @earendil-works/pi-tui < 0.84 (nixpkgs pi 0.80.10):
   # stripTerminalSequences — string in, ANSI/OSC-stripped string out

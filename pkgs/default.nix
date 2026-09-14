@@ -10,4 +10,9 @@ final: prev: {
   pi-plan-mode = final.callPackage ./pi-plan-mode.nix { };
   pi-subagents = final.callPackage ./pi-subagents.nix { };
   pi-goal = final.callPackage ./pi-goal.nix { };
+  pi-tasks = final.callPackage ./pi-tasks.nix { };
+  pi-usage = final.callPackage ./pi-usage.nix { };
+  pi-diff-review = final.callPackage ./pi-diff-review.nix { };
+  pi-worktree = final.callPackage ./pi-worktree.nix { };
+  pi-lsp = final.callPackage ./pi-lsp.nix { };
 }

@@ -34,6 +34,11 @@ let
     "pi-plan-mode"
     "pi-subagents"
     "pi-goal"
+    "pi-tasks"
+    "pi-usage"
+    "pi-diff-review"
+    "pi-worktree"
+    "pi-lsp"
   ];
 in
 {
