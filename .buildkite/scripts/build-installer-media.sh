@@ -74,7 +74,12 @@ case "${target}" in
     ;;
 esac
 
-if [[ "${target}" != "iso" ]]; then
+iso_on_mac_mini=false
+if [[ "${target}" == "iso" && "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  iso_on_mac_mini=true
+fi
+
+if [[ "${target}" != "iso" || "${iso_on_mac_mini}" == "true" ]]; then
   configure_mac_mini_installer_build
   wait_linux_builder_store
   gc_linux_builder
@@ -85,6 +90,8 @@ nix_build_args=(--accept-flake-config -L --no-link --print-out-paths)
 if [[ "${target}" != "iso" ]]; then
   # Mirror configure_mac_mini_installer_build caps on the CLI (build #120/#125).
   nix_build_args+=(--max-jobs "${INSTALLER_PARALLEL_MAX_JOBS:-1}" --cores "${NIX_BUILD_CORES:-6}" --system aarch64-linux)
+elif [[ "${iso_on_mac_mini}" == "true" ]]; then
+  nix_build_args+=(--max-jobs "${INSTALLER_PARALLEL_MAX_JOBS:-1}" --cores "${NIX_BUILD_CORES:-6}" --system x86_64-linux)
 fi
 out_path=$(nix build "${nix_build_args[@]}" "${attr}")
 echo "out path: ${out_path}"

@@ -68,9 +68,12 @@ steps:
         command: .buildkite/scripts/build-nixos.sh
         <<: [*mac-mini-macos, *timeout-retry]
 
+  # Org hosted linux-medium/linux-small agents cancel in ~1s with no logs (#174–#188).
+  # Kept for when hosted queues recover; must not block installer-media.
   - label: ":nix: flake check"
     key: flake-check
     command: .buildkite/scripts/flake-check.sh
+    soft_fail: true
     timeout_in_minutes: 90
     <<: [*branch-if, *nix-docker, *linux-medium, *retry-once]
 
@@ -79,19 +82,19 @@ steps:
     # Wait for mac-mini package/nixos steps so they do not fill linux-builder
     # disk during asahi-iso (build #125 ENOSPC during linux-asahi unpack).
     depends_on:
-      - flake-check
       - flake-check-mac-mini-macos
       - build-packages-mac-mini-macos
       - build-nixos-rpi-cluster-head
     <<: *branch-if
     steps:
+      # Hosted linux-medium is broken; x86_64-linux.iso builds via mac-mini linux-builder (binfmt).
       - label: ":cd: x86_64 installer ISO"
         key: build-iso
         command: .buildkite/scripts/build-installer-media.sh iso
         artifact_paths:
           - "installer-artifacts/iso/**/*"
         timeout_in_minutes: 180
-        <<: [*nix-docker, *linux-medium, *retry-once]
+        <<: [*mac-mini-macos, *retry-once]
 
       - label: ":apple: Asahi installer ISO"
         key: build-asahi-iso
