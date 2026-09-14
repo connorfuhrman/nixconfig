@@ -79,8 +79,9 @@ steps:
 
   - group: ":cd: Installer media"
     key: installer-media
-    # Wait for mac-mini package/nixos steps so they do not fill linux-builder
-    # disk during asahi-iso (build #125 ENOSPC during linux-asahi unpack).
+    # Wait for mac-mini flake/packages/nixos (not x86 iso). ARM installer steps
+    # run in parallel with build-iso so a stuck x86 job does not block asahi/rpi.
+    # Disk: each step gc's linux-builder before large images (build #125 ENOSPC).
     depends_on:
       - flake-check-mac-mini-macos
       - build-packages-mac-mini-macos
@@ -98,7 +99,6 @@ steps:
 
       - label: ":apple: Asahi installer ISO"
         key: build-asahi-iso
-        depends_on: build-iso
         command: .buildkite/scripts/build-installer-media.sh asahi-iso
         artifact_paths:
           - "installer-artifacts/asahi-iso/**/*"
@@ -107,7 +107,6 @@ steps:
 
       - label: ":raspberry_pi: Pi SD image"
         key: build-rpi-iso
-        depends_on: build-asahi-iso
         command: .buildkite/scripts/build-installer-media.sh rpi-iso
         artifact_paths:
           - "installer-artifacts/rpi-iso/**/*"

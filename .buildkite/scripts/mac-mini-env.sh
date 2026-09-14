@@ -79,10 +79,17 @@ kickstart_linux_builder_vm() {
   return 0
 }
 
+linux_builder_ssh_ng_probe() {
+  # Fast path when the VM is already up (kickstart may be skipped without sudo).
+  nix store info --store 'ssh-ng://builder@linux-builder' &>/dev/null
+}
+
 linux_builder_probe() {
-  # build #142: nix store info --store ssh-ng://... stayed false for 30min while
-  # mac-mini package builds still used linux-builder via the daemon. Probe with
-  # the same routing a real aarch64-linux build uses.
+  # build #142: ssh-ng alone stayed false for 30min while mac-mini package builds
+  # still used linux-builder via the daemon. Also try the routing real builds use.
+  if linux_builder_ssh_ng_probe; then
+    return 0
+  fi
   nix build --accept-flake-config --max-jobs 1 --no-link --system aarch64-linux \
     --expr 'with import <nixpkgs> { system = "aarch64-linux"; }; hello' \
     &>/dev/null
