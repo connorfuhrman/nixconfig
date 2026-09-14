@@ -91,6 +91,7 @@ linux_builder_probe() {
   # linux-builder (remote-only, same flags as package/installer builds).
   linux_builder_ssh_ng_probe || return 1
   nix build --accept-flake-config --max-jobs 0 --no-link --system aarch64-linux \
+    --builders 'ssh-ng://builder@linux-builder aarch64-linux,x86_64-linux 1' \
     --expr 'with import <nixpkgs> { system = "aarch64-linux"; }; hello' \
     &>/dev/null
 }

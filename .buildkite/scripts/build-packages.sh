@@ -62,8 +62,9 @@ nix_build_installable() {
 
   if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
     if is_linux_system "${system}"; then
-      # build #206/#211: remote-only + explicit system; never build linux on darwin.
-      args+=(--builders 'ssh-ng://builder@linux-builder' --max-jobs 0 --system "${system}")
+      # build #211/#212: URL-only --builders is ignored; Nix needs platform(s) after
+      # the store URI (see nix manual distributed builds). Remote-only + --system.
+      args+=(--builders "ssh-ng://builder@linux-builder aarch64-linux,x86_64-linux 1" --max-jobs 0 --system "${system}")
     else
       args+=(--builders '')
     fi
