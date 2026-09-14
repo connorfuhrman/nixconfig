@@ -18,8 +18,16 @@ builder or containers. One launchd process — do not add a second
 |---|---|---|
 | `mac-mini-macos` | macOS (aarch64-darwin) | Native Darwin `nix flake check`, **docker-buildkite-plugin** via Podman Machine, Linux Nix offload through `nix.linux-builder` |
 
-Hosted `linux-small` / `linux-medium` remain for native x86_64 speed and
-pipeline upload. Queue `mac-mini-macos` is a general Docker runner: any job
+Hosted `linux-small` / `linux-medium` remain for native x86_64 speed in
+uploaded steps (see `.buildkite/pipeline.yml`). The static `:pipeline:` upload
+step (`.buildkite/bootstrap-pipeline.yml`) uses **`mac-mini-macos`**: it is the
+only connected agent queue in this org; hosted bootstrap queues canceled in
+under a second with zero logs (#174–#185). Upload may wait behind long mac-mini
+jobs (#175) but does not fail immediately. On pipeline **Settings**, keep
+`cancel_running_branch_builds` and `skip_queued_branch_builds` **false** so
+MCP/webhook babysit runs are not superseded (#151–#185). Queue
+`mac-mini-macos`
+is a general Docker runner: any job
 may use `docker#` / `docker run -v $PWD:...` the same way as on Linux. Linux
 Nix *without* containers still offloads to `nix.linux-builder`.
 
@@ -33,6 +41,31 @@ agent runs inside the guest.
 
 Other hosts (e.g. `nuc`) use `generic.mac-mini-builder` as a remote builder
 client over Tailscale; the macOS agent uses the same VM locally.
+
+### VM parallelism (linux-asahi / OOM)
+
+The mac-mini host (~10 cores, ~17 GiB RAM) runs an 8 GiB `nix.linux-builder`
+guest. Kernel builds (`linux-asahi`) are RAM-heavy: without guest
+`nix.settings.cores`, Nix defaults to `cores = 0` (all VM CPUs) so `make -j`
+uses every vCPU and parallel links OOM the guest (nixconfig build **#120**).
+
+CI installer scripts may pass `nix build --max-jobs` / `--cores` on the macOS
+agent; that does **not** propagate into the VM. The authoritative caps are in
+`modules/darwin/linux-builder.nix`:
+
+- `nix.linux-builder.maxJobs` — host-side concurrent derivations on the VM
+- `nix.linux-builder.config.nix.settings.cores` — `make -j` inside each build
+- `nix.linux-builder.config.nix.settings.max-jobs` — guest daemon parallelism
+
+After editing that module, on mac-mini:
+
+```sh
+cd ~/nixconfig && git pull
+sudo darwin-rebuild switch --flake .#mac-mini
+sudo launchctl kickstart -k system/org.nixos.linux-builder
+```
+
+Verify the guest (optional): `ssh builder@linux-builder nix show-config | rg 'cores|max-jobs'`
 
 ## Cluster agent token
 
@@ -229,8 +262,22 @@ switch). The private key is never replaced by a rebuild.
   is the native path.
 - `build-packages-mac-mini-macos` — autodiscover `.#packages` and build
 - `build-nixos-rpi-cluster-head` — realize the lightest NixOS toplevel via linux-builder
+- **Installer media** (`build-iso`, `build-asahi-iso`, `build-rpi-iso`) — queue
+  `mac-mini-macos`; x86_64 `.#iso` builds via `nix.linux-builder` while hosted
+  `linux-medium` is unavailable. Artifacts: `installer-artifacts/{iso,asahi-iso,rpi-iso}/`.
 
 Steps run on `main` and pull requests targeting `main`.
+
+**linux-builder kickstart in CI:** when the VM is down, `.buildkite/scripts/mac-mini-env.sh`
+runs `sudo -n /bin/launchctl kickstart … system/org.nixos.linux-builder`. Sudoers
+live in `modules/darwin/buildkite.nix` (`security.sudo.extraConfig` — full paths
+only). After changing that module:
+
+```sh
+cd ~/nixconfig && git pull
+sudo darwin-rebuild switch --flake .#mac-mini
+sudo -u buildkite-agent-macos sudo -n /bin/launchctl kickstart -k system/org.nixos.linux-builder
+```
 
 ### t-hex
 

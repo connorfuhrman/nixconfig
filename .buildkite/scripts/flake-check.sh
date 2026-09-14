@@ -7,6 +7,11 @@
 # invocation per check lets the heap drop between closures.
 set -euo pipefail
 
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  # shellcheck source=/dev/null
+  source "$(dirname "$0")/mac-mini-env.sh"
+fi
+
 system=$(nix eval --raw --impure --expr builtins.currentSystem)
 
 echo "--- :nix: flake apps (${system})"

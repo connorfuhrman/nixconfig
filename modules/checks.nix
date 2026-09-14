@@ -1,4 +1,4 @@
-{ self, ... }: {
+{ self, inputs, ... }: {
   # Eval-only checks: every configuration's derivations must instantiate
   # (evaluate) cleanly. Each check is a trivial text file embedding one
   # configuration's .drv path — computing the .drv path forces full
@@ -10,12 +10,21 @@
   # Check names must not contain `@` (invalid in store paths).
   perSystem = { pkgs, ... }:
     let
+      inherit (inputs.nixpkgs) lib;
       evalOnly = name: drvPath:
         pkgs.writeText "eval-${name}" (builtins.unsafeDiscardStringContext drvPath + "\n");
       sys = pkgs.stdenv.hostPlatform.system;
+      installerChecks =
+        lib.optionalAttrs (sys == "x86_64-linux") {
+          eval-iso = evalOnly "iso" self.nixosConfigurations.iso.config.system.build.isoImage.drvPath;
+        }
+        // lib.optionalAttrs (sys == "aarch64-linux") {
+          eval-asahi-iso = evalOnly "asahi-iso" self.packages.aarch64-linux.asahi-iso.drvPath;
+          eval-rpi-iso = evalOnly "rpi-iso" self.nixosConfigurations.rpi-iso.config.system.build.sdImage.drvPath;
+        };
     in
     {
-      checks = {
+      checks = installerChecks // {
         eval-nixos-mbp14 = evalOnly "nixos-mbp14" self.nixosConfigurations.mbp14.config.system.build.toplevel.drvPath;
         eval-nixos-nuc = evalOnly "nixos-nuc" self.nixosConfigurations.nuc.config.system.build.toplevel.drvPath;
         eval-nixos-nuc-cluster-head = evalOnly "nixos-nuc-cluster-head" self.nixosConfigurations.nuc-cluster-head.config.system.build.toplevel.drvPath;

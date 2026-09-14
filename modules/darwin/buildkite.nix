@@ -29,6 +29,10 @@
       originKnownHosts = pkgs.writeText "buildkite-agent-ssh-known-hosts" ''
         origin.cursor.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaMKo6HCtmngBwlSH2ATs8+A6eTr+cCON5RKZX/3/MO
       '';
+      # Agent-global environment hook: runs before checkout (repo hooks are not).
+      dockerEnvironmentHook = pkgs.writeShellScript "buildkite-docker-environment" (
+        builtins.readFile ../../.buildkite/hooks/environment
+      );
     in
     {
       # nix-darwin only creates users/groups listed in knownUsers/knownGroups.
@@ -62,6 +66,7 @@
         extraConfig = ''
           debug=true
           plugins-path="${agentCheckout}/plugins"
+          hooks-path="${agentCheckout}/hooks"
           build-path="${agentCheckout}/builds"
           spawn=2
           bootstrap-script="${config.services.buildkite-agents.macos.package}/bin/buildkite-agent bootstrap --no-job-api"
@@ -79,6 +84,7 @@
           pkgs.gnutar
           pkgs.gzip
           pkgs.podman
+          pkgs.podman-docker-compat
         ];
       };
 
@@ -86,6 +92,15 @@
         "connorfuhrman"
         agentUser
       ];
+
+      # build #129/#137: installer steps restart linux-builder after ENOSPC crashes.
+      # nix-darwin exposes security.sudo.extraConfig (not NixOS extraRules).
+      security.sudo.extraConfig = lib.mkAfter ''
+        ${agentUser} ALL = (ALL) NOPASSWD: /bin/launchctl kickstart -k system/org.nixos.linux-builder
+        ${agentUser} ALL = (ALL) NOPASSWD: /bin/launchctl kickstart system/org.nixos.linux-builder
+        ${agentUser} ALL = (ALL) NOPASSWD: /usr/bin/launchctl kickstart -k system/org.nixos.linux-builder
+        ${agentUser} ALL = (ALL) NOPASSWD: /usr/bin/launchctl kickstart system/org.nixos.linux-builder
+      '';
 
       launchd.daemons.buildkite-agent-macos = {
         # insteadOf HTTPS Origin clones → SSH. Store path is public (no secrets).
@@ -106,13 +121,15 @@
         agent_home=${agentHome}
         checkout=${agentCheckout}
         mkdir -p "$agent_home/.ssh"
-        mkdir -p "$checkout/builds" "$checkout/plugins"
+        mkdir -p "$checkout/builds" "$checkout/plugins" "$checkout/hooks"
+        install -m 755 ${dockerEnvironmentHook} "$checkout/hooks/environment"
         chown -R ${agentUser}:${agentUser} "$agent_home"
         chown -R ${agentUser}:docker "$checkout"
         chmod 755 "$agent_home"
         chmod 755 "$checkout"
         chmod 755 "$checkout/builds"
         chmod 755 "$checkout/plugins"
+        chmod 755 "$checkout/hooks"
         chmod 700 "$agent_home/.ssh"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originGitconfig} "$agent_home/.gitconfig"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originSshConfig} "$agent_home/.ssh/config"
@@ -131,6 +148,13 @@
         if [ -f /etc/buildkite-agent/cluster.token ]; then
           chown root:${agentUser} /etc/buildkite-agent/cluster.token
           chmod 640 /etc/buildkite-agent/cluster.token
+        fi
+
+        # build #122: buildkite-agent-macos could not read /etc/nix/builder_ed25519
+        # (platform mismatch for aarch64-linux installer builds via linux-builder).
+        if [ -f /etc/nix/builder_ed25519 ]; then
+          chown root:${agentUser} /etc/nix/builder_ed25519
+          chmod 640 /etc/nix/builder_ed25519
         fi
 
         launchctl kickstart -k system/org.nixos.buildkite-agent-macos 2>/dev/null || true

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# After checkout: expose podman-docker-compat before docker# plugin hooks.
+set -euo pipefail
+
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  env_sh="${BUILDKITE_BUILD_CHECKOUT_PATH:?}/.buildkite/scripts/mac-mini-env.sh"
+  if [[ -f "${env_sh}" ]]; then
+    # shellcheck source=/dev/null
+    source "${env_sh}"
+    configure_mac_mini_docker || true
+  fi
+fi

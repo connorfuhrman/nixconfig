@@ -8,10 +8,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixos-apple-silicon = {
-      url = "github:nix-community/nixos-apple-silicon/release-2025-11-18";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixos-apple-silicon.url = "github:nix-community/nixos-apple-silicon";
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin/master";
       inputs.nixpkgs.follows = "nixpkgs";

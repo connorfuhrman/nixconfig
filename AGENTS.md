@@ -64,7 +64,7 @@ pkgs/                   custom packages (callPackage); overlay = pkgs/default.ni
 modules/pkgs.nix        flake.overlays.default + packages.* + lib.pkgsFor
 modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwin
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
-modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
+modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword, iso
 modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
 modules/home/           homeManager: base, emacs, coreutils, gh, pi, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
@@ -96,7 +96,10 @@ README.md               human-facing overview (this repo is multi-host, not Asah
   (`nix.settings.experimental-features`). Use plain `nix flake` / `nix eval`.
 - **Evaluation only — never build system closures.** No `nixos-rebuild`,
   `darwin-rebuild`, or `home-manager` from the dev machine. `nix flake check`
-  and `nix eval` are the validation tools.
+  and `nix eval` are the validation tools. CI (Buildkite) additionally
+  **realizes** the three generic installer media (`.#iso`, `.#asahi-iso`,
+  `.#rpi-iso`); x86_64 `.#iso` runs on hosted `linux-medium`, aarch64 images
+  on `mac-mini-macos`.
 - This **is** a git repo. Use feature branches targeting `main` (see Workflow). Do not
   force-push or commit secrets / `firmware/` blobs to a public remote.
 - `flake show` displays `darwinConfigurations`, `homeConfigurations`,
@@ -107,7 +110,8 @@ README.md               human-facing overview (this repo is multi-host, not Asah
 
 ```sh
 cd /Users/connorfuhrman/nixconfig
-# primary gate: proves every configuration's derivations evaluate (15 closures).
+# primary gate: proves every configuration's derivations evaluate
+# (live closures + installer ISO/SD variants).
 # Runs PURE (no --impure, no env vars) — unfree allowance is scoped in onepassword modules.
 nix flake check .
 # module registries:
@@ -120,6 +124,10 @@ nix eval .#nixosConfigurations.mbp14.config.hardware.asahi.enable          # tru
 nix eval .#nixosConfigurations.mbp14.config.services.tailscale.enable      # true
 nix eval .#nixosConfigurations.mbp14.config.nix.distributedBuilds          # true
 nix eval .#nixosConfigurations.nuc.config.networking.hostName              # "nuc"
+nix eval .#nixosConfigurations.iso.config.system.build.isoImage.drvPath      # x86_64 installer ISO (eval only — do not nix build the image)
+nix eval .#packages.x86_64-linux.iso.drvPath                                 # same derivation via packages.*
+nix eval .#packages.aarch64-linux.asahi-iso.drvPath                          # Apple Silicon installer (eval only)
+nix eval .#nixosConfigurations.rpi-iso.config.system.build.sdImage.drvPath   # Pi SD image (eval only)
 nix eval .#nixosConfigurations.nuc.config.nix.buildMachines --apply 'ms: map (m: m.hostName) ms'  # ["mac-mini"]
 nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 's: builtins.filter (n: builtins.match "ray.*" n != null) (builtins.attrNames s)'  # ["ray-head"]
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
@@ -160,7 +168,14 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   they instantiate (fully evaluate) every closure but build nothing. Realizing
   closures happens on target hardware or the mac-mini builder. Check names must
   not contain `@` (invalid in store paths), hence `eval-home-connorfuhrman-mbp14`
-  etc.
+  etc. Installer media checks use `isoImage.drvPath` / `sdImage.drvPath` the
+  same way — eval only, except when explicitly asked to realize `.#iso`.
+- **Installer media are generic**, not per-host variants. Three outputs in
+  `modules/installer-media.nix`: `.#iso` (x86_64 `installation-cd-minimal`),
+  `.#asahi-iso` (`nixos-apple-silicon` `installer-bootstrap`), `.#rpi-iso`
+  (aarch64 `sd-image-aarch64-installer`). Helper: `flake.lib.mkGenericInstaller`
+  in `modules/nixos/iso.nix`. Live host closures unchanged; pick the host at
+  `nixos-install --flake /etc/nixconfig#<host>`.
 - **Unfree packages:** 1Password is unfree; each platform's onepassword
   module sets a scoped `nixpkgs.config.allowUnfreePredicate` (must appear
   exactly once per configuration — multiple definitions of that option
@@ -183,6 +198,13 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 - **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
   (qemu-user binfmt in the builder VM). Clients use
   `generic.mac-mini-builder` with both systems.
+  **VM parallelism:** `nix build --cores N` on the macOS Buildkite agent does
+  not cap compiles inside `nix.linux-builder` — the guest's
+  `nix.settings.cores` / `max-jobs` in `modules/darwin/linux-builder.nix` do
+  (kernel builds use `$NIX_BUILD_CORES` from the builder VM). After changing
+  that module, run `sudo darwin-rebuild switch --flake .#mac-mini` on the mini
+  and `sudo launchctl kickstart -k system/org.nixos.linux-builder` so the VM
+  picks up the new nix.conf (build #120 OOM'd with unset `cores` → make -j 8+).
 - **mac-mini Buildkite** runs one self-hosted agent (`spawn=2`, names
   `%hostname-macos-%spawn`) on the Default cluster: `mac-mini-macos`
   (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
@@ -204,6 +226,10 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   token from 1Password account `aztec_fuhrmans`,
   `op://Private/Buildkite/credential`).
   Runbook: [`docs/plans/mac-mini-buildkite.md`](docs/plans/mac-mini-buildkite.md).
+  CI can restart `org.nixos.linux-builder` via passwordless
+  `/bin/launchctl kickstart` for `buildkite-agent-macos` (see
+  `modules/darwin/buildkite.nix`); requires `darwin-rebuild switch` on the mini
+  after sudoers changes.
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.roon-server` enables it (and any other
   host that needs brew).
