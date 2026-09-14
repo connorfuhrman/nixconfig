@@ -88,11 +88,18 @@ fi
 
 echo "--- :nix: build ${attr}"
 nix_build_args=(--accept-flake-config -L --no-link --print-out-paths)
-if [[ "${target}" != "iso" ]]; then
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  # build #228: --system without ssh-ng store made the darwin client run Linux
+  # derivations locally (bash: Undefined error: 0). Match build-packages.sh / turing-pi.
+  installer_system=aarch64-linux
+  if [[ "${target}" == "iso" ]]; then
+    installer_system=x86_64-linux
+  fi
+  nix_build_args+=(--impure --store 'ssh-ng://builder@linux-builder' --eval-store auto \
+    --max-jobs "${INSTALLER_PARALLEL_MAX_JOBS:-1}" --cores "${NIX_BUILD_CORES:-6}" --system "${installer_system}")
+elif [[ "${target}" != "iso" ]]; then
   # Mirror configure_mac_mini_installer_build caps on the CLI (build #120/#125).
   nix_build_args+=(--max-jobs "${INSTALLER_PARALLEL_MAX_JOBS:-1}" --cores "${NIX_BUILD_CORES:-6}" --system aarch64-linux)
-elif [[ "${iso_on_mac_mini}" == "true" ]]; then
-  nix_build_args+=(--max-jobs "${INSTALLER_PARALLEL_MAX_JOBS:-1}" --cores "${NIX_BUILD_CORES:-6}" --system x86_64-linux)
 fi
 out_path=$(nix build "${nix_build_args[@]}" "${attr}")
 echo "out path: ${out_path}"
