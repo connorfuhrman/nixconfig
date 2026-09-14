@@ -38,7 +38,7 @@ hardware yet. Metadata lives in `modules/hosts/status.nix` (`flake.hostStatus`).
 - [Tailscale](https://tailscale.com/) (MagicDNS hostnames after one-time `sudo tailscale up`)
 - [1Password](https://1password.com/) CLI everywhere; GUI on `mbp14` and Darwin (nixpkgs)
 - Weekly Nix garbage collection (store paths older than 30 days)
-- Common CLI tools, git, gh (GitHub CLI), zsh, Emacs
+- Common CLI tools, git, gh (GitHub CLI), pi (coding agent), zsh, Emacs
 
 ## Quick start
 
@@ -82,7 +82,7 @@ modules/
   nixos/                  NixOS features (system, desktop, server, asahi,
                           nuc-cluster, ray-cluster, onepassword, …)
   darwin/                 nix-darwin features (system, linux-builder, roon, …)
-  home/                   home-manager (standard = base+emacs+coreutils+gh+mosh+obsidian-config)
+  home/                   home-manager (standard = base+emacs+coreutils+gh+pi+mosh+obsidian-config)
   generic/                shared features (tailscale, mac-mini-builder)
   hosts/<name>.nix        per-host composition + home config
   hosts/status.nix        host maturity metadata (experimental vs tested)
@@ -106,6 +106,7 @@ Cloud Agents use `ubuntu@cursor-cloud`.
 | **Emacs** | GUI from [connorfuhrman/emacs](https://github.com/connorfuhrman/emacs) | same flake (emacs-macport + packages + `--init-directory`) |
 | **Shell / CLI** | zsh, eza, bat, fzf, ydiff, dust, jq, gtop, gping, origin | same |
 | **Git / GitHub** | name/email, `master` default branch, auto upstream on push, ydiff pager; `gh` via `programs.gh` (ssh, git credential helper) | same |
+| **Pi** | `programs.pi-coding-agent` (`pi` CLI); login via `/login` or env keys, not Nix | same |
 
 ## Infrastructure notes
 
