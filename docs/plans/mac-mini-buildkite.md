@@ -262,8 +262,22 @@ switch). The private key is never replaced by a rebuild.
   is the native path.
 - `build-packages-mac-mini-macos` — autodiscover `.#packages` and build
 - `build-nixos-rpi-cluster-head` — realize the lightest NixOS toplevel via linux-builder
+- **Installer media** (`build-iso`, `build-asahi-iso`, `build-rpi-iso`) — queue
+  `mac-mini-macos`; x86_64 `.#iso` builds via `nix.linux-builder` while hosted
+  `linux-medium` is unavailable. Artifacts: `installer-artifacts/{iso,asahi-iso,rpi-iso}/`.
 
 Steps run on `main` and pull requests targeting `main`.
+
+**linux-builder kickstart in CI:** when the VM is down, `.buildkite/scripts/mac-mini-env.sh`
+runs `sudo -n /bin/launchctl kickstart … system/org.nixos.linux-builder`. Sudoers
+live in `modules/darwin/buildkite.nix` (`security.sudo.extraConfig` — full paths
+only). After changing that module:
+
+```sh
+cd ~/nixconfig && git pull
+sudo darwin-rebuild switch --flake .#mac-mini
+sudo -u buildkite-agent-macos sudo -n /bin/launchctl kickstart -k system/org.nixos.linux-builder
+```
 
 ### t-hex
 

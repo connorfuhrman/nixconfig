@@ -95,7 +95,8 @@ build_group() {
   echo "--- ${emoji} ${current_system} packages (${#installables[@]} installables) ---"
   if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]] \
     && is_linux_system "${current_system}"; then
-    wait_linux_builder_store
+    # Match installer-media: ~3m wait, single kickstart (not 30m × parallel steps).
+    wait_linux_builder_store 18 0
   fi
   local inst
   for inst in "${installables[@]}"; do

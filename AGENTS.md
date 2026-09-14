@@ -221,6 +221,10 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   token from 1Password account `aztec_fuhrmans`,
   `op://Private/Buildkite/credential`).
   Runbook: [`docs/plans/mac-mini-buildkite.md`](docs/plans/mac-mini-buildkite.md).
+  CI can restart `org.nixos.linux-builder` via passwordless
+  `/bin/launchctl kickstart` for `buildkite-agent-macos` (see
+  `modules/darwin/buildkite.nix`); requires `darwin-rebuild switch` on the mini
+  after sudoers changes.
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.roon-server` enables it (and any other
   host that needs brew).

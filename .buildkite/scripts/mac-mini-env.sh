@@ -63,6 +63,23 @@ ensure_linux_builder_ssh() {
     | grep -v '^#' >> "${ssh_dir}/known_hosts" || true
 }
 
+kickstart_linux_builder_sudo_hint() {
+  cat >&2 <<'EOF'
+Passwordless kickstart missing on mac-mini. Apply sudoers from modules/darwin/buildkite.nix:
+
+  cd ~/nixconfig && git pull
+  sudo darwin-rebuild switch --flake .#mac-mini
+
+Verify as the agent user (no password prompts):
+
+  sudo -u buildkite-agent-macos sudo -n /bin/launchctl kickstart -k system/org.nixos.linux-builder
+
+If linux-builder is still down after kickstart:
+
+  sudo launchctl kickstart -k system/org.nixos.linux-builder
+EOF
+}
+
 kickstart_linux_builder_vm() {
   # build #129: VM stayed down 30+ min after mac-mini package/nixos steps; nix
   # store info never recovered until launchd restarts org.nixos.linux-builder.
@@ -79,6 +96,15 @@ kickstart_linux_builder_vm() {
     return 0
   fi
   echo "launchctl kickstart skipped (no passwordless sudo for buildkite agent)"
+  if [[ -z "${KICKSTART_SUDO_HINT_EMITTED:-}" ]]; then
+    KICKSTART_SUDO_HINT_EMITTED=1
+    local sudo_err
+    sudo_err=$(sudo -n "${launchctl_bin}" kickstart -k system/org.nixos.linux-builder 2>&1 || true)
+    if [[ -n "${sudo_err}" ]]; then
+      echo "sudo kickstart stderr: ${sudo_err}"
+    fi
+    kickstart_linux_builder_sudo_hint
+  fi
   return 0
 }
 
