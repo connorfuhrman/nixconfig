@@ -135,7 +135,14 @@ it advertises **both** `aarch64-linux` and `x86_64-linux`). Clients (`macbook`,
 
 Roon.app is the Core on macOS (no headless server package). Installed via
 Homebrew. After install: sign in, enable this Mac as Core, turn on launch at
-login. Optional auto-login for unattended boot.
+login. Console auto-login for unattended boot is declared in nix-darwin
+(`darwin.server` / `system.defaults.loginwindow.autoLoginUser` for
+`connorfuhrman`). Power-restore after an outage uses `darwin.server` power
+policy (`power.restartAfterPowerFailure` + Tahoe 26.5+
+`pmset autorestartatconnect` on supported 2024+ desktops). If console auto-login
+is not already set on the machine, run once:
+`sudo sysadminctl -autologin set -userName connorfuhrman -password -`
+(creates `/etc/kcpassword`).
 
 ### Asahi install (mbp14)
 
