@@ -8,6 +8,8 @@ set -euo pipefail
 
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
+LINUX_BUILDER_SSH_PORT=31022
+LINUX_BUILDER_SSH_KEY=/etc/nix/builder_ed25519
 export NIX_SSHOPTS='-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new'
 
 configure_mac_mini_docker() {
@@ -46,11 +48,27 @@ configure_mac_mini_docker() {
   return 0
 }
 
-mac_mini_linux_builder_ssh_opts=(
-  -o BatchMode=yes
-  -o ConnectTimeout=10
-  -o StrictHostKeyChecking=accept-new
-)
+mac_mini_linux_builder_ssh_opts=()
+
+configure_linux_builder_ssh_client() {
+  # buildkite-agent-macos has no interactive ssh config; nix-darwin publishes the
+  # VM on 127.0.0.1:31022 with /etc/nix/builder_ed25519 (group-readable for agent).
+  ensure_linux_builder_ssh
+  mac_mini_linux_builder_ssh_opts=(
+    -o BatchMode=yes
+    -o ConnectTimeout=10
+    -o StrictHostKeyChecking=accept-new
+    -p "${LINUX_BUILDER_SSH_PORT}"
+  )
+  local nix_ssh="-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -p ${LINUX_BUILDER_SSH_PORT}"
+  if [[ -r "${LINUX_BUILDER_SSH_KEY}" ]]; then
+    mac_mini_linux_builder_ssh_opts+=(-i "${LINUX_BUILDER_SSH_KEY}" -o IdentitiesOnly=yes)
+    nix_ssh+=" -i ${LINUX_BUILDER_SSH_KEY} -o IdentitiesOnly=yes"
+  else
+    echo "warning: ${LINUX_BUILDER_SSH_KEY} not readable (run darwin-rebuild on mac-mini)" >&2
+  fi
+  export NIX_SSHOPTS="${nix_ssh}"
+}
 
 ensure_linux_builder_ssh() {
   local ssh_dir="${HOME}/.ssh"
@@ -59,7 +77,7 @@ ensure_linux_builder_ssh() {
   touch "${ssh_dir}/known_hosts"
   chmod 600 "${ssh_dir}/known_hosts"
   # nix-darwin publishes linux-builder on localhost:31022.
-  ssh-keyscan -p 31022 -H linux-builder 127.0.0.1 2>/dev/null \
+  ssh-keyscan -p "${LINUX_BUILDER_SSH_PORT}" -H linux-builder 127.0.0.1 2>/dev/null \
     | grep -v '^#' >> "${ssh_dir}/known_hosts" || true
 }
 
@@ -113,6 +131,37 @@ linux_builder_ssh_ng_probe() {
   nix store info --store 'ssh-ng://builder@linux-builder' &>/dev/null
 }
 
+linux_builder_ssh_probe() {
+  ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder true &>/dev/null
+}
+
+linux_builder_log_probe_failure() {
+  local err
+  echo "--- :mag: linux-builder probe diagnostics"
+  if [[ -r "${LINUX_BUILDER_SSH_KEY}" ]]; then
+    echo "builder key: readable (${LINUX_BUILDER_SSH_KEY})"
+  else
+    echo "builder key: NOT readable (${LINUX_BUILDER_SSH_KEY}) — darwin-rebuild postActivation in buildkite.nix"
+  fi
+  if err=$(nix store info --store 'ssh-ng://builder@linux-builder' 2>&1); then
+    echo "ssh-ng store info: ok"
+  else
+    echo "ssh-ng store info failed: ${err}"
+  fi
+  if err=$(ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder true 2>&1); then
+    echo "direct ssh: ok"
+  else
+    echo "direct ssh failed: ${err}"
+  fi
+  if err=$(nix build --accept-flake-config --max-jobs 0 --no-link --system aarch64-linux \
+    --builders 'ssh-ng://builder@linux-builder aarch64-linux,x86_64-linux 1' \
+    --expr 'with import <nixpkgs> { system = "aarch64-linux"; }; hello' 2>&1); then
+    echo "remote-only hello: ok"
+  else
+    echo "remote-only hello failed: ${err}"
+  fi
+}
+
 linux_builder_probe() {
   # build #142: ssh-ng alone stayed false for 30min while mac-mini package builds
   # still used linux-builder via the daemon. build #211: ssh-ng true while
@@ -132,6 +181,7 @@ wait_linux_builder_store() {
   # build #126: asahi-iso hit platform mismatch when linux-builder VM was down
   # (Connection closed on 127.0.0.1:31022).
   echo "--- :hourglass: wait for linux-builder"
+  configure_linux_builder_ssh_client
   kickstart_linux_builder_vm
   local attempt
   for attempt in $(seq 1 "${max_attempts}"); do
@@ -145,6 +195,7 @@ wait_linux_builder_store() {
     echo "linux-builder not ready (${attempt}/${max_attempts}), sleeping 10s..."
     sleep 10
   done
+  linux_builder_log_probe_failure
   echo "linux-builder unreachable after $((max_attempts * 10 / 60)) minutes" >&2
   return 1
 }
