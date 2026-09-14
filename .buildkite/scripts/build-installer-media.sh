@@ -104,20 +104,65 @@ fi
 out_path=$(nix build "${nix_build_args[@]}" "${attr}")
 echo "out path: ${out_path}"
 
-# ssh-ng builds live on linux-builder; eval-store auto records the path locally
-# but the ISO/img bytes are remote until copied (build #230: nix build ok, -f failed).
-if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
-  echo "--- :arrow_down: copy installer output from linux-builder store to local"
-  nix copy --from 'ssh-ng://builder@linux-builder' --to 'auto' "${out_path}"
-fi
+# Copy out of the nix store (or linux-builder) so artifact_paths see files on checkout.
+out_dir="installer-artifacts/${target}"
+rm -rf "${out_dir}"
+mkdir -p "${out_dir}"
+df -h . /nix/store 2>/dev/null || df -h . >&2 || true
+
+copy_installer_from_linux_builder_ssh() {
+  # build #231: nix copy --to auto exited 1 with [0 copied (1.4 GiB)] and no stderr;
+  # bytes stay on the VM until we scp them into the checkout.
+  configure_linux_builder_ssh_client
+  local remote_list
+  remote_list=$(
+    ssh "${mac_mini_linux_builder_ssh_opts[@]}" builder@linux-builder \
+      "set -euo pipefail; p='${out_path}'; if [[ -f \"\${p}\" ]]; then echo \"\${p}\"; elif [[ -d \"\${p}\" ]]; then /usr/bin/find -L \"\${p}\" -type f \\( -name '*.iso' -o -name '*.img.zst' -o -name '*.img' \\) | sort; else exit 2; fi"
+  ) || {
+    echo "+++ :x: installer path missing on linux-builder: ${out_path}" >&2
+    return 1
+  }
+  local path
+  while IFS= read -r path; do
+    [[ -n "${path}" ]] || continue
+    local dest="${out_dir}/$(basename "${path}")"
+    echo "scp linux-builder:${path} -> ${dest}"
+    scp "${mac_mini_linux_builder_ssh_opts[@]}" "builder@linux-builder:${path}" "${dest}"
+  done <<< "${remote_list}"
+}
 
 artifacts=()
+staged_via_ssh=false
+
+# ssh-ng builds live on linux-builder; eval-store auto records the path locally
+# but the ISO/img bytes are remote until copied (build #230/#231).
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
+  configure_linux_builder_ssh_client
+  echo "--- :arrow_down: copy installer output from linux-builder store to local"
+  copy_err=""
+  if ! copy_err=$(nix copy --impure \
+    --from 'ssh-ng://builder@linux-builder' \
+    --to 'auto' \
+    "${out_path}^*" 2>&1); then
+    echo "nix copy failed: ${copy_err}"
+  else
+    echo "${copy_err}"
+  fi
+fi
+
 if [[ -f "${out_path}" ]]; then
   case "${out_path}" in
     *.iso|*.img.zst|*.img) artifacts=("${out_path}") ;;
   esac
 elif [[ -d "${out_path}" ]]; then
   mapfile -t artifacts < <(find_installer_media "${out_path}" | sort)
+fi
+
+if [[ ${#artifacts[@]} -eq 0 ]]; then
+  echo "+++ :warning: no local installer media at ${out_path}; staging over ssh"
+  copy_installer_from_linux_builder_ssh
+  staged_via_ssh=true
+  mapfile -t artifacts < <(find_installer_media "${out_dir}" | sort)
 fi
 
 if [[ ${#artifacts[@]} -eq 0 ]]; then
@@ -131,17 +176,13 @@ fi
 echo "+++ :package: artifacts"
 printf '  %s\n' "${artifacts[@]}"
 
-# Copy out of the nix store so hosted Docker steps and artifact_paths can
-# see files on the mounted checkout after the container exits.
-out_dir="installer-artifacts/${target}"
-rm -rf "${out_dir}"
-mkdir -p "${out_dir}"
-df -h . >&2 || true
-for path in "${artifacts[@]}"; do
-  dest="${out_dir}/$(basename "${path}")"
-  echo "copying ${path} -> ${dest}"
-  cp -L "${path}" "${dest}"
-done
+if [[ "${staged_via_ssh}" != "true" ]]; then
+  for path in "${artifacts[@]}"; do
+    dest="${out_dir}/$(basename "${path}")"
+    echo "copying ${path} -> ${dest}"
+    cp -L "${path}" "${dest}"
+  done
+fi
 
 if command -v buildkite-agent >/dev/null 2>&1; then
   buildkite-agent artifact upload "${out_dir}/*"
