@@ -31,6 +31,9 @@ let
     "mac-mini-buildkite-install-token"
     "mac-mini-buildkite-install-origin-ssh"
     "origin"
+    "pi-plan-mode"
+    "pi-subagents"
+    "pi-goal"
   ];
 in
 {
