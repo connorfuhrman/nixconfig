@@ -1,16 +1,18 @@
-# pi-plan-mode: plan mode for the pi coding agent (@narumitw/pi-plan-mode).
-# Published from the narumiruna/pi-extensions monorepo; peer deps
-# (@earendil-works/pi-*, range `*`) are provided by pi's bundled runtime.
+# pi-goal: autonomous single-objective /goal completion for the pi coding
+# agent (@narumitw/pi-goal). Published from the narumiruna/pi-extensions
+# monorepo; peer deps (@earendil-works/pi-* and typebox, range `*`) are
+# provided by pi's bundled runtime.
 {
   callPackage,
   lib,
 }:
 callPackage ./pi-package.nix {
-  pname = "pi-plan-mode";
-  npmName = "@narumitw/pi-plan-mode";
-  version = "0.58.0";
-  hash = "sha256-K1wobYWW6tfQjx79Io4gTev4PPvYd8CVE0m88ZGoL2w=";
-  # Runtime deps pinned to upstream's package-lock.json (0.58.0).
+  pname = "pi-goal";
+  npmName = "@narumitw/pi-goal";
+  version = "0.54.4";
+  hash = "sha256-s/qHmedg12sm+YBJ3g7DKLnaLDVb5Ra0hOp7CJLDihc=";
+  # Runtime deps pinned to upstream's package-lock.json (0.54.4) — same
+  # tree as pi-plan-mode.
   deps = [
     {
       name = "@narumitw/pi-tui-kit";
@@ -28,7 +30,7 @@ callPackage ./pi-package.nix {
       hash = "sha256-rMv6qrdFCIYJtO6ivcoq1i8fHdJzBOD432XP4P4EIUM=";
     }
   ];
-  description = "Plan mode for the pi coding agent";
+  description = "Autonomous /goal completion for the pi coding agent";
   homepage = "https://github.com/narumiruna/pi-extensions";
   license = lib.licenses.mit;
 }
