@@ -3,7 +3,7 @@ writeShellScriptBin "mac-mini-buildkite-install-origin-ssh" ''
   set -euo pipefail
 
   AGENT_USER=buildkite-agent-macos
-  AGENT_HOME=/var/lib/$AGENT_USER
+  AGENT_HOME=/private/var/lib/$AGENT_USER
   KEY_PATH=$AGENT_HOME/.ssh/origin_cursor
   PUB_PATH=$KEY_PATH.pub
   ORIGIN_KEY_TITLE=mac-mini-buildkite-agent

@@ -43,8 +43,8 @@ for agents: [`.cursor/AGENTS.md`](.cursor/AGENTS.md).
 - Configurations live in `modules/hosts/<name>.nix`: a `host-<name>` module that
   composes features by name, plus the `<name>` configuration (and
   `connorfuhrman@<name>` home configuration) built from it.
-- Home hosts import **`homeManager.standard`** (base + emacs + coreutils + mosh +
-  obsidian-config) — do not re-list those modules per host. Exception:
+- Home hosts import **`homeManager.standard`** (base + emacs + coreutils + gh +
+  mosh + obsidian-config) — do not re-list those modules per host. Exception:
   `ubuntu@cursor-cloud` imports `homeManager.cursor-cloud` (base + coreutils +
   emacs only; no mosh / obsidian-config).
 - **No `specialArgs`/`extraSpecialArgs`** — dendritic anti-pattern. Values flow
@@ -66,7 +66,7 @@ modules/systems.nix     systems list: aarch64-linux, x86_64-linux, aarch64-darwi
 modules/checks.nix      eval-only checks for every configuration (nix flake check)
 modules/nixos/          NixOS features: system, desktop, server, asahi, onepassword
 modules/darwin/         nix-darwin features: system, linux-builder, buildkite, server, roon-server, onepassword, emacs-plus
-modules/home/           homeManager: base, emacs, coreutils, cursor, cursor-cloud, obsidian-config, standard
+modules/home/           homeManager: base, emacs, coreutils, gh, cursor, cursor-cloud, obsidian-config, standard
 modules/generic/        class-agnostic features: tailscale, mac-mini-builder
 modules/hosts/          host definitions, status metadata (+ _hardware-configuration.nix per NixOS host)
 .cursor/AGENTS.md       AI-only Cursor Cloud first-time Nix setup (not human docs)
@@ -125,7 +125,10 @@ nix eval .#nixosConfigurations.nuc-cluster-head.config.systemd.services --apply 
 nix eval .#darwinConfigurations.macbook.config.system.stateVersion         # 5
 nix eval .#darwinConfigurations.macbook.config.homebrew.enable             # true
 nix eval .#darwinConfigurations.macbook.config.nix.distributedBuilds       # true
+nix eval .#darwinConfigurations.macbook.config.nix.settings.trusted-users  # includes "connorfuhrman"
 nix eval .#darwinConfigurations.mac-mini.config.nix.linux-builder.enable   # true
+nix eval .#darwinConfigurations.mac-mini.config.users.users.buildkite-agent-macos.home  # "/private/var/lib/buildkite-agent-macos"
+nix eval .#darwinConfigurations.mac-mini.config.services.buildkite-agents.macos.dataDir  # "/private/var/lib/buildkite-agent-macos"
 nix eval .#homeConfigurations.\"ubuntu@cursor-cloud\".config.home.username # "ubuntu"
 nix eval .#apps.x86_64-linux.cursor-cloud-setup.program
 nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
@@ -180,8 +183,18 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   `%hostname-macos-%spawn`) on the Default cluster: `mac-mini-macos`
   (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
   as a remote builder (aarch64-linux native; x86_64-linux via qemu-user binfmt in
-  the VM) — not a separate Buildkite agent. Container / `docker#` on this queue
-  is a follow-up. Cluster agent token path:
+  the VM) — not a separate Buildkite agent. `docker#` / `docker run -v $PWD`
+  works on this queue: jobs check out under `/Users/Shared/buildkite-agent-macos`
+  (`build-path` / `plugins-path`) on the default applehv `/Users` virtiofs share so
+  `docker run -v $PWD` works with no guest symlink. Agent home / `dataDir` stay
+  `/private/var/lib/buildkite-agent-macos` — nix-darwin will not move an existing
+  user's home (`/var` → `/private/var` on Darwin). Do not put checkout under
+  `/var/lib` (guest ls/umount of `/private/var` hangs virtiofs) and do not add a
+  nested virtiofs of the checkout. Origin SSH / `.gitconfig` live in that home.
+  Job API is off (`bootstrap --no-job-api` + launchd `BUILDKITE_AGENT_NO_JOB_API=true`)
+  because unix sockets cannot ride virtiofs and docker-buildkite-plugin
+  bind-mounts `BUILDKITE_AGENT_JOB_API_SOCKET` when that env is set.
+  `job-api=false` in extraConfig is not an agent-start key. Cluster agent token path:
   `/etc/buildkite-agent/cluster.token` (never in the Nix store). Install on
   mac-mini via `nix run .#mac-mini-buildkite-install-token` (reads `bkct_`
   token from 1Password account `aztec_fuhrmans`,
@@ -240,6 +253,17 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   the Nix installation. `nix.linux-builder` stays. Revisit if it matures.
 - **stateVersion types differ:** NixOS/home-manager use strings (`"25.11"`),
   nix-darwin uses an integer (`5`).
+- **Home-manager clobber on first Darwin activation:** `programs.zsh.enable`
+  manages `~/.zprofile`. The official Nix installer already writes that file
+  on macOS, so standalone `home-manager switch` aborts with "would be
+  clobbered". There is no standalone `home.backupFileExtension` option —
+  `homeManager.base` exports `HOME_MANAGER_BACKUP_EXT=backup` before
+  `checkLinkTargets`, and `switch-darwin` also passes `-b backup`. The
+  existing file becomes `~/.zprofile.backup`. Do not `force = true`.
+- **Untrusted substituter on Darwin:** flake `nixConfig.extra-substituters`
+  is ignored unless the invoking user is in `nix.settings.trusted-users`.
+  `darwin.system` sets `connorfuhrman`; without it, `nix develop` warns
+  about `nixos-apple-silicon.cachix.org` and `trusted-public-keys`.
 - `_hardware-configuration.nix` files are TEMPLATES — real values come from
   `nixos-generate-config` on target hardware (see INSTALL.md).
 - Keep this repo **private**: `firmware/` contains extracted Apple firmware.

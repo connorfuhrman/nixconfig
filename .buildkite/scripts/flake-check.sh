@@ -2,8 +2,9 @@
 # Evaluate flake checks in separate nix processes.
 #
 # A single `nix flake check` retains the evaluator heap across every
-# configuration. One invocation per check lets the heap drop between
-# closures (needed on native mac-mini as well as smaller Linux VMs).
+# configuration. The Podman Machine guest is 10 GiB with no swap, and a
+# full eval of this flake (emacs overlay unpack) needs ~8 GiB RSS. One
+# invocation per check lets the heap drop between closures.
 set -euo pipefail
 
 system=$(nix eval --raw --impure --expr builtins.currentSystem)

@@ -2,7 +2,15 @@
   flake.modules.darwin.buildkite = { config, lib, pkgs, ... }:
     let
       agentUser = "buildkite-agent-macos";
-      agentHome = "/var/lib/${agentUser}";
+      # Existing dscl home. nix-darwin will not change it. /var is a symlink
+      # to /private/var on Darwin — keep the /private path the live user has.
+      agentHome = "/private/var/lib/${agentUser}";
+      # Checkout on applehv /Users virtiofs so docker -v $PWD works. Do not
+      # put checkout under /var/lib (/private/var on Darwin): guest ls/umount
+      # of that path hangs the share, and nested virtiofs tags are unused.
+      # Must match modules/darwin/podman.nix agentCheckoutRoot. ExtraConfig
+      # build-path last-wins over nix-darwin's dataDir/builds.
+      agentCheckout = "/Users/Shared/${agentUser}";
       originSshKey = "${agentHome}/.ssh/origin_cursor";
       # Public only — private key is installed by
       # `nix run .#mac-mini-buildkite-install-origin-ssh`, never the Nix store.
@@ -30,22 +38,33 @@
       users.users.buildkite-agent-macos = {
         uid = lib.mkDefault 536;
         gid = lib.mkDefault config.users.groups.buildkite-agent-macos.gid;
-        # createhomedir fails on /var/lib (errno 62); postActivation creates the workdir.
+        home = agentHome;
+        # createhomedir fails on /var/lib (errno 62); postActivation creates dirs.
         createHome = lib.mkForce false;
       };
 
       services.buildkite-agents.macos = {
+        dataDir = agentHome;
         tokenPath = "/etc/buildkite-agent/cluster.token";
         # Buildkite requires %spawn in the name when spawn>1 shares build-path.
         # Default is "%hostname-macos-%n"; %n is not the spawn index.
         name = "%hostname-macos-%spawn";
         # Host is 16 GiB; linux-builder is ~8 GiB. spawn=2 is two concurrent
-        # Darwin jobs; 4+ oversubscribes RAM if those jobs also use the builder
-        # (or Podman Machine, once that lands).
+        # Darwin jobs; higher spawn oversubscribes RAM when jobs also use the
+        # builder or Podman Machine (~10 GiB).
+        # Unix sockets cannot ride virtiofs. docker-buildkite-plugin bind-mounts
+        # BUILDKITE_AGENT_JOB_API_SOCKET when that env is set, so Job API is
+        # disabled agent-wide: bootstrap --no-job-api plus launchd
+        # BUILDKITE_AGENT_NO_JOB_API. `job-api=false` is not an agent-start
+        # key. nix-darwin has no commandLine option, so extraConfig
+        # bootstrap-script is the switch. Do not rely on step env (agent
+        # overwrites an empty BUILDKITE_AGENT_JOB_API_SOCKET).
         extraConfig = ''
           debug=true
-          plugins-path="${agentHome}/plugins"
+          plugins-path="${agentCheckout}/plugins"
+          build-path="${agentCheckout}/builds"
           spawn=2
+          bootstrap-script="${config.services.buildkite-agents.macos.package}/bin/buildkite-agent bootstrap --no-job-api"
         '';
         tags = {
           queue = "mac-mini-macos";
@@ -59,6 +78,7 @@
           pkgs.coreutils
           pkgs.gnutar
           pkgs.gzip
+          pkgs.podman
         ];
       };
 
@@ -71,6 +91,11 @@
         # insteadOf HTTPS Origin clones → SSH. Store path is public (no secrets).
         environment.GIT_CONFIG_GLOBAL = "${originGitconfig}";
         environment.GIT_SSH_COMMAND = "ssh -i ${originSshKey} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${originKnownHosts}";
+        environment.DOCKER_HOST = "unix:///var/run/docker.sock";
+        # Podman honors CONTAINER_HOST, not DOCKER_HOST.
+        environment.CONTAINER_HOST = "unix:///var/run/docker.sock";
+        # Bootstrap EnvVar for --no-job-api (inherited via os.Environ()).
+        environment.BUILDKITE_AGENT_NO_JOB_API = "true";
         serviceConfig.ProcessType = lib.mkForce "Standard";
       };
 
@@ -79,11 +104,15 @@
       # (after users) so buildkite-agent-macos exists before chgrp/chown.
       system.activationScripts.postActivation.text = lib.mkAfter ''
         agent_home=${agentHome}
-        mkdir -p "$agent_home/builds" "$agent_home/plugins" "$agent_home/.ssh"
+        checkout=${agentCheckout}
+        mkdir -p "$agent_home/.ssh"
+        mkdir -p "$checkout/builds" "$checkout/plugins"
         chown -R ${agentUser}:${agentUser} "$agent_home"
+        chown -R ${agentUser}:docker "$checkout"
         chmod 755 "$agent_home"
-        chmod 755 "$agent_home/builds"
-        chmod 755 "$agent_home/plugins"
+        chmod 755 "$checkout"
+        chmod 755 "$checkout/builds"
+        chmod 755 "$checkout/plugins"
         chmod 700 "$agent_home/.ssh"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originGitconfig} "$agent_home/.gitconfig"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originSshConfig} "$agent_home/.ssh/config"

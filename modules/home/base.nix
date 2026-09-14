@@ -8,6 +8,15 @@
     # Let home-manager manage itself.
     programs.home-manager.enable = true;
 
+    # Standalone HM has no home.backupFileExtension option. The Nix installer
+    # writes ~/.zprofile on macOS; programs.zsh.enable also manages that file,
+    # so first activation aborts with "would be clobbered" unless this env
+    # var is set. Export it before checkLinkTargets (subprocess inherits it).
+    # `switch-darwin -b backup` sets the same var for the CLI path.
+    home.activation.backupExistingFiles = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+      export HOME_MANAGER_BACKUP_EXT="''${HOME_MANAGER_BACKUP_EXT:-backup}"
+    '';
+
     # Homebrew is outside nix; ensure it stays on PATH even when a parent
     # shell left __NIX_DARWIN_SET_ENVIRONMENT_DONE set (stale PATH).
     home.sessionPath = lib.optionals pkgs.stdenv.isDarwin [
