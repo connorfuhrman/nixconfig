@@ -191,6 +191,13 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 - **mac-mini linux-builder** advertises `aarch64-linux` + `x86_64-linux`
   (qemu-user binfmt in the builder VM). Clients use
   `generic.mac-mini-builder` with both systems.
+  **VM parallelism:** `nix build --cores N` on the macOS Buildkite agent does
+  not cap compiles inside `nix.linux-builder` — the guest's
+  `nix.settings.cores` / `max-jobs` in `modules/darwin/linux-builder.nix` do
+  (kernel builds use `$NIX_BUILD_CORES` from the builder VM). After changing
+  that module, run `sudo darwin-rebuild switch --flake .#mac-mini` on the mini
+  and `sudo launchctl kickstart -k system/org.nixos.linux-builder` so the VM
+  picks up the new nix.conf (build #120 OOM'd with unset `cores` → make -j 8+).
 - **mac-mini Buildkite** runs one self-hosted agent on the Default cluster:
   `mac-mini-macos` (Darwin jobs). Linux Nix builds offload to `nix.linux-builder`
   as a remote builder (aarch64-linux native; x86_64-linux via qemu-user binfmt in

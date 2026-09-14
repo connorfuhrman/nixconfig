@@ -27,6 +27,31 @@ agent runs inside the guest.
 Other hosts (e.g. `nuc`) use `generic.mac-mini-builder` as a remote builder
 client over Tailscale; the macOS agent uses the same VM locally.
 
+### VM parallelism (linux-asahi / OOM)
+
+The mac-mini host (~10 cores, ~17 GiB RAM) runs an 8 GiB `nix.linux-builder`
+guest. Kernel builds (`linux-asahi`) are RAM-heavy: without guest
+`nix.settings.cores`, Nix defaults to `cores = 0` (all VM CPUs) so `make -j`
+uses every vCPU and parallel links OOM the guest (nixconfig build **#120**).
+
+CI installer scripts may pass `nix build --max-jobs` / `--cores` on the macOS
+agent; that does **not** propagate into the VM. The authoritative caps are in
+`modules/darwin/linux-builder.nix`:
+
+- `nix.linux-builder.maxJobs` — host-side concurrent derivations on the VM
+- `nix.linux-builder.config.nix.settings.cores` — `make -j` inside each build
+- `nix.linux-builder.config.nix.settings.max-jobs` — guest daemon parallelism
+
+After editing that module, on mac-mini:
+
+```sh
+cd ~/nixconfig && git pull
+sudo darwin-rebuild switch --flake .#mac-mini
+sudo launchctl kickstart -k system/org.nixos.linux-builder
+```
+
+Verify the guest (optional): `ssh builder@linux-builder nix show-config | rg 'cores|max-jobs'`
+
 ## Cluster agent token
 
 - **Path on host:** `/etc/buildkite-agent/cluster.token`

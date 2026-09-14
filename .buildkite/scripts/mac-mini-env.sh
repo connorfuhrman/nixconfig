@@ -75,7 +75,10 @@ wait_linux_builder_store() {
 
 configure_mac_mini_installer_build() {
   # linux-asahi kernel compiles are RAM-heavy on the 8GiB linux-builder VM.
-  # Start with more parallelism and step down after compile/OOM failures only.
+  # These caps apply to the macOS nix client only (--max-jobs / --cores).
+  # make -j inside the VM follows nix.linux-builder.config.nix.settings.cores
+  # (see modules/darwin/linux-builder.nix); darwin-rebuild on mac-mini required.
+  # Start with more client parallelism and step down after compile/OOM failures.
   # Override rung via INSTALLER_PARALLEL_RUNG (1-4) on retry builds.
   local rung="${INSTALLER_PARALLEL_RUNG:-1}"
   local max_jobs cores
