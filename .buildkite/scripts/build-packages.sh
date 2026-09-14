@@ -8,7 +8,7 @@ set -euo pipefail
 if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" == "mac-mini-macos" ]]; then
   # shellcheck source=/dev/null
   source "$(dirname "$0")/mac-mini-env.sh"
-  ensure_linux_builder_ssh
+  configure_linux_builder_ssh_client
 fi
 
 echo "--- :nix: discover flake packages"
