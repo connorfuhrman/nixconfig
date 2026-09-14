@@ -12,6 +12,7 @@
       settings.packages = [
         pkgs.pi-plan-mode.piPackagePath
         pkgs.pi-subagents.piPackagePath
+        pkgs.pi-goal.piPackagePath
       ];
     };
   };

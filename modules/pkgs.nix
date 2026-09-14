@@ -33,6 +33,7 @@ let
     "origin"
     "pi-plan-mode"
     "pi-subagents"
+    "pi-goal"
   ];
 in
 {
