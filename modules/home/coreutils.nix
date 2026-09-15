@@ -11,7 +11,7 @@
       gh
       htop
       btop
-      flow
+      # flow # TODO flow build dependency is failing on MacOS right now
       origin
     ];
 
