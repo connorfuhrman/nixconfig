@@ -116,24 +116,6 @@
         "type": "github"
       }
     },
-    "flake-parts_3": {
-      "inputs": {
-        "nixpkgs-lib": "nixpkgs-lib_2"
-      },
-      "locked": {
-        "lastModified": 1788450739,
-        "narHash": "sha256-glZLQlzIn1fXH6PazR2iUmTo7kzzyYSshrWhLS9TqCU=",
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "rev": "31729ca8cbdb4fa927b34e5f4353e6a83f39e993",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "type": "github"
-      }
-    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -161,21 +143,6 @@
         "owner": "denful",
         "repo": "import-tree",
         "rev": "4ebb10ae17d5f1ad366e7aef5b92cb8eecf24f69",
-        "type": "github"
-      },
-      "original": {
-        "owner": "denful",
-        "repo": "import-tree",
-        "type": "github"
-      }
-    },
-    "import-tree_2": {
-      "locked": {
-        "lastModified": 1788467110,
-        "narHash": "sha256-ljEMTXP/rH0tOvDzc9gzwww6KcHRPRnEHzd9lK48V7s=",
-        "owner": "denful",
-        "repo": "import-tree",
-        "rev": "eb1b52eaecc57f7c136d07ae8a93e724dfecac46",
         "type": "github"
       },
       "original": {
@@ -298,21 +265,6 @@
         "type": "github"
       }
     },
-    "nixpkgs-lib_2": {
-      "locked": {
-        "lastModified": 1788057806,
-        "narHash": "sha256-DTQSMxzDWmT0zhguthvegnVkn7CFqGCv4IHCzk5ZUpM=",
-        "owner": "nix-community",
-        "repo": "nixpkgs.lib",
-        "rev": "596e2e3940e09b2abbeb03f75fa1828c57fcd72c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-community",
-        "repo": "nixpkgs.lib",
-        "type": "github"
-      }
-    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1774388614,
@@ -347,24 +299,28 @@
     },
     "pi-config": {
       "inputs": {
-        "flake-parts": "flake-parts_3",
-        "import-tree": "import-tree_2",
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "import-tree": [
+          "import-tree"
+        ],
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1789535714,
-        "narHash": "sha256-1rdumJmEZJhsvoyP+vDJutXOFAczhNdtp8fTGaytTXU=",
+        "lastModified": 1789599408,
+        "narHash": "sha256-ylrZ67Y3italTn/vVvmNYQV4ZB+chz7qD7QKBQ+vdvo=",
         "ref": "refs/heads/master",
-        "rev": "9a27cef82a596e75aa8ff86c6d1d6c77c5a8b719",
-        "revCount": 21,
+        "rev": "e17f088d159785b4da619ef88d03e64bd27b96bd",
+        "revCount": 26,
         "type": "git",
-        "url": "https://github.com/connorfuhrman/pi-config.git"
+        "url": "ssh://git@github.com/connorfuhrman/pi-config.git"
       },
       "original": {
         "type": "git",
-        "url": "https://github.com/connorfuhrman/pi-config.git"
+        "url": "ssh://git@github.com/connorfuhrman/pi-config.git"
       }
     },
     "root": {
