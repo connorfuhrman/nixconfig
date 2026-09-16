@@ -19,6 +19,18 @@
         boot.binfmt.emulatedSystems = [ "x86_64-linux" ];
         nix.settings.extra-platforms = [ "x86_64-linux" ];
 
+        # OpenSSH >= 10.0 (nixpkgs 26.11 in the VM) enables PerSourcePenalties
+        # by default: sshd rate-limits connections per source IP after failed
+        # auth / crashed sessions. Every connection from the host arrives over
+        # QEMU slirp from a single shared source IP (10.0.2.2), so ordinary
+        # hiccups (keepalive drops, transient failures) accumulate penalties
+        # there and sshd then refuses ALL new builder connections for minutes
+        # with "Not allowed at this time" — nix surfaces this as "failed to
+        # start SSH connection to 'linux-builder'" and aarch64-linux builds
+        # fail intermittently. This is a single-purpose NAT'd builder VM with
+        # one legitimate client; disable the penalty system.
+        services.openssh.settings.PerSourcePenalties = false;
+
         # Faster path once the host VF exposes the "rosetta" virtiofs tag
         # (macOS Virtualization + linux-builder support). Enable deliberately:
         #   virtualisation.rosetta.enable = true;
