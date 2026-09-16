@@ -6,6 +6,7 @@
       config.flake.modules.nixos.server
       config.flake.modules.nixos.onepassword
       config.flake.modules.nixos.obsidian
+      config.flake.modules.nixos.buildkite
       config.flake.modules.generic.tailscale
       config.flake.modules.generic.mac-mini-builder
       ./nuc/_hardware-configuration.nix
@@ -25,4 +26,3 @@
     modules = [ config.flake.modules.homeManager.standard ];
   };
 }
-

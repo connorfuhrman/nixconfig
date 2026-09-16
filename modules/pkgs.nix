@@ -30,6 +30,8 @@ let
     "cursor-cloud-setup"
     "mac-mini-buildkite-install-token"
     "mac-mini-buildkite-install-origin-ssh"
+    "nuc-buildkite-install-token"
+    "nuc-buildkite-install-origin-ssh"
     "origin"
     "pi-plan-mode"
     "pi-subagents"
@@ -68,6 +70,14 @@ in
       apps.mac-mini-buildkite-install-origin-ssh = {
         type = "app";
         program = "${pkgs.mac-mini-buildkite-install-origin-ssh}/bin/mac-mini-buildkite-install-origin-ssh";
+      };
+      apps.nuc-buildkite-install-token = {
+        type = "app";
+        program = "${pkgs.nuc-buildkite-install-token}/bin/nuc-buildkite-install-token";
+      };
+      apps.nuc-buildkite-install-origin-ssh = {
+        type = "app";
+        program = "${pkgs.nuc-buildkite-install-origin-ssh}/bin/nuc-buildkite-install-origin-ssh";
       };
     };
 }

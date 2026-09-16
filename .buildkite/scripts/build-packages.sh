@@ -3,6 +3,8 @@
 # exports. Discovery is driven by `nix eval .#packages` so this script does
 # not hardcode package names or systems. On mac-mini, linux packages offload
 # to nix.linux-builder (aarch64-linux native + x86_64-linux via qemu-user).
+# Restrict with NIX_PACKAGE_SYSTEMS (space-separated), e.g. `x86_64-linux`
+# on the NUC which cannot realize Darwin packages.
 set -euo pipefail
 
 echo "--- :nix: discover flake packages"
@@ -25,6 +27,28 @@ if [[ -z "${discovered}" ]]; then
 fi
 
 echo "${discovered}"
+
+if [[ -n "${NIX_PACKAGE_SYSTEMS:-}" ]]; then
+  filtered=""
+  while IFS= read -r line; do
+    [[ -z "${line}" ]] && continue
+    sys=${line%% *}
+    for want in ${NIX_PACKAGE_SYSTEMS}; do
+      if [[ "${sys}" == "${want}" ]]; then
+        filtered+="${line}"$'
+'
+        break
+      fi
+    done
+  done <<< "${discovered}"
+  discovered=$(printf '%s' "${filtered}")
+  echo "--- :nix: restricted to NIX_PACKAGE_SYSTEMS=${NIX_PACKAGE_SYSTEMS}"
+  echo "${discovered}"
+  if [[ -z "${discovered}" ]]; then
+    echo "+++ :x: NIX_PACKAGE_SYSTEMS matched no packages"
+    exit 1
+  fi
+fi
 
 section_emoji() {
   case "$1" in

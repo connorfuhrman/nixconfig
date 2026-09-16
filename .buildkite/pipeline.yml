@@ -8,6 +8,10 @@ x-mac-mini-macos: &mac-mini-macos
   agents:
     queue: mac-mini-macos
 
+x-nuc-linux: &nuc-linux
+  agents:
+    queue: nuc-linux
+
 x-timeout-retry: &timeout-retry
   timeout_in_minutes: 180
   retry:
@@ -46,6 +50,29 @@ steps:
         key: build-nixos-rpi-cluster-head
         command: .buildkite/scripts/build-nixos.sh
         <<: [*mac-mini-macos, *timeout-retry]
+
+  - group: ":linux: nuc-linux CI"
+    key: nuc-linux-ci
+    <<: *branch-if
+    steps:
+      - label: ":nix: flake check (native Linux)"
+        key: flake-check-nuc-linux
+        command: .buildkite/scripts/flake-check.sh
+        <<: [*nuc-linux, *timeout-retry]
+
+      - label: ":package: build packages (x86_64-linux)"
+        key: build-packages-nuc-linux
+        command: .buildkite/scripts/build-packages.sh
+        env:
+          NIX_PACKAGE_SYSTEMS: x86_64-linux
+        <<: [*nuc-linux, *timeout-retry]
+
+      - label: ":nixos: build nixos (nuc)"
+        key: build-nixos-nuc
+        command: .buildkite/scripts/build-nixos.sh
+        env:
+          NIXOS_TOPLEVEL: .#nixosConfigurations.nuc.config.system.build.toplevel
+        <<: [*nuc-linux, *timeout-retry]
 
   - label: ":nix: flake check (hosted backup)"
     key: flake-check-hosted-linux-medium

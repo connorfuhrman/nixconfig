@@ -5,6 +5,8 @@ final: prev: {
   cursor-cloud-setup = final.callPackage ./cursor-cloud-setup.nix { };
   mac-mini-buildkite-install-token = final.callPackage ./mac-mini-buildkite-install-token.nix { };
   mac-mini-buildkite-install-origin-ssh = final.callPackage ./mac-mini-buildkite-install-origin-ssh.nix { };
+  nuc-buildkite-install-token = final.callPackage ./nuc-buildkite-install-token.nix { };
+  nuc-buildkite-install-origin-ssh = final.callPackage ./nuc-buildkite-install-origin-ssh.nix { };
   origin = final.callPackage ./origin.nix { };
   podman-docker-compat = final.callPackage ./podman-docker-compat.nix { };
   nono = final.callPackage ./nono.nix { };
