@@ -7,11 +7,17 @@
     nix.linux-builder = {
       enable = true;
       ephemeral = false;
-      maxJobs = 8;
+      # 4 jobs / 4 GiB: the mac-mini (16 GiB) also runs a 10 GiB Podman VM for
+      # CI docker jobs. With the builder at 8 cores / 8 GiB the two VMs
+      # over-commit the host; the builder guest ends up almost entirely
+      # swapped out, ssh sessions stall for ~10s and die mid-handshake, and
+      # every build collapses. CI Nix builds are substitution-heavy; 4 GiB
+      # is ample for the eval-specific drvs that actually build remotely.
+      maxJobs = 4;
       systems = [ "aarch64-linux" "x86_64-linux" ];
       config = { pkgs, lib, ... }: {
-        virtualisation.cores = 8;
-        virtualisation.darwin-builder.memorySize = 8 * 1024;
+        virtualisation.cores = 4;
+        virtualisation.darwin-builder.memorySize = 4 * 1024;
         virtualisation.darwin-builder.diskSize = 124 * 1024;
 
         # Emulate x86_64-linux inside the aarch64 builder VM (works without
