@@ -220,25 +220,25 @@ agent needs. Example:
 
 ```ssh-config
 Host github.com
-  Hostname github.com
-  User git
-  IdentityFile ~/.ssh/buildkite-agent-github
-  IdentitiesOnly yes
-  StrictHostKeyChecking yes
+    User git
+    IdentityFile ~/.ssh/github
+    IdentitiesOnly yes
 
 Host origin.cursor.com
-  Hostname origin.cursor.com
-  User git
-  IdentityFile ~/.ssh/buildkite-agent-origin
-  IdentitiesOnly yes
-  StrictHostKeyChecking yes
+    User git
+    IdentityFile ~/.ssh/origin_cursor
+    IdentitiesOnly yes
 ```
 
-`~/.ssh/buildkite-agent-github` and `~/.ssh/buildkite-agent-origin` are kept
-wherever the host makes them available to `buildkite-agent-macos` (for
-example, under `/private/var/lib/buildkite-agent-macos/.ssh/` after installing
-them manually). The install script copies only the matching `Host` blocks and
-corresponding `known_hosts` entries; it does **not** copy private keys.
+Keep the private keys in your own `~/.ssh/` (for example `~/.ssh/github` and
+`~/.ssh/origin_cursor`). The install script copies the matching `Host` blocks, copies each referenced
+private key (and `.pub` if present) into the agent's `~/.ssh/`, rewrites
+`IdentityFile` paths to point there, and copies `known_hosts` entries. It does
+not move or delete your user keys.
+
+Your `~/.ssh/config` can use a normal user-key path such as
+`IdentityFile ~/.ssh/github`; the installer will place the corresponding key
+under `/private/var/lib/buildkite-agent-macos/.ssh/github` for the agent.
 
 Install (or refresh) the runtime agent SSH config on mac-mini:
 
