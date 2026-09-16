@@ -213,8 +213,10 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   penalty → sshd refuses ALL builder connections with "Not allowed at this
   time" (and each retry adds 10s, so it self-refreshes while nix retries).
   Symptom: `cannot build on 'ssh-ng://builder@linux-builder': error: failed to
-  start SSH connection to 'linux-builder'` — intermittently, mid-build, after
-  the first remote build completes. `modules/darwin/linux-builder.nix` disables
+  start SSH connection to 'linux-builder'` — the same error text as the
+  key-permission failure above, so check that one first (the permissions fix
+  is the primary cause; the penalties only amplified it).
+  `modules/darwin/linux-builder.nix` disables
   `PerSourcePenalties` in the guest sshd. Do not remove it. If a rebuild of the
   VM closure is ever blocked by the same lockout: restart the VM
   (`sudo launchctl kickstart -k system/org.nixos.linux-builder`), wait for the
@@ -223,11 +225,32 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   also be fetched directly despite `allowSubstitutes=false` by realizing their
   OUTPUT paths (`nix build /nix/store/<out>`); the stock VM closure (boot.json,
   stage-2-init.sh, builder.pl …) is on cache.nixos.org.
-- **`/etc/nix/builder_ed25519` ownership:** nix-darwin's install-credentials
-  installs it `-g nixbld -m 600`; it is currently `root:buildkite-agent-macos`
-  640 (manually changed alongside the Buildkite setup). The remote-build ssh
-  runs in the nix daemon as root, so this is harmless for builds, but
-  user-level `ssh builder@linux-builder` only works for that group.
+- **`/etc/nix/builder_ed25519` MUST be root:nixbld 0600 — the #1 builder killer.**
+  nix-darwin's install-credentials installs it `-g nixbld -m 600`. OpenSSH
+  refuses to LOAD a root-owned private key that is group/world-readable
+  ("WARNING: UNPROTECTED PRIVATE KEY FILE! … This private key will be
+  ignored"). The remote-build ssh runs in the nix daemon as root, so any
+  "convenience" chgrp/chmod (e.g. `root:buildkite-agent-macos 640`, done
+  manually alongside the Buildkite setup on Sep 13 and misdiagnosed as
+  harmless) makes root's ssh silently drop the key → publickey auth fails →
+  password fallback with no tty → every aarch64-linux build dies with
+  `failed to start SSH connection to 'linux-builder'`. The ssh stderr —
+  including the warning — is INVISIBLE: hook stderr is parsed as JSON by the
+  daemon and raw lines are dropped. To see the real ssh error, override the
+  build hook with a wrapper: `nix build --option build-hook /tmp/hook-wrapper …`
+  where the wrapper tees stderr to a file and exports `NIX_SSHOPTS=-vvv`.
+  CI agents never need this key directly (they run plain `nix build`; the
+  daemon does the ssh). `modules/darwin/linux-builder.nix` re-enforces
+  root:nixbld 0600 in `system.activationScripts.postActivation` (custom activation-script names are ignored by nix-darwin)
+  on every activation. To fix a live host:
+  `sudo chgrp nixbld /etc/nix/builder_ed25519 && sudo chmod 600 /etc/nix/builder_ed25519`.
+  If the daemon-side hook is still broken but client-side ssh works
+  (test: `nix copy --to 'ssh-ng://builder@linux-builder?ssh-key=/nix/store/<keys>/builder_ed25519&base64-ssh-public-host-key=<pinned>' <path>`),
+  a new VM closure can be bootstrapped without the hook:
+  `nix copy --derivation --to ssh-ng://… <guest-toplevel>`, then
+  `nix build --store ssh-ng://… <guest-toplevel-drv>^out`, then
+  `nix copy --from ssh-ng://… --no-check-sigs <guest-toplevel>`; the
+  remaining darwin-side drvs build locally.
 - **mac-mini linux-builder `hostfwd` is IPv4-only** (`tcp::31022`): `::1:31022`
   is always refused. The generated ssh_config alias uses `Hostname localhost`, so
   ssh tries ::1 first and falls back to 127.0.0.1 — harmless, but every
