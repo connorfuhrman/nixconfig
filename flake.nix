@@ -22,6 +22,12 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Dedicated pi coding agent configuration (home-manager module + overlay).
+    # Using git+https because the repo is private.
+    pi-config = {
+      url = "git+https://github.com/connorfuhrman/pi-config.git";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     # Self-contained flake providing wrapped Emacs packages (pinned own
     # nixpkgs + emacs-overlay); deliberately does NOT follow our nixpkgs.
     emacs.url = "github:connorfuhrman/emacs";

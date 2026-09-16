@@ -7,15 +7,14 @@ let
   inherit (inputs.nixpkgs) lib;
   overlay = import ../pkgs;
 
-  # Shared helper: nixpkgs for a system with our overlay applied.
-  # Origin CLI is unfree (Cursor proprietary binary); scoped here so
-  # standalone home configs and `nix build .#origin` evaluate without
-  # --impure / NIXPKGS_ALLOW_UNFREE.
+  # Shared helper: nixpkgs for a system with both the pi-config overlay and
+  # our local overlay applied. pi-config provides pi-side-agents and the pi
+  # wrapper; our overlay provides origin, obsidian-plugins, etc.
   pkgsFor =
     system:
     import inputs.nixpkgs {
       inherit system;
-      overlays = [ overlay ];
+      overlays = [ inputs.pi-config.overlays.default overlay ];
       config.allowUnfreePredicate =
         pkg:
         builtins.elem (lib.getName pkg) [
@@ -32,6 +31,7 @@ let
     "mac-mini-buildkite-install-token"
     "mac-mini-buildkite-install-origin-ssh"
     "origin"
+    "pi"
     "pi-plan-mode"
     "pi-subagents"
     "pi-goal"
@@ -40,6 +40,7 @@ let
     "pi-tasks"
     "pi-usage"
     "pi-diff-review"
+    "pi-side-agents"
     "pi-worktree"
     "pi-lsp"
   ];
