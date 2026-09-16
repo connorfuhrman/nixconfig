@@ -29,7 +29,7 @@ let
     "obsidian-nix-sync-plugins"
     "cursor-cloud-setup"
     "mac-mini-buildkite-install-token"
-    "mac-mini-buildkite-install-origin-ssh"
+    "mac-mini-buildkite-install-ssh"
     "origin"
     "pi-plan-mode"
     "pi-subagents"
@@ -65,9 +65,9 @@ in
         type = "app";
         program = "${pkgs.mac-mini-buildkite-install-token}/bin/mac-mini-buildkite-install-token";
       };
-      apps.mac-mini-buildkite-install-origin-ssh = {
+      apps.mac-mini-buildkite-install-ssh = {
         type = "app";
-        program = "${pkgs.mac-mini-buildkite-install-origin-ssh}/bin/mac-mini-buildkite-install-origin-ssh";
+        program = "${pkgs.mac-mini-buildkite-install-ssh}/bin/mac-mini-buildkite-install-ssh";
       };
     };
 }
