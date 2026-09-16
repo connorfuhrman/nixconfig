@@ -204,6 +204,34 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
   token from 1Password account `aztec_fuhrmans`,
   `op://Private/Buildkite/credential`).
   Runbook: [`docs/plans/mac-mini-buildkite.md`](docs/plans/mac-mini-buildkite.md).
+- **linux-builder VM + OpenSSH >= 10: PerSourcePenalties breaks remote builds.**
+  The guest nixpkgs (26.11) ships OpenSSH 10.x, where `PerSourcePenalties`
+  is on by default. Every host→VM connection arrives from ONE shared slirp
+  source IP (10.0.2.2), and nix SIGKILLs each remote-builder ssh session when
+  it tears the connection down (`Pid::kill` — no ControlMaster is used for
+  build machines). OpenSSH counts those killed sessions as "crashes" → 90s
+  penalty → sshd refuses ALL builder connections with "Not allowed at this
+  time" (and each retry adds 10s, so it self-refreshes while nix retries).
+  Symptom: `cannot build on 'ssh-ng://builder@linux-builder': error: failed to
+  start SSH connection to 'linux-builder'` — intermittently, mid-build, after
+  the first remote build completes. `modules/darwin/linux-builder.nix` disables
+  `PerSourcePenalties` in the guest sshd. Do not remove it. If a rebuild of the
+  VM closure is ever blocked by the same lockout: restart the VM
+  (`sudo launchctl kickstart -k system/org.nixos.linux-builder`), wait for the
+  SSH banner (`nc 127.0.0.1 31022`), then retry — each attempt banks built
+  drvs (VM store persists), so a retry loop converges. Eval-specific drvs can
+  also be fetched directly despite `allowSubstitutes=false` by realizing their
+  OUTPUT paths (`nix build /nix/store/<out>`); the stock VM closure (boot.json,
+  stage-2-init.sh, builder.pl …) is on cache.nixos.org.
+- **`/etc/nix/builder_ed25519` ownership:** nix-darwin's install-credentials
+  installs it `-g nixbld -m 600`; it is currently `root:buildkite-agent-macos`
+  640 (manually changed alongside the Buildkite setup). The remote-build ssh
+  runs in the nix daemon as root, so this is harmless for builds, but
+  user-level `ssh builder@linux-builder` only works for that group.
+- **mac-mini linux-builder `hostfwd` is IPv4-only** (`tcp::31022`): `::1:31022`
+  is always refused. The generated ssh_config alias uses `Hostname localhost`, so
+  ssh tries ::1 first and falls back to 127.0.0.1 — harmless, but every
+  connection starts with a refused-IPv6 event in the unified log.
 - **Homebrew modules must set `homebrew.enable = true`.** nix-darwin ignores
   taps/casks otherwise. `darwin.roon-server` enables it (and any other
   host that needs brew).
