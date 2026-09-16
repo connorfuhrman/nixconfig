@@ -18,8 +18,11 @@ App: `nix run .#cursor-cloud-setup`
 **Do not re-run `init` here.**
 
 - VM **with** Nix: `nix run .#cursor-cloud-setup`
-- VM **without** Nix: `.cursor/nix-home.sh` (installs Determinate Nix, then
-  the app). Do not `nix run` until `nix` is on PATH.
+- VM **without** Nix: `.cursor/nix-home.sh` (installs Determinate Nix, waits
+  until `nix-daemon` accepts connections, then the app). Do not `nix run`
+  until `nix` is on PATH and the daemon is up. The installer returning
+  success is not enough — a following `nix` as `ubuntu` fails with
+  `big-lock: Permission denied` if the daemon is not listening yet.
 
 ## Consumer repo (e.g. t-hex) — first time only when asked
 
@@ -50,5 +53,29 @@ nix `extra-access-tokens`.
 `nix flake check`. Never `nixos-rebuild`, `darwin-rebuild`, or
 `home-manager switch` from a Cloud agent on this repo. Do not trigger a
 Cursor environment Build unless the human asked.
+
+## CI (Buildkite)
+
+The [nixconfig](https://buildkite.com/connor-m-fuhrman/nixconfig) pipeline
+runs on PRs and pushes to `develop` / `main`:
+
+| Step | What it checks |
+| --- | --- |
+| `flake-check` | `nix flake check` (eval-only) |
+| `cursor-env-schema` | `.cursor/environment.json` vs Cursor public schema |
+| `cursor-closure` | `nix build` of `ubuntu@cursor-cloud.activationPackage` and `cursor-cloud-setup` |
+| `cursor-env-build` | Cloud Agent requests a **draft** environment Build of the commit SHA |
+
+The merge gate is GitHub check `buildkite/nixconfig` (all steps green). After
+the first green run on `develop` / `main`, require that check in branch
+protection.
+
+**Secrets:** the `cursor-env-build` step uses the Buildkite cluster secret
+`CURSOR_AUTOMATION_WEBHOOK_TOKEN` (same token as t-hex; `CURSOR_API_KEY` is a
+fallback). Confirm the team has Cursor Cloud MCP enabled.
+
+Agents in normal development should **not** trigger environment Builds; CI
+owns that path via `.buildkite/scripts/cursor-env-build.sh` and
+`.buildkite/prompts/cursor-env-build.md`.
 
 ## Do not put this procedure in `docs/` or README
