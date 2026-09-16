@@ -80,7 +80,7 @@
 
       # nix-darwin's buildkite module sets launchd PATH from runtimePackages
       # only — not /run/current-system/sw/bin. The docker plugin execs `docker`.
-      services.buildkite-agents.macos.runtimePackages = [ dockerCompat ];
+      services.buildkite-agents.macos.runtimePackages = lib.mkAfter [ dockerCompat ];
 
       users.knownGroups = lib.mkAfter [ "docker" ];
       users.groups.docker = {

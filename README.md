@@ -59,16 +59,37 @@ darwin-rebuild switch --flake .#mac-mini
 
 # home-manager (first bootstraps with `nix run home-manager/master -- …`)
 home-manager switch --flake .#connorfuhrman@macbook
+
+# Generic NixOS installer media (three types — not per-host variants).
+# Realize on a matching builder; after boot: partition, nixos-generate-config,
+# then `nixos-install --flake /etc/nixconfig#<host>`.
+nix build .#iso                              # x86_64 USB minimal installer
+nix build .#asahi-iso                        # aarch64 Apple Silicon installer
+nix build .#rpi-iso                          # aarch64 SD card installer (Pi)
 ```
+
+See [INSTALL.md](./INSTALL.md) for Asahi / mbp14 (uses `.#asahi-iso`).
 
 ## CI
 
-Every push and pull request targeting `main` runs
-[`nix flake check`](./modules/checks.nix) in
-[Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) inside the
-official [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container image.
-The check evaluates all host configurations without building full system
-closures. Merges require the Buildkite status check to pass.
+Every push and pull request targeting `main` runs in
+[Buildkite](https://buildkite.com/connor-m-fuhrman/nixconfig) (see
+[`.buildkite/pipeline.yml`](./.buildkite/pipeline.yml)):
+
+1. **mac-mini-macos CI** — native `nix flake check`, package builds, and
+   `rpi-cluster-head` NixOS realization on the self-hosted Mac mini agent.
+2. **`:nix: flake check`** — required eval-only gate in the official
+   [`nixos/nix`](https://hub.docker.com/r/nixos/nix) container on the hosted
+   `linux-medium` queue ([`modules/checks.nix`](./modules/checks.nix)).
+3. **Installer media builds** (after the hosted flake check passes) — real
+   `nix build` of the three generic boot images, with `*.iso` / `*.img.zst`
+   uploaded as Buildkite artifacts:
+   - `.#iso` — `linux-medium` (native x86_64-linux in Docker)
+   - `.#asahi-iso` — `mac-mini-macos` (aarch64-linux via mac-mini
+     `nix.linux-builder`)
+   - `.#rpi-iso` — `mac-mini-macos` (same builder)
+
+Merges require the Buildkite status check to pass.
 
 ## Layout
 
@@ -80,7 +101,7 @@ modules/
   checks.nix              eval-only checks for all configs
   pkgs.nix                overlay export + packages.* + lib.pkgsFor
   nixos/                  NixOS features (system, desktop, server, asahi,
-                          nuc-cluster, ray-cluster, onepassword, …)
+                          iso, nuc-cluster, ray-cluster, onepassword, …)
   darwin/                 nix-darwin features (system, linux-builder, roon, …)
   home/                   home-manager (standard = base+emacs+coreutils+gh+pi+mosh+obsidian-config)
   generic/                shared features (tailscale, mac-mini-builder)
@@ -138,10 +159,26 @@ Roon.app is the Core on macOS (no headless server package). Installed via
 Homebrew. After install: sign in, enable this Mac as Core, turn on launch at
 login. Optional auto-login for unattended boot.
 
+### NixOS installer media
+
+Three **generic** boot-media outputs in `modules/installer-media.nix` /
+`modules/nixos/iso.nix` — no per-host ISO variants:
+
+| Build | Medium | Typical target |
+|---|---|---|
+| `nix build .#iso` | x86_64 minimal USB ISO | Intel NUC, cursor-cloud host, … |
+| `nix build .#asahi-iso` | aarch64 Apple Silicon ISO | mbp14 (see INSTALL.md) |
+| `nix build .#rpi-iso` | aarch64 SD image | Raspberry Pi (`nixos-install --flake .#rpi-cluster-head`, etc.) |
+
+Each image is a **minimal live installer** with this flake at `/etc/nixconfig`
+and git/vim — not a preinstalled rootfs. Pick the host closure at install time
+(`nixos-install --flake /etc/nixconfig#nuc`, `#mbp14`, …).
+
 ### Asahi install (mbp14)
 
-See [INSTALL.md](./INSTALL.md) for dual-boot NixOS on Apple Silicon (ISO,
-partitioning, firmware, first rebuild).
+See [INSTALL.md](./INSTALL.md) for dual-boot NixOS on Apple Silicon (`.#asahi-iso`,
+partitioning, firmware, first rebuild). Do not use `installation-cd-minimal`
+or `nix build .#iso` on the MacBook.
 
 ## Privacy
 

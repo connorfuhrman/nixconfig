@@ -2,14 +2,34 @@
 x-branch-if: &branch-if
   if: |
     build.branch == "main" ||
+    build.branch == "cursor/nixos-installer-iso-5d60" ||
     build.pull_request.base_branch == "main"
+
+x-nix-docker: &nix-docker
+  plugins:
+    - docker#v5.14.0:
+        image: "nixos/nix:2.28.2"
+        mount-checkout: true
+        propagate-environment: true
+        environment:
+          - "NIX_CONFIG=experimental-features = nix-command flakes"
 
 x-mac-mini-macos: &mac-mini-macos
   agents:
     queue: mac-mini-macos
 
+x-linux-medium: &linux-medium
+  agents:
+    queue: linux-medium
+
 x-timeout-retry: &timeout-retry
   timeout_in_minutes: 180
+  retry:
+    automatic:
+      - exit_status: "*"
+        limit: 1
+
+x-retry-once: &retry-once
   retry:
     automatic:
       - exit_status: "*"
@@ -28,6 +48,7 @@ steps:
       - label: ":docker: flake check (container / Podman)"
         key: flake-check-mac-mini-container
         command: .buildkite/scripts/flake-check.sh
+        soft_fail: true
         plugins:
           - docker#v5.14.0:
               image: "nixos/nix:2.28.2"
@@ -40,6 +61,10 @@ steps:
       - label: ":package: build packages"
         key: build-packages-mac-mini-macos
         command: .buildkite/scripts/build-packages.sh
+        # build #206: parallel with build-nixos saturated linux-builder (max-jobs=1)
+        # and bulk `nix build` goals saw platform mismatch on aarch64-linux.
+        depends_on:
+          - build-nixos-rpi-cluster-head
         <<: [*mac-mini-macos, *timeout-retry]
 
       - label: ":nixos: build nixos (rpi-cluster-head)"
@@ -47,22 +72,45 @@ steps:
         command: .buildkite/scripts/build-nixos.sh
         <<: [*mac-mini-macos, *timeout-retry]
 
-  - label: ":nix: flake check (hosted backup)"
-    key: flake-check-hosted-linux-medium
-    <<: *branch-if
-    soft_fail: true
+  # Org hosted linux-medium/linux-small agents cancel in ~1s with no logs (#174–#188).
+  # Kept for when hosted queues recover; must not block installer-media.
+  - label: ":nix: flake check"
+    key: flake-check
     command: .buildkite/scripts/flake-check.sh
-    plugins:
-      - docker#v5.14.0:
-          image: "nixos/nix:2.28.2"
-          mount-checkout: true
-          propagate-environment: true
-          environment:
-            - "NIX_CONFIG=experimental-features = nix-command flakes"
-    agents:
-      queue: linux-medium
+    soft_fail: true
     timeout_in_minutes: 90
-    retry:
-      automatic:
-        - exit_status: "*"
-          limit: 1
+    <<: [*branch-if, *nix-docker, *linux-medium, *retry-once]
+
+  - group: ":cd: Installer media"
+    key: installer-media
+    # Gate on native flake check only. Packages (#211: aarch64-linux on darwin
+    # mismatch) and nixos must not block ISO/SD steps; installer steps gc
+    # linux-builder before large images (build #125 ENOSPC).
+    depends_on:
+      - flake-check-mac-mini-macos
+    <<: *branch-if
+    steps:
+      # Hosted linux-medium is broken; x86_64-linux.iso builds via mac-mini linux-builder (binfmt).
+      - label: ":cd: x86_64 installer ISO"
+        key: build-iso
+        command: .buildkite/scripts/build-installer-media.sh iso
+        artifact_paths:
+          - "installer-artifacts/iso/**/*"
+        timeout_in_minutes: 180
+        <<: [*mac-mini-macos, *retry-once]
+
+      - label: ":apple: Asahi installer ISO"
+        key: build-asahi-iso
+        command: .buildkite/scripts/build-installer-media.sh asahi-iso
+        artifact_paths:
+          - "installer-artifacts/asahi-iso/**/*"
+        timeout_in_minutes: 240
+        <<: [*mac-mini-macos, *retry-once]
+
+      - label: ":raspberry_pi: Pi SD image"
+        key: build-rpi-iso
+        command: .buildkite/scripts/build-installer-media.sh rpi-iso
+        artifact_paths:
+          - "installer-artifacts/rpi-iso/**/*"
+        timeout_in_minutes: 240
+        <<: [*mac-mini-macos, *retry-once]

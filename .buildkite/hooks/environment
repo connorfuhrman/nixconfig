@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Runs before plugin command hooks (docker#). Repo checkout is not available yet.
+set -euo pipefail
+
+if [[ "${BUILDKITE_AGENT_META_DATA_QUEUE:-}" != "mac-mini-macos" ]]; then
+  exit 0
+fi
+
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+export DOCKER_HOST="${DOCKER_HOST:-unix:///var/run/docker.sock}"
+export CONTAINER_HOST="${CONTAINER_HOST:-unix:///var/run/docker.sock}"
+
+if command -v docker >/dev/null 2>&1; then
+  exit 0
+fi
+
+docker_bin=""
+for docker_bin in \
+  /run/current-system/sw/bin/docker \
+  /nix/var/nix/profiles/system-profile/bin/docker; do
+  if [[ -x "${docker_bin}" ]]; then
+    export PATH="$(dirname "${docker_bin}"):${PATH}"
+    command -v docker >/dev/null 2>&1 && exit 0
+  fi
+done
+
+shopt -s nullglob
+for docker_bin in /nix/store/*-podman-docker-compat-*/bin/docker; do
+  if [[ -x "${docker_bin}" ]]; then
+    export PATH="$(dirname "${docker_bin}"):${PATH}"
+    shopt -u nullglob
+    command -v docker >/dev/null 2>&1 && exit 0
+  fi
+done
+shopt -u nullglob
+
+echo "docker not found on mac-mini-macos (podman-docker-compat missing from PATH); container steps may fail" >&2
+exit 0

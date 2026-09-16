@@ -1,0 +1,12 @@
+# Static step in Buildkite pipeline settings (not uploaded from the repo).
+# Keep in sync via: Buildkite → nixconfig → Settings → Steps.
+#
+# Use mac-mini-macos for upload: the only connected agent in this org. Hosted
+# default (linux-small) and explicit linux-medium both canceled the bootstrap
+# job in <1s with zero logs (#174–#185). mac-mini schedules upload behind
+# in-flight jobs instead of failing immediately (#175).
+steps:
+  - label: ":pipeline:"
+    command: buildkite-agent pipeline upload
+    agents:
+      queue: mac-mini-macos
