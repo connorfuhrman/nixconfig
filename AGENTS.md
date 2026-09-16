@@ -251,7 +251,14 @@ nix eval .#packages.x86_64-linux.origin.meta.mainProgram   # "origin"
 - **Roon on macOS:** nixpkgs `roon-server` is x86_64-linux only and Roon ships
   no standalone headless macOS server — Roon.app (brew cask) IS the Core and
   manages its own `RoonServer` login item. No nix launchd unit; autostart =
-  Roon's login item (+ optional auto-login). Homebrew must be installed.
+  Roon's login item; mac-mini console auto-login is declared in
+  `darwin.server` (`system.defaults.loginwindow.autoLoginUser`). Homebrew must
+  be installed.   `darwin.server` also sets
+  `launchd.daemons.tailscaled.serviceConfig.KeepAlive = true` (headless
+  tailscaled; no Tailscale.app cask) and power-restore policy
+  (`power.restartAfterPowerFailure` + `pmset autorestartatconnect` for Tahoe
+  26.5+ "Start up when power is connected" on supported desktops). SSH auth is
+  unchanged — password still required for interactive ssh.
 - **Determinate Nix's native Linux builder** (Virtualization.framework) was
   evaluated for the mini and rejected: developer-preview status and it replaces
   the Nix installation. `nix.linux-builder` stays. Revisit if it matures.
