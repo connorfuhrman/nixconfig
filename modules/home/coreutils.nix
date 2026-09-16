@@ -90,6 +90,8 @@
       ];
 
       extraConfig = ''
+        set -g extended-keys on
+        set -g extended-keys-format csi-u
         set -g renumber-windows on
         set -as terminal-features ",*:RGB"
         set -g set-clipboard on
