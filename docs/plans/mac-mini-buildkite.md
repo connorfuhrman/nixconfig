@@ -93,9 +93,11 @@ nix run .#mac-mini-buildkite-install-token
   `/private/var/lib/buildkite-agent-macos`, `build-path` / `plugins-path` =
   `/Users/Shared/buildkite-agent-macos/{builds,plugins}`), `trusted-users`,
   home + checkout dirs + token permissions via `postActivation`,
-  Origin `insteadOf` gitconfig + pinned `known_hosts`, launchd
-  `GIT_CONFIG_GLOBAL` / `GIT_SSH_COMMAND`, headless `ProcessType = Standard`,
-  and launchd kickstart of the macOS agent after activation
+  Origin `insteadOf` gitconfig, launchd `HOME` pointing at the agent home,
+  headless `ProcessType = Standard`, and launchd kickstart of the macOS
+  agent after activation. The SSH configuration is a **runtime** file
+  (`/private/var/lib/buildkite-agent-macos/.ssh/config`) containing per-domain
+  `Host` blocks for GitHub and Origin.
 - `modules/darwin/linux-builder.nix` — persistent VM (`ephemeral = false`) used
   as a Nix remote builder (not a Buildkite agent host)
 - `modules/darwin/podman.nix` — nixpkgs Podman + docker compat + launchd machine
@@ -117,11 +119,15 @@ mac-mini:
    nix run .#mac-mini-buildkite-install-token
    ```
 
-   Origin SSH deploy key (once, if Origin HTTPS checkout fails):
+   Copy the relevant per-domain SSH `Host` blocks from the invoking user's
+   `~/.ssh/config` into the agent's home (GitHub + Origin):
 
    ```sh
-   nix run .#mac-mini-buildkite-install-origin-ssh
+   nix run .#mac-mini-buildkite-install-ssh
    ```
+
+   This installs `.ssh/config` and `.ssh/known_hosts` from the host without
+   embedding secrets in the Nix store or git.
 
 2. Apply nix-darwin — this is the only system command needed:
 
@@ -190,31 +196,59 @@ sudo darwin-rebuild switch --flake .#mac-mini
 |---|---|
 | insteadOf | `https://origin.cursor.com/git/` → `git@origin.cursor.com:` |
 | SSH clone | `git@origin.cursor.com:connor-fuhrman/t-hex.git` (no `/git/` prefix) |
-| Private key | `/private/var/lib/buildkite-agent-macos/.ssh/origin_cursor` (mode 600, agent-owned; **never** the Nix store or git) |
 | Agent gitconfig | `/private/var/lib/buildkite-agent-macos/.gitconfig` (also `GIT_CONFIG_GLOBAL` on the launchd job) |
+| Agent ssh config | `/private/var/lib/buildkite-agent-macos/.ssh/config` (runtime, copied from the host) |
+| Agent known hosts | `/private/var/lib/buildkite-agent-macos/.ssh/known_hosts` (runtime, copied from the host, with Origin pinned as fallback) |
 
-Install (or rotate) the key on mac-mini. Registers the public key with Origin
-(`origin ssh-key add`, title `mac-mini-buildkite-agent`) and writes gitconfig +
-`~/.ssh/config` for the agent. Source order: existing agent key, then optional
-1Password item `Buildkite Origin SSH` (private key field), then
-`~/.ssh/buildkite-agent-origin` if present, otherwise a new ed25519 key:
+The user's `~/.ssh/config` should contain `Host` blocks for the domains the
+agent needs. Example:
+
+```ssh-config
+Host github.com
+  Hostname github.com
+  User git
+  IdentityFile ~/.ssh/buildkite-agent-github
+  IdentitiesOnly yes
+  StrictHostKeyChecking yes
+
+Host origin.cursor.com
+  Hostname origin.cursor.com
+  User git
+  IdentityFile ~/.ssh/buildkite-agent-origin
+  IdentitiesOnly yes
+  StrictHostKeyChecking yes
+```
+
+`~/.ssh/buildkite-agent-github` and `~/.ssh/buildkite-agent-origin` are kept
+wherever the host makes them available to `buildkite-agent-macos` (for
+example, under `/private/var/lib/buildkite-agent-macos/.ssh/` after installing
+them manually). The install script copies only the matching `Host` blocks and
+corresponding `known_hosts` entries; it does **not** copy private keys.
+
+Install (or refresh) the runtime agent SSH config on mac-mini:
 
 ```sh
-nix run .#mac-mini-buildkite-install-origin-ssh
+nix run .#mac-mini-buildkite-install-ssh
 ```
 
 `sudo -n` is not enough — this prompts for Connor’s password, like the cluster
-token installer. After install (no darwin-rebuild required for the key itself):
+token installer. After install (no darwin-rebuild required for the SSH config
+itself):
 
 ```sh
+sudo -u buildkite-agent-macos -H ssh -o BatchMode=yes -T git@github.com
+sudo -u buildkite-agent-macos -H ssh -o BatchMode=yes -T git@origin.cursor.com
 sudo -u buildkite-agent-macos -H git ls-remote \
   https://origin.cursor.com/git/connor-fuhrman/t-hex.git HEAD
 ```
 
-Durable copies of gitconfig / ssh_config / known_hosts are also written by
-nix-darwin `postActivation` on `darwin-rebuild switch`. Rebuild **is** required
-for launchd `GIT_CONFIG_GLOBAL` / `GIT_SSH_COMMAND` (jobs started after the
-switch). The private key is never replaced by a rebuild.
+A durable `.gitconfig` is written by nix-darwin `postActivation` on
+`darwin-rebuild switch`. The `.ssh/config` and `.ssh/known_hosts` remain runtime
+files managed by `mac-mini-buildkite-install-ssh`; `postActivation` only ensures
+`.ssh` has the right ownership and permissions. Rebuild **is** required the
+first time (to set `HOME` and `GIT_CONFIG_GLOBAL` in the launchd job). Identity
+files referenced by the copied `Host` blocks must be readable by
+`buildkite-agent-macos`.
 
 ## Pipelines
 
@@ -345,8 +379,10 @@ nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.path # includes *-podman-docker-compat-*/bin
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.KeepAlive
 nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
-nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-origin-ssh.program
+nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-ssh.program
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.GIT_CONFIG_GLOBAL
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.HOME
+nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment ? GIT_SSH_COMMAND
 ```
 
 On mac-mini after `darwin-rebuild switch`:
