@@ -55,9 +55,44 @@ writeShellScriptBin "mac-mini-buildkite-install-ssh" ''
 # Copied from the invoking user's ~/.ssh/config for the Buildkite agent user.
 EOF
 
+  # Ensure the agent .ssh directory exists before copying keys.
+  sudo mkdir -p "$AGENT_HOME/.ssh"
+  sudo chmod 700 "$AGENT_HOME/.ssh"
+  sudo chown "$AGENT_USER:$AGENT_USER" "$AGENT_HOME/.ssh"
+
   config_out=$tmp/config
   cat "$header" > "$config_out"
-  cat "$extracted" >> "$config_out"
+
+  # Copy the relevant Host blocks into the agent config, copying referenced
+  # private keys into the agent home and rewriting their IdentityFile paths
+  # to ~/.ssh/<basename>. Skip AddKeysToAgent/UseKeychain, which don't apply
+  # to the non-interactive buildkite-agent user.
+  while IFS= read -r line; do
+    if printf '%s\n' "$line" | grep -qE '^[[:space:]]*(AddKeysToAgent|UseKeychain)[[:space:]]+'; then
+      continue
+    fi
+
+    if printf '%s\n' "$line" | grep -qE '^[[:space:]]*IdentityFile[[:space:]]+'; then
+      src=$(printf '%s\n' "$line" | sed -E 's/^[[:space:]]*IdentityFile[[:space:]]+//')
+      # Expand a leading '~' to the invoking user's HOME.
+      src="''${src/#\~/$HOME}"
+      fname=$(basename "$src")
+
+      if [[ -f "$src" ]]; then
+        sudo install -m 600 -o "$AGENT_USER" -g "$AGENT_USER" "$src" "$AGENT_HOME/.ssh/$fname"
+        if [[ -f "$src.pub" ]]; then
+          sudo install -m 644 -o "$AGENT_USER" -g "$AGENT_USER" "$src.pub" "$AGENT_HOME/.ssh/$fname.pub"
+        fi
+        # Rewrite the path so it resolves inside the agent home.
+        printf '    IdentityFile ~/.ssh/%s\n' "$fname" >> "$config_out"
+      else
+        echo "warning: IdentityFile $src not found; copying line unchanged" >&2
+        printf '%s\n' "$line" >> "$config_out"
+      fi
+    else
+      printf '%s\n' "$line" >> "$config_out"
+    fi
+  done < "$extracted"
 
   # Build a minimal known_hosts for the agent from the invoking user's file.
   # Origin's key is pinned below as a fallback; GitHub keys are copied from
@@ -81,16 +116,13 @@ EOF
     printf '%s\n' "$ORIGIN_HOST_KEY" >> "$known"
   fi
 
-  sudo mkdir -p "$AGENT_HOME/.ssh"
-  sudo chmod 700 "$AGENT_HOME/.ssh"
-  sudo chown "$AGENT_USER:$AGENT_USER" "$AGENT_HOME/.ssh"
-
   sudo install -m 644 -o "$AGENT_USER" -g "$AGENT_USER" "$config_out" "$AGENT_HOME/.ssh/config"
   sudo install -m 644 -o "$AGENT_USER" -g "$AGENT_USER" "$known" "$AGENT_HOME/.ssh/known_hosts"
 
-  echo "Installed agent SSH configuration:"
+  echo "Installed agent SSH configuration and keys:"
   echo "  $AGENT_HOME/.ssh/config"
   echo "  $AGENT_HOME/.ssh/known_hosts"
+  ls -l "$AGENT_HOME/.ssh"/*
   echo
   echo "The Buildkite launchd job runs with HOME=$AGENT_HOME and no GIT_SSH_COMMAND,"
   echo "so git/ssh will use the per-domain Host blocks above."
