@@ -86,6 +86,14 @@ Install to the host (mac-mini only). Uses Homebrew `op`
 nix run .#mac-mini-buildkite-install-token
 ```
 
+If `nix run` loses your 1Password CLI session and the installer fails with
+`op read failed`, use the dev shell command instead (it runs in your existing
+shell context):
+
+```sh
+nix develop -c mac-mini-buildkite-install-token
+```
+
 ## Nix modules
 
 - `modules/darwin/buildkite.nix` — host `services.buildkite-agents.macos`
@@ -124,6 +132,13 @@ mac-mini:
 
    ```sh
    nix run .#mac-mini-buildkite-install-ssh
+   ```
+
+   Or, if `nix run` interferes with 1Password or SSH Agent access, use the
+   dev shell command:
+
+   ```sh
+   nix develop -c mac-mini-buildkite-install-ssh
    ```
 
    This installs `.ssh/config` and `.ssh/known_hosts` from the host without
