@@ -2,7 +2,8 @@
   # Default dev shell: helper to switch nix-darwin + home-manager in one shot,
   # plus Buildkite mac-mini provisioning commands that rely on the user's
   # normal shell session (1Password CLI, SSH key files, etc.).
-  perSystem = { system, pkgs, ... }:
+  perSystem =
+    { system, pkgs, ... }:
     let
       myPkgs = config.flake.lib.pkgsFor system;
     in
