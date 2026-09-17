@@ -1,4 +1,7 @@
-{ writeShellScriptBin }:
+{ writeShellScriptBin, lib, pkgs }:
+let
+  extractHostsAwk = pkgs.writeText "extract-hosts.awk" (builtins.readFile ./extract-hosts.awk);
+in
 writeShellScriptBin "mac-mini-buildkite-install-ssh" ''
   set -euo pipefail
 
@@ -25,26 +28,7 @@ writeShellScriptBin "mac-mini-buildkite-install-ssh" ''
 
   # Extract Host blocks whose patterns mention github.com or origin.cursor.com.
   extracted=$tmp/ssh_config_extracted
-  awk '
-    /^[[:space:]]*Host[[:space:]]+/ {
-      if (in_block && block_wanted) { printf "%s", block }
-      block = $0 "\n"
-      in_block = 1
-      block_wanted = 0
-      for (i = 2; i <= NF; i++) {
-        if ($i ~ /github\.com/ || $i ~ /origin\.cursor\.com/) {
-          block_wanted = 1
-        }
-      }
-      next
-    }
-    {
-      if (in_block) { block = block $0 "\n" }
-    }
-    END {
-      if (in_block && block_wanted) { printf "%s", block }
-    }
-  ' "$USER_SSH_CONFIG" > "$extracted"
+  awk -f ${extractHostsAwk} "$USER_SSH_CONFIG" > "$extracted"
 
   [[ -s "$extracted" ]] \
     || die "no Host block for github.com or origin.cursor.com found in $USER_SSH_CONFIG"
@@ -122,7 +106,6 @@ EOF
   echo "Installed agent SSH configuration and keys:"
   echo "  $AGENT_HOME/.ssh/config"
   echo "  $AGENT_HOME/.ssh/known_hosts"
-  ls -l "$AGENT_HOME/.ssh"/*
   echo
   echo "The Buildkite launchd job runs with HOME=$AGENT_HOME and no GIT_SSH_COMMAND,"
   echo "so git/ssh will use the per-domain Host blocks above."

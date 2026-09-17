@@ -82,17 +82,20 @@ op read "op://Private/Buildkite/credential" \
 Install to the host (mac-mini only). Uses Homebrew `op`
 (`/opt/homebrew/bin/op` or `$OP`) and writes via `mktemp` + `install`.
 
-```sh
-nix run .#mac-mini-buildkite-install-token
-```
-
-If `nix run` loses your 1Password CLI session and the installer fails with
-`op read failed`, use the dev shell command instead (it runs in your existing
-shell context):
+The recommended way to run the installer is from the dev shell so it shares
+your normal 1Password CLI session:
 
 ```sh
 nix develop -c mac-mini-buildkite-install-token
 ```
+
+Or, if you have `task` installed:
+
+```sh
+task setup-mac-buildkite
+```
+
+This also installs the agent SSH config in one shot.
 
 ## Nix modules
 
@@ -121,28 +124,23 @@ reload) is handled by nix-darwin. **No manual `chgrp`, `chmod`, or
 Queue `mac-mini-macos` already exists on the Default cluster. Remaining steps on
 mac-mini:
 
-1. Install the cluster agent token (once, if missing):
+1. Install the cluster agent token and agent SSH config (once, if missing):
 
    ```sh
-   nix run .#mac-mini-buildkite-install-token
-   ```
-
-   Copy the relevant per-domain SSH `Host` blocks from the invoking user's
-   `~/.ssh/config` into the agent's home (GitHub + Origin):
-
-   ```sh
-   nix run .#mac-mini-buildkite-install-ssh
-   ```
-
-   Or, if `nix run` interferes with 1Password or SSH Agent access, use the
-   dev shell command:
-
-   ```sh
+   nix develop -c mac-mini-buildkite-install-token
    nix develop -c mac-mini-buildkite-install-ssh
    ```
 
-   This installs `.ssh/config` and `.ssh/known_hosts` from the host without
-   embedding secrets in the Nix store or git.
+   Or use `task`:
+
+   ```sh
+   task setup-mac-buildkite
+   ```
+
+   This copies the relevant per-domain SSH `Host` blocks from your
+   `~/.ssh/config` into the agent's home (GitHub + Origin) and copies the
+   referenced private keys and `known_hosts` entries. It does not embed
+   secrets in the Nix store or git.
 
 2. Apply nix-darwin — this is the only system command needed:
 
@@ -168,7 +166,7 @@ mac-mini:
 **Token-only reinstall** (skip darwin-rebuild if config unchanged):
 
 ```sh
-nix run .#mac-mini-buildkite-install-token
+nix develop -c mac-mini-buildkite-install-token
 sudo darwin-rebuild switch --flake .#mac-mini   # re-applies permissions + kickstarts agent
 ```
 
@@ -180,8 +178,8 @@ Or use the bootstrap script:
 
 ### Manual token fallback
 
-If `nix run .#mac-mini-buildkite-install-token` is unavailable, write the token
-with a temp file (BSD `install` on macOS does not accept `/dev/stdin`):
+If the dev shell installer is unavailable, write the token with a temp file
+(BSD `install` on macOS does not accept `/dev/stdin`):
 
 ```sh
 op_bin=${OP:-/opt/homebrew/bin/op}
@@ -243,7 +241,7 @@ under `/private/var/lib/buildkite-agent-macos/.ssh/github` for the agent.
 Install (or refresh) the runtime agent SSH config on mac-mini:
 
 ```sh
-nix run .#mac-mini-buildkite-install-ssh
+nix develop -c mac-mini-buildkite-install-ssh
 ```
 
 `sudo -n` is not enough — this prompts for Connor’s password, like the cluster
@@ -393,8 +391,6 @@ nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.DOCKER_HOST
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.path # includes *-podman-docker-compat-*/bin
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.podman-machine.serviceConfig.KeepAlive
-nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-token.program
-nix eval .#apps.aarch64-darwin.mac-mini-buildkite-install-ssh.program
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.GIT_CONFIG_GLOBAL
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment.HOME
 nix eval .#darwinConfigurations.mac-mini.config.launchd.daemons.buildkite-agent-macos.environment ? GIT_SSH_COMMAND
