@@ -23,7 +23,7 @@ x-timeout-retry: &timeout-retry
 steps:
   - label: ":nix: nix fmt --check"
     key: nix-fmt-check
-    command: nix fmt . -- --check
+    command: nix fmt . --accept-flake-config -- --check
     <<: [*branch-if, *mac-mini-macos]
 
   - group: ":mac: mac-mini-macos CI"
