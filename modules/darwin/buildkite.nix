@@ -17,23 +17,14 @@
       # Must match modules/darwin/podman.nix agentCheckoutRoot. ExtraConfig
       # build-path last-wins over nix-darwin's dataDir/builds.
       agentCheckout = "/Users/Shared/${agentUser}";
+      # Per-domain SSH config is a runtime file installed by
+      # `nix run .#mac-mini-buildkite-install-ssh` from the invoking user's
+      # ~/.ssh/config; we intentionally do not emit it from the Nix store so
+      # GitHub / Origin Host blocks and keys stay owned by the agent user.
       originSshKey = "${agentHome}/.ssh/origin_cursor";
-      # Public only — private key is installed by
-      # `nix run .#mac-mini-buildkite-install-origin-ssh`, never the Nix store.
       originGitconfig = pkgs.writeText "buildkite-agent-gitconfig" ''
         [url "git@origin.cursor.com:"]
         	insteadOf = https://origin.cursor.com/git/
-      '';
-      originSshConfig = pkgs.writeText "buildkite-agent-ssh-config" ''
-        Host origin.cursor.com
-          User git
-          IdentityFile ${originSshKey}
-          IdentitiesOnly yes
-          StrictHostKeyChecking yes
-          UserKnownHostsFile ${agentHome}/.ssh/known_hosts
-      '';
-      originKnownHosts = pkgs.writeText "buildkite-agent-ssh-known-hosts" ''
-        origin.cursor.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaMKo6HCtmngBwlSH2ATs8+A6eTr+cCON5RKZX/3/MO
       '';
     in
     {
@@ -96,7 +87,10 @@
       launchd.daemons.buildkite-agent-macos = {
         # insteadOf HTTPS Origin clones → SSH. Store path is public (no secrets).
         environment.GIT_CONFIG_GLOBAL = "${originGitconfig}";
-        environment.GIT_SSH_COMMAND = "ssh -i ${originSshKey} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${originKnownHosts}";
+        # No GIT_SSH_COMMAND: the agent runs as buildkite-agent-macos with
+        # HOME=/private/var/lib/buildkite-agent-macos, so git uses regular ssh
+        # which reads its per-domain ~/.ssh/config and IdentityFile entries.
+        environment.HOME = agentHome;
         environment.DOCKER_HOST = "unix:///var/run/docker.sock";
         # Podman honors CONTAINER_HOST, not DOCKER_HOST.
         environment.CONTAINER_HOST = "unix:///var/run/docker.sock";
@@ -121,8 +115,9 @@
         chmod 755 "$checkout/plugins"
         chmod 700 "$agent_home/.ssh"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originGitconfig} "$agent_home/.gitconfig"
-        install -m 644 -o ${agentUser} -g ${agentUser} ${originSshConfig} "$agent_home/.ssh/config"
-        install -m 644 -o ${agentUser} -g ${agentUser} ${originKnownHosts} "$agent_home/.ssh/known_hosts"
+        # .ssh/config and .ssh/known_hosts are runtime files installed by
+        # `nix run .#mac-mini-buildkite-install-ssh`; postActivation only
+        # ensures the directory exists with the right ownership/permissions.
         if [ -f ${originSshKey} ]; then
           chown ${agentUser}:${agentUser} ${originSshKey}
           chmod 600 ${originSshKey}
