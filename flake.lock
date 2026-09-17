@@ -310,11 +310,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789599408,
-        "narHash": "sha256-ylrZ67Y3italTn/vVvmNYQV4ZB+chz7qD7QKBQ+vdvo=",
+        "lastModified": 1789604145,
+        "narHash": "sha256-W149MuV+jc/Hj0GuMkzcqj/WCXprVlZoLHRpmyrvTEc=",
         "ref": "refs/heads/master",
-        "rev": "e17f088d159785b4da619ef88d03e64bd27b96bd",
-        "revCount": 26,
+        "rev": "059221752b33c60ab044d45799f02c29cb455a53",
+        "revCount": 28,
         "type": "git",
         "url": "ssh://git@github.com/connorfuhrman/pi-config.git"
       },
