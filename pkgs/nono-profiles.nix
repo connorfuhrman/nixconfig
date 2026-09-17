@@ -11,7 +11,8 @@
 #     active. Extends "default" so future required groups stay on.
 {
   lib,
-}: let
+}:
+let
   # Baseline policy for an AI coding agent: runtimes it shells out to,
   # caches, nix store, git config. Tool-specific state (e.g. "$HOME/.pi")
   # is added by the caller via extendProfile.
@@ -91,17 +92,22 @@
 
   # extendProfile base ext — merge a tool-specific profile onto a baseline.
   # Lists under filesystem.* concatenate (dedup); other attrs overlay.
-  extendProfile = base: ext:
-    lib.recursiveUpdate base (ext
+  extendProfile =
+    base: ext:
+    lib.recursiveUpdate base (
+      ext
       // lib.optionalAttrs (ext.filesystem or null != null) {
         filesystem =
-          base.filesystem or {}
+          base.filesystem or { }
           // (builtins.removeAttrs ext.filesystem listKeys)
-          // (builtins.listToAttrs (map (k:
-              lib.nameValuePair k
-              (lib.unique ((base.filesystem.${k} or []) ++ (ext.filesystem.${k} or []))))
-            (builtins.filter (k: ext.filesystem ? ${k} || base.filesystem ? ${k}) listKeys)));
-      });
-in {
+          // (builtins.listToAttrs (
+            map (
+              k: lib.nameValuePair k (lib.unique ((base.filesystem.${k} or [ ]) ++ (ext.filesystem.${k} or [ ])))
+            ) (builtins.filter (k: ext.filesystem ? ${k} || base.filesystem ? ${k}) listKeys)
+          ));
+      }
+    );
+in
+{
   inherit agentBase extendProfile;
 }

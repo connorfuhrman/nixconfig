@@ -1,5 +1,11 @@
 # TEMPLATE — replace with `nixos-generate-config` output on the Nuc.
-{ config, lib, pkgs, modulesPath, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  modulesPath,
+  ...
+}:
 
 {
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];

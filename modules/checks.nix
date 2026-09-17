@@ -8,10 +8,11 @@
   # the entire referenced closure.
   #
   # Check names must not contain `@` (invalid in store paths).
-  perSystem = { pkgs, ... }:
+  perSystem =
+    { pkgs, ... }:
     let
-      evalOnly = name: drvPath:
-        pkgs.writeText "eval-${name}" (builtins.unsafeDiscardStringContext drvPath + "\n");
+      evalOnly =
+        name: drvPath: pkgs.writeText "eval-${name}" (builtins.unsafeDiscardStringContext drvPath + "\n");
       sys = pkgs.stdenv.hostPlatform.system;
     in
     {
@@ -23,16 +24,34 @@
         eval-nixos-rpi-cluster-head = evalOnly "nixos-rpi-cluster-head" self.nixosConfigurations.rpi-cluster-head.config.system.build.toplevel.drvPath;
         eval-darwin-macbook = evalOnly "darwin-macbook" self.darwinConfigurations.macbook.config.system.build.toplevel.drvPath;
         eval-darwin-mac-mini = evalOnly "darwin-mac-mini" self.darwinConfigurations.mac-mini.config.system.build.toplevel.drvPath;
-        eval-home-connorfuhrman-mbp14 = evalOnly "home-connorfuhrman-mbp14" self.homeConfigurations."connorfuhrman@mbp14".activationPackage.drvPath;
-        eval-home-connorfuhrman-nuc = evalOnly "home-connorfuhrman-nuc" self.homeConfigurations."connorfuhrman@nuc".activationPackage.drvPath;
-        eval-home-connorfuhrman-nuc-cluster-head = evalOnly "home-connorfuhrman-nuc-cluster-head" self.homeConfigurations."connorfuhrman@nuc-cluster-head".activationPackage.drvPath;
-        eval-home-connorfuhrman-nuc-cluster-worker = evalOnly "home-connorfuhrman-nuc-cluster-worker" self.homeConfigurations."connorfuhrman@nuc-cluster-worker".activationPackage.drvPath;
-        eval-home-connorfuhrman-rpi-cluster-head = evalOnly "home-connorfuhrman-rpi-cluster-head" self.homeConfigurations."connorfuhrman@rpi-cluster-head".activationPackage.drvPath;
-        eval-home-connorfuhrman-macbook = evalOnly "home-connorfuhrman-macbook" self.homeConfigurations."connorfuhrman@macbook".activationPackage.drvPath;
-        eval-home-connorfuhrman-mac-mini = evalOnly "home-connorfuhrman-mac-mini" self.homeConfigurations."connorfuhrman@mac-mini".activationPackage.drvPath;
-        eval-home-ubuntu-cursor-cloud = evalOnly "home-ubuntu-cursor-cloud" self.homeConfigurations."ubuntu@cursor-cloud".activationPackage.drvPath;
+        eval-home-connorfuhrman-mbp14 =
+          evalOnly "home-connorfuhrman-mbp14"
+            self.homeConfigurations."connorfuhrman@mbp14".activationPackage.drvPath;
+        eval-home-connorfuhrman-nuc =
+          evalOnly "home-connorfuhrman-nuc"
+            self.homeConfigurations."connorfuhrman@nuc".activationPackage.drvPath;
+        eval-home-connorfuhrman-nuc-cluster-head =
+          evalOnly "home-connorfuhrman-nuc-cluster-head"
+            self.homeConfigurations."connorfuhrman@nuc-cluster-head".activationPackage.drvPath;
+        eval-home-connorfuhrman-nuc-cluster-worker =
+          evalOnly "home-connorfuhrman-nuc-cluster-worker"
+            self.homeConfigurations."connorfuhrman@nuc-cluster-worker".activationPackage.drvPath;
+        eval-home-connorfuhrman-rpi-cluster-head =
+          evalOnly "home-connorfuhrman-rpi-cluster-head"
+            self.homeConfigurations."connorfuhrman@rpi-cluster-head".activationPackage.drvPath;
+        eval-home-connorfuhrman-macbook =
+          evalOnly "home-connorfuhrman-macbook"
+            self.homeConfigurations."connorfuhrman@macbook".activationPackage.drvPath;
+        eval-home-connorfuhrman-mac-mini =
+          evalOnly "home-connorfuhrman-mac-mini"
+            self.homeConfigurations."connorfuhrman@mac-mini".activationPackage.drvPath;
+        eval-home-ubuntu-cursor-cloud =
+          evalOnly "home-ubuntu-cursor-cloud"
+            self.homeConfigurations."ubuntu@cursor-cloud".activationPackage.drvPath;
         eval-obsidian-plugins = evalOnly "obsidian-plugins" self.packages.${sys}.obsidian-plugins.drvPath;
-        eval-cursor-cloud-setup = evalOnly "cursor-cloud-setup" self.packages.${sys}.cursor-cloud-setup.drvPath;
+        eval-cursor-cloud-setup =
+          evalOnly "cursor-cloud-setup"
+            self.packages.${sys}.cursor-cloud-setup.drvPath;
         eval-origin = evalOnly "origin" self.packages.${sys}.origin.drvPath;
       };
     };

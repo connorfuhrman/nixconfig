@@ -3,7 +3,9 @@
 
   nixConfig = {
     extra-substituters = [ "https://nixos-apple-silicon.cachix.org" ];
-    extra-trusted-public-keys = [ "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20=" ];
+    extra-trusted-public-keys = [
+      "nixos-apple-silicon.cachix.org-1:8psDu5SA5dAD7qA0zMy5UT292TxeEPzIz8VVEr2Js20="
+    ];
   };
 
   inputs = {
@@ -27,7 +29,8 @@
     import-tree.url = "github:denful/import-tree";
   };
 
-  outputs = inputs:
+  outputs =
+    inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         inputs.nix-darwin.flakeModules.default

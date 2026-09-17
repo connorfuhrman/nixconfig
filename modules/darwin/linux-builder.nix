@@ -10,7 +10,10 @@
       # 4 jobs: the 16 GiB host also runs a 10 GiB Podman VM for CI docker
       # jobs, so keep concurrent remote builds modest.
       maxJobs = 4;
-      systems = [ "aarch64-linux" "x86_64-linux" ];
+      systems = [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
       config = { pkgs, lib, ... }: {
         virtualisation.cores = 4;
         virtualisation.darwin-builder.memorySize = 10 * 1024;

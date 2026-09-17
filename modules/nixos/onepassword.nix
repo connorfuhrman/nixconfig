@@ -4,7 +4,8 @@
   flake.modules.nixos.onepassword = { lib, ... }: {
     # 1Password packages are unfree; scope the allowance to just them so
     # evaluation (and `nix flake check`) works without --impure.
-    nixpkgs.config.allowUnfreePredicate = pkg:
+    nixpkgs.config.allowUnfreePredicate =
+      pkg:
       builtins.elem (lib.getName pkg) [
         "1password"
         "1password-cli"

@@ -44,7 +44,11 @@
         maxJobs = 4;
         speedFactor = 2;
         systems = [ "x86_64-linux" ];
-        supportedFeatures = [ "big-parallel" "kvm" "benchmark" ];
+        supportedFeatures = [
+          "big-parallel"
+          "kvm"
+          "benchmark"
+        ];
       }
     ];
     nix.settings.builders-use-substitutes = true;
@@ -57,8 +61,10 @@
     modules = [ config.flake.modules.nixos.host-rpi-cluster-head ];
   };
 
-  flake.homeConfigurations."connorfuhrman@rpi-cluster-head" = inputs.home-manager.lib.homeManagerConfiguration {
-    pkgs = config.flake.lib.pkgsFor "aarch64-linux";
-    modules = [ config.flake.modules.homeManager.standard ];
-  };
+  flake.homeConfigurations."connorfuhrman@rpi-cluster-head" =
+    inputs.home-manager.lib.homeManagerConfiguration
+      {
+        pkgs = config.flake.lib.pkgsFor "aarch64-linux";
+        modules = [ config.flake.modules.homeManager.standard ];
+      };
 }

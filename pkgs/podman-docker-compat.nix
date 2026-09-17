@@ -1,4 +1,9 @@
-{ installShellFiles, podman, runCommand, writeShellScript }:
+{
+  installShellFiles,
+  podman,
+  runCommand,
+  writeShellScript,
+}:
 
 let
   dockerWrapper = writeShellScript "docker-via-podman" ''
@@ -10,7 +15,10 @@ in
 runCommand "${podman.pname}-docker-compat-${podman.version}"
   {
     nativeBuildInputs = [ installShellFiles ];
-    outputs = [ "out" "man" ];
+    outputs = [
+      "out"
+      "man"
+    ];
     inherit (podman) meta;
     preferLocalBuild = true;
   }

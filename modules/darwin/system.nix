@@ -5,7 +5,10 @@
     # Custom monorepo packages (pkgs/ via flake.overlays.default).
     nixpkgs.overlays = [ self.overlays.default ];
 
-    nix.settings.experimental-features = [ "nix-command" "flakes" ];
+    nix.settings.experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
 
     # User-level `nix develop` / home-manager honor flake `nixConfig`
     # extra-substituters only for trusted users. Without this, macbook
@@ -18,7 +21,11 @@
 
     nix.gc = {
       automatic = true;
-      interval = { Weekday = 0; Hour = 3; Minute = 15; };
+      interval = {
+        Weekday = 0;
+        Hour = 3;
+        Minute = 15;
+      };
       options = "--delete-older-than 30d";
     };
 
@@ -30,7 +37,10 @@
     programs.zsh.enable = true;
 
     # Apple Silicon Homebrew prefix — not added by homebrew.enable alone.
-    environment.systemPath = [ "/opt/homebrew/bin" "/opt/homebrew/sbin" ];
+    environment.systemPath = [
+      "/opt/homebrew/bin"
+      "/opt/homebrew/sbin"
+    ];
 
     environment.systemPackages = with pkgs; [
       git

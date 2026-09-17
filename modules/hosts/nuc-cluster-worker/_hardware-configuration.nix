@@ -1,6 +1,12 @@
 # TEMPLATE — replace with `nixos-generate-config` output on the worker NUC
 # (the second machine, which boots the nuc-cluster-worker closure).
-{ config, lib, pkgs, modulesPath, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  modulesPath,
+  ...
+}:
 
 {
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];

@@ -1,5 +1,11 @@
 { ... }: {
-  flake.modules.darwin.buildkite = { config, lib, pkgs, ... }:
+  flake.modules.darwin.buildkite =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       agentUser = "buildkite-agent-macos";
       # Existing dscl home. nix-darwin will not change it. /var is a symlink

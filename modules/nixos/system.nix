@@ -3,7 +3,10 @@
     # Custom monorepo packages (pkgs/ via flake.overlays.default).
     nixpkgs.overlays = [ self.overlays.default ];
 
-    nix.settings.experimental-features = [ "nix-command" "flakes" ];
+    nix.settings.experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
 
     nix.gc = {
       automatic = true;
@@ -19,7 +22,12 @@
     users.users.connorfuhrman = {
       isNormalUser = true;
       description = "Connor Fuhrman";
-      extraGroups = [ "wheel" "networkmanager" "video" "input" ];
+      extraGroups = [
+        "wheel"
+        "networkmanager"
+        "video"
+        "input"
+      ];
       # Bootstrap only — run `passwd` on first login, then prefer SSH keys.
       # Long-term: 1Password SSH agent (docs/plans/1password-ssh-workplan.md).
       initialPassword = "changeme";

@@ -22,7 +22,10 @@
     # traffic). LAN-agnostic: any fast link works; Ray control plane rides
     # Tailscale. Iface name may be enp* on hardware — verify with `ip link`.
     networking.interfaces.thunderbolt0.ipv4.addresses = [
-      { address = "10.200.0.1"; prefixLength = 30; }
+      {
+        address = "10.200.0.1";
+        prefixLength = 30;
+      }
     ];
     networking.firewall.trustedInterfaces = [ "thunderbolt0" ];
 
@@ -36,7 +39,11 @@
         maxJobs = 4;
         speedFactor = 2;
         systems = [ "x86_64-linux" ];
-        supportedFeatures = [ "big-parallel" "kvm" "benchmark" ];
+        supportedFeatures = [
+          "big-parallel"
+          "kvm"
+          "benchmark"
+        ];
       }
       {
         hostName = "nuc-cluster-worker";
@@ -45,7 +52,11 @@
         maxJobs = 4;
         speedFactor = 1;
         systems = [ "x86_64-linux" ];
-        supportedFeatures = [ "big-parallel" "kvm" "benchmark" ];
+        supportedFeatures = [
+          "big-parallel"
+          "kvm"
+          "benchmark"
+        ];
       }
     ];
     nix.settings.builders-use-substitutes = true;
@@ -58,8 +69,10 @@
     modules = [ config.flake.modules.nixos.host-nuc-cluster-head ];
   };
 
-  flake.homeConfigurations."connorfuhrman@nuc-cluster-head" = inputs.home-manager.lib.homeManagerConfiguration {
-    pkgs = config.flake.lib.pkgsFor "x86_64-linux";
-    modules = [ config.flake.modules.homeManager.standard ];
-  };
+  flake.homeConfigurations."connorfuhrman@nuc-cluster-head" =
+    inputs.home-manager.lib.homeManagerConfiguration
+      {
+        pkgs = config.flake.lib.pkgsFor "x86_64-linux";
+        modules = [ config.flake.modules.homeManager.standard ];
+      };
 }

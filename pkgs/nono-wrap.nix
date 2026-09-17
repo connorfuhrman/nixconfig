@@ -33,13 +33,15 @@
   extraArgs ? [ ],
   extraPackages ? [ ],
   description ? "Sandboxed ${executable} (nono)",
-}: let
+}:
+let
   profileJson =
-    if builtins.isAttrs profile
-    then writeText "nono-profile.json" (builtins.toJSON profile)
-    else if lib.isDerivation profile || lib.isStorePath profile
-    then profile
-    else writeText "nono-profile.json" profile;
+    if builtins.isAttrs profile then
+      writeText "nono-profile.json" (builtins.toJSON profile)
+    else if lib.isDerivation profile || lib.isStorePath profile then
+      profile
+    else
+      writeText "nono-profile.json" profile;
 
   binPath = "${package}/bin/${executable}";
   pathPrefix = lib.makeBinPath extraPackages;
@@ -59,7 +61,7 @@ stdenvNoCC.mkDerivation {
     cat > $out/bin/${name} <<EOF
     #!${runtimeShell}
     set -euo pipefail
-    ${lib.optionalString (extraPackages != []) ''export PATH="${pathPrefix}''${PATH:+':$PATH'}"''}
+    ${lib.optionalString (extraPackages != [ ]) ''export PATH="${pathPrefix}''${PATH:+':$PATH'}"''}
     exec ${nono}/bin/nono run \
       --profile ${profileJson} \
       --allow-cwd \

@@ -28,4 +28,3 @@
     modules = [ config.flake.modules.homeManager.standard ];
   };
 }
-

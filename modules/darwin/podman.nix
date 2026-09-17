@@ -4,7 +4,13 @@
   # The machine API socket lives under the primary user's 700 TMPDIR, which
   # buildkite-agent-macos cannot traverse. Rootful mode plus a root socat proxy
   # on /var/run/docker.sock (660, group docker) is the agent-visible path.
-  flake.modules.darwin.podman = { config, lib, pkgs, ... }:
+  flake.modules.darwin.podman =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       primaryUser = config.system.primaryUser;
       agentUser = "buildkite-agent-macos";
@@ -25,11 +31,13 @@
       agentCheckoutRoot = "/Users/Shared/buildkite-agent-macos";
       oldCheckoutRoot = "/var/lib/buildkite-agent-macos";
       agentHome = "/private/var/lib/buildkite-agent-macos";
-      scriptPath = lib.makeBinPath [
-        podman
-        pkgs.coreutils
-        pkgs.gnugrep
-      ] + ":/usr/bin";
+      scriptPath =
+        lib.makeBinPath [
+          podman
+          pkgs.coreutils
+          pkgs.gnugrep
+        ]
+        + ":/usr/bin";
 
       volumeEnsurePy = pkgs.writeText "podman-machine-ensure-volumes.py" (
         builtins.readFile ./_podman/ensure-volumes.py
@@ -66,10 +74,9 @@
       );
 
       podmanDockerProxy = pkgs.writeShellScript "podman-docker-proxy" (
-        builtins.replaceStrings
-          [ "@socat@" "@dockerGid@" ]
-          [ "${pkgs.socat}/bin/socat" dockerGid ]
-          (builtins.readFile ./_podman/docker-proxy.sh)
+        builtins.replaceStrings [ "@socat@" "@dockerGid@" ] [ "${pkgs.socat}/bin/socat" dockerGid ] (
+          builtins.readFile ./_podman/docker-proxy.sh
+        )
       );
     in
     {
@@ -85,13 +92,20 @@
       users.knownGroups = lib.mkAfter [ "docker" ];
       users.groups.docker = {
         gid = lib.mkDefault 537;
-        members = [ primaryUser agentUser ];
+        members = [
+          primaryUser
+          agentUser
+        ];
       };
 
       # Root launchd: machine is owned by primaryUser; the proxy listen sock is
       # root:docker so the agent never opens the 700 TMPDIR path.
       launchd.daemons.podman-machine = {
-        path = with pkgs; [ podman coreutils gnugrep ];
+        path = with pkgs; [
+          podman
+          coreutils
+          gnugrep
+        ];
         script = "${podmanMachineEnsure}";
         serviceConfig = {
           RunAtLoad = true;
@@ -109,7 +123,10 @@
       };
 
       launchd.daemons.podman-docker-proxy = {
-        path = with pkgs; [ coreutils socat ];
+        path = with pkgs; [
+          coreutils
+          socat
+        ];
         script = "${podmanDockerProxy}";
         serviceConfig = {
           RunAtLoad = true;
