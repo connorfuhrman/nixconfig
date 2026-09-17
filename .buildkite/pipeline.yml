@@ -25,7 +25,7 @@ steps:
     key: mac-mini-macos-ci
     <<: *branch-if
     steps:
-      - label: ":nix: flake check (native macOS, all systems)"
+      - label: ":nix: flake check"
         key: flake-check-mac-mini-macos
         command: .buildkite/scripts/flake-check.sh
         <<: [*mac-mini-macos, *timeout-retry]
