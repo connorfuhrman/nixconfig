@@ -43,13 +43,13 @@
   description,
   homepage,
   license,
-}: let
+}:
+let
   # Registry tarball URL; scoped and unscoped packages both ship "package/"
   # as the single top-level directory.
-  tarballUrl = name: v:
-    "https://registry.npmjs.org/${name}/-/${
-      builtins.head (lib.reverseList (lib.splitString "/" name))
-    }-${v}.tgz";
+  tarballUrl =
+    name: v:
+    "https://registry.npmjs.org/${name}/-/${builtins.head (lib.reverseList (lib.splitString "/" name))}-${v}.tgz";
 
   # Flat node_modules: every dep is zero-dependency, so they hoist to the
   # package root exactly like npm would.
@@ -64,8 +64,7 @@
             hash = dep.hash;
           }
         }" -C "$out/${dep.name}" --strip-components=1
-      '')
-      deps
+      '') deps
     )}
   '';
 

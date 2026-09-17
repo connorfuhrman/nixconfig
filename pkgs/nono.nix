@@ -13,12 +13,14 @@ let
   system = stdenv.hostPlatform.system;
 
   # Upstream rustc target triple in the release tarball name.
-  rustTarget = {
-    "aarch64-darwin" = "aarch64-apple-darwin";
-    "x86_64-darwin" = "x86_64-apple-darwin";
-    "aarch64-linux" = "aarch64-unknown-linux-gnu";
-    "x86_64-linux" = "x86_64-unknown-linux-gnu";
-  }.${system};
+  rustTarget =
+    {
+      "aarch64-darwin" = "aarch64-apple-darwin";
+      "x86_64-darwin" = "x86_64-apple-darwin";
+      "aarch64-linux" = "aarch64-unknown-linux-gnu";
+      "x86_64-linux" = "x86_64-unknown-linux-gnu";
+    }
+    .${system};
 
   hashes = {
     "aarch64-darwin" = "sha256-G0E+YXWPXiEvHGg7lcOq2zeZoB29VGhd1+rjN4LefxI=";

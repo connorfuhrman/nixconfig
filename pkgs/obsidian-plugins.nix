@@ -1,4 +1,9 @@
-{ lib, symlinkJoin, writeText, callPackage }:
+{
+  lib,
+  symlinkJoin,
+  writeText,
+  callPackage,
+}:
 let
   pluginSpecs = {
     document-comments = {

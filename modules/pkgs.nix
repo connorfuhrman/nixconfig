@@ -16,7 +16,8 @@ let
     import inputs.nixpkgs {
       inherit system;
       overlays = [ overlay ];
-      config.allowUnfreePredicate = pkg:
+      config.allowUnfreePredicate =
+        pkg:
         builtins.elem (lib.getName pkg) [
           "origin"
           "_1password-cli"

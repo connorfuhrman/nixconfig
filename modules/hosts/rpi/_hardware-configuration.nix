@@ -3,7 +3,13 @@
 # file). extlinux/u-boot boot, single SD partition labeled NIXOS_SD (standard
 # aarch64 SD image layout). Prefer the nixos-hardware raspberry-pi module when
 # it becomes a flake input.
-{ config, lib, pkgs, modulesPath, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  modulesPath,
+  ...
+}:
 
 {
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];

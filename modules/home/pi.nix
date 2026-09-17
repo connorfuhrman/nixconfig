@@ -1,11 +1,11 @@
 # Pi coding agent on every home that imports this module.
 # Auth stays in ~/.pi/agent (pi /login or env keys), not Nix.
 { ... }: {
-  flake.modules.homeManager.pi = {pkgs, ...}: {
+  flake.modules.homeManager.pi = { pkgs, ... }: {
     programs.pi-coding-agent = {
       enable = true;
       # npm: extensions (skills, pi packages) need node on PATH.
-      extraPackages = [pkgs.nodejs];
+      extraPackages = [ pkgs.nodejs ];
       # Third-party pi packages, installed from the nix store as local-path
       # package sources (pi loads store paths directly — no runtime npm
       # install, no version drift). Plan mode and sub-agent orchestration.
@@ -22,7 +22,7 @@
     };
     # Sandboxed variant: same pi, run under the nono sandbox (store-backed
     # profile; stock `pi` stays available unsandboxed).
-    home.packages = [pkgs.pi-nono];
+    home.packages = [ pkgs.pi-nono ];
     # Agent addendum appended to pi's system prompt on boot: documents the
     # installed extensions and where their docs/skills live.
     home.file.".pi/agent/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;

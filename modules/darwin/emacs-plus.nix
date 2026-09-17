@@ -7,7 +7,10 @@
   flake.modules.darwin.emacs-plus = { ... }: {
     homebrew.enable = true;
     homebrew.taps = [
-      { name = "d12frosted/emacs-plus"; trusted = true; }
+      {
+        name = "d12frosted/emacs-plus";
+        trusted = true;
+      }
     ];
     homebrew.casks = [ "emacs-plus-app" ];
   };

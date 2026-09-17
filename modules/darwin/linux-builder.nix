@@ -8,7 +8,10 @@
       enable = true;
       ephemeral = false;
       maxJobs = 8;
-      systems = [ "aarch64-linux" "x86_64-linux" ];
+      systems = [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
       config = { pkgs, lib, ... }: {
         virtualisation.cores = 8;
         virtualisation.darwin-builder.memorySize = 8 * 1024;

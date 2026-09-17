@@ -17,10 +17,17 @@
         sshUser = "connorfuhrman";
         maxJobs = 4;
         speedFactor = 2;
-        supportedFeatures = [ "benchmark" "big-parallel" "kvm" ];
+        supportedFeatures = [
+          "benchmark"
+          "big-parallel"
+          "kvm"
+        ];
         mandatoryFeatures = [ ];
         # Both Linux systems the mini's linux-builder advertises.
-        systems = [ "aarch64-linux" "x86_64-linux" ];
+        systems = [
+          "aarch64-linux"
+          "x86_64-linux"
+        ];
       }
     ];
 

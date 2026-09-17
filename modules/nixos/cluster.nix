@@ -14,7 +14,8 @@
   # Generalized Ray head role. Any always-on host can import this; pairwise
   # LAN addressing and nix.buildMachines stay in the host module (they are
   # hardware facts, not role logic).
-  flake.modules.nixos.ray-head = { pkgs, ... }:
+  flake.modules.nixos.ray-head =
+    { pkgs, ... }:
     let
       # nixpkgs#ray has no meta.mainProgram; CLI comes from the python env.
       ray = pkgs.python3.withPackages (ps: [ ps.ray ]);
@@ -48,7 +49,8 @@
 
   # Generalized Ray worker role. Any host can import this; it joins the head
   # named by flake.cluster.headName (Tailscale MagicDNS).
-  flake.modules.nixos.ray-worker = { pkgs, ... }:
+  flake.modules.nixos.ray-worker =
+    { pkgs, ... }:
     let
       ray = pkgs.python3.withPackages (ps: [ ps.ray ]);
     in
