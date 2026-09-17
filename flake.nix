@@ -22,6 +22,15 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Dedicated pi coding agent configuration (home-manager module + overlay).
+    # Private repo: use git+ssh so authentication flows through the user's
+    # SSH agent (1Password SSH agent on macOS; deploy key on CI builders).
+    pi-config = {
+      url = "git+ssh://git@github.com/connorfuhrman/pi-config.git";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+      inputs.import-tree.follows = "import-tree";
+    };
     # Self-contained flake providing wrapped Emacs packages (pinned own
     # nixpkgs + emacs-overlay); deliberately does NOT follow our nixpkgs.
     emacs.url = "github:connorfuhrman/emacs";

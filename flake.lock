@@ -297,6 +297,32 @@
         "type": "github"
       }
     },
+    "pi-config": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "import-tree": [
+          "import-tree"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1789604145,
+        "narHash": "sha256-W149MuV+jc/Hj0GuMkzcqj/WCXprVlZoLHRpmyrvTEc=",
+        "ref": "refs/heads/master",
+        "rev": "059221752b33c60ab044d45799f02c29cb455a53",
+        "revCount": 28,
+        "type": "git",
+        "url": "ssh://git@github.com/connorfuhrman/pi-config.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/connorfuhrman/pi-config.git"
+      }
+    },
     "root": {
       "inputs": {
         "emacs": "emacs",
@@ -305,7 +331,8 @@
         "import-tree": "import-tree",
         "nix-darwin": "nix-darwin",
         "nixos-apple-silicon": "nixos-apple-silicon",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_2",
+        "pi-config": "pi-config"
       }
     },
     "treefmt-nix": {
