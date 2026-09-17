@@ -14,7 +14,10 @@ let
     system:
     import inputs.nixpkgs {
       inherit system;
-      overlays = [ inputs.pi-config.overlays.default overlay ];
+      overlays = [
+        inputs.pi-config.overlays.default
+        overlay
+      ];
       config.allowUnfreePredicate =
         pkg:
         builtins.elem (lib.getName pkg) [
