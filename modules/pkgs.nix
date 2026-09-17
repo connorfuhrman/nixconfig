@@ -56,6 +56,7 @@ in
       pkgs = pkgsFor system;
     in
     {
+      formatter = pkgs.nixfmt;
       packages = pkgs.lib.genAttrs packageNames (name: pkgs.${name});
       apps.cursor-cloud-setup = {
         type = "app";

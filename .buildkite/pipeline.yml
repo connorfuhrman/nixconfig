@@ -16,8 +16,14 @@ x-timeout-retry: &timeout-retry
         limit: 1
 
 steps:
+  - label: ":nix: nix fmt --check"
+    key: nix-fmt-check
+    command: .buildkite/scripts/nix-fmt-check.sh
+    <<: [*branch-if, *mac-mini-macos]
+
   - group: ":mac: mac-mini-macos CI"
     key: mac-mini-macos-ci
+    depends_on: "nix-fmt-check"
     <<: *branch-if
     steps:
       - label: ":nix: flake check (native macOS)"
@@ -49,6 +55,7 @@ steps:
 
   - label: ":nix: flake check (hosted backup)"
     key: flake-check-hosted-linux-medium
+    depends_on: "nix-fmt-check"
     <<: *branch-if
     soft_fail: true
     command: .buildkite/scripts/flake-check.sh
