@@ -220,17 +220,20 @@ switch). The private key is never replaced by a rebuild.
 
 ### nixconfig
 
-`.buildkite/pipeline.yml` includes:
+`.buildkite/pipeline.yml` includes two sequential steps, both on queue
+`mac-mini-macos` (no docker-plugin steps in this pipeline and no hosted queue):
 
-- `flake-check-hosted-linux-medium` — hosted `linux-medium` + Docker (existing backup)
-- `flake-check-mac-mini-macos` — queue `mac-mini-macos` (native Darwin Nix)
-- `flake-check-mac-mini-container` — queue `mac-mini-macos` + `docker#v5.14.0`
-  (`nixos/nix:2.28.2`). Checkout is on `/Users` virtiofs, so `docker run -v $PWD`
-  is the native path.
+- `flake-check-mac-mini-macos` — native Darwin Nix; evaluates apps + the
+  eval-only checks for **every** exported system (aarch64-darwin natively;
+  x86_64-linux / aarch64-linux offloaded to `nix.linux-builder`)
 - `build-packages-mac-mini-macos` — autodiscover `.#packages` and build
-- `build-nixos-rpi-cluster-head` — realize the lightest NixOS toplevel via linux-builder
+  (`depends_on: flake-check-mac-mini-macos`, so the two eval-heavy steps never
+  run concurrently on the 16 GiB host)
 
-Steps run on `main` and pull requests targeting `main`.
+The NixOS toplevel realization step (`rpi-cluster-head`) was dropped: every
+configuration is still fully *evaluated* by the eval-only checks, just not
+*realized* in CI. The queue itself remains a docker runner (Podman) for other
+repos — this repo's pipeline simply has no container steps.
 
 ### t-hex
 
