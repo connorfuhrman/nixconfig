@@ -8,8 +8,8 @@ let
   overlay = import ../pkgs;
 
   # Shared helper: nixpkgs for a system with both the pi-config overlay and
-  # our local overlay applied. pi-config provides pi-side-agents and the pi
-  # wrapper; our overlay provides origin, obsidian-plugins, etc.
+  # our local overlay applied. pi-config provides pi, nono, and all the pi-*
+  # extensions; our overlay provides origin, obsidian-plugins, etc.
   pkgsFor =
     system:
     import inputs.nixpkgs {
@@ -34,18 +34,6 @@ let
     "mac-mini-buildkite-install-token"
     "mac-mini-buildkite-install-origin-ssh"
     "origin"
-    "pi"
-    "pi-plan-mode"
-    "pi-subagents"
-    "pi-goal"
-    "nono"
-    "pi-nono"
-    "pi-tasks"
-    "pi-usage"
-    "pi-diff-review"
-    "pi-side-agents"
-    "pi-worktree"
-    "pi-lsp"
   ];
 in
 {
