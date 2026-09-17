@@ -5,5 +5,5 @@
 set -euo pipefail
 
 echo "--- :nix: check Nix formatting"
-nix fmt . --check
+nix fmt . -- --check
 echo "+++ :white_check_mark: Nix formatting OK"
