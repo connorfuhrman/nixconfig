@@ -220,20 +220,27 @@ switch). The private key is never replaced by a rebuild.
 
 ### nixconfig
 
-`.buildkite/pipeline.yml` includes two sequential steps, both on queue
-`mac-mini-macos` (no docker-plugin steps in this pipeline and no hosted queue):
+`.buildkite/pipeline.yml` includes four sequential steps, all on queue
+`mac-mini-macos` (no docker-plugin steps in this pipeline and no hosted
+queue):
 
 - `flake-check-mac-mini-macos` — native Darwin Nix; evaluates apps + the
   eval-only checks for **every** exported system (aarch64-darwin natively;
   x86_64-linux / aarch64-linux offloaded to `nix.linux-builder`)
 - `build-packages-mac-mini-macos` — autodiscover `.#packages` and build
-  (`depends_on: flake-check-mac-mini-macos`, so the two eval-heavy steps never
-  run concurrently on the 16 GiB host)
+- `build-darwin-mac-mini-macos` — realize every `aarch64-darwin`
+  `darwinConfigurations.*` toplevel (macbook, mac-mini)
+- `build-home-darwin-mac-mini-macos` — realize every `aarch64-darwin`
+  `homeConfigurations.*` activationPackage (`connorfuhrman@macbook`,
+  `connorfuhrman@mac-mini`)
 
-The NixOS toplevel realization step (`rpi-cluster-head`) was dropped: every
-configuration is still fully *evaluated* by the eval-only checks, just not
-*realized* in CI. The queue itself remains a docker runner (Podman) for other
-repos — this repo's pipeline simply has no container steps.
+Steps are chained via `depends_on` so the eval-heavy work never runs
+concurrently on the 16 GiB host. The NixOS toplevel realization step
+(`rpi-cluster-head`) was dropped: every configuration is still fully
+*evaluated* by the eval-only checks, and NixOS/Linux closures are not yet
+realized in CI (darwin + darwin home closures are). The queue itself remains
+a docker runner (Podman) for other repos — this repo's pipeline simply has
+no container steps.
 
 ### t-hex
 

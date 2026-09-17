@@ -15,11 +15,11 @@ x-timeout-retry: &timeout-retry
       - exit_status: "*"
         limit: 1
 
-# Two sequential steps on the mac-mini-macos queue. No docker-plugin steps in
-# this pipeline (the queue itself remains a docker runner for other repos) and
-# no hosted queue. The packages step depends_on the flake-check step so the
-# two eval-heavy jobs never run concurrently on the 16 GiB host (two ~8 GiB
-# evals + the Podman and linux-builder VMs would oversubscribe RAM).
+# Four sequential steps on the mac-mini-macos queue. No docker-plugin steps
+# in this pipeline (the queue itself remains a docker runner for other repos)
+# and no hosted queue. Each step depends_on the previous one so eval-heavy
+# jobs never run concurrently on the 16 GiB host (two ~8 GiB evals + the
+# Podman and linux-builder VMs would oversubscribe RAM).
 steps:
   - group: ":mac: mac-mini-macos CI"
     key: mac-mini-macos-ci
@@ -34,4 +34,16 @@ steps:
         key: build-packages-mac-mini-macos
         command: .buildkite/scripts/build-packages.sh
         depends_on: flake-check-mac-mini-macos
+        <<: [*mac-mini-macos, *timeout-retry]
+
+      - label: ":apple: build darwin closures (aarch64-darwin)"
+        key: build-darwin-mac-mini-macos
+        command: .buildkite/scripts/build-darwin.sh
+        depends_on: build-packages-mac-mini-macos
+        <<: [*mac-mini-macos, *timeout-retry]
+
+      - label: ":house: build home-manager (aarch64-darwin)"
+        key: build-home-darwin-mac-mini-macos
+        command: .buildkite/scripts/build-home-darwin.sh
+        depends_on: build-darwin-mac-mini-macos
         <<: [*mac-mini-macos, *timeout-retry]
