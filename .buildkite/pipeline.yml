@@ -15,54 +15,35 @@ x-timeout-retry: &timeout-retry
       - exit_status: "*"
         limit: 1
 
+# Four sequential steps on the mac-mini-macos queue. No docker-plugin steps
+# in this pipeline (the queue itself remains a docker runner for other repos)
+# and no hosted queue. Each step depends_on the previous one so eval-heavy
+# jobs never run concurrently on the 16 GiB host (two ~8 GiB evals + the
+# Podman and linux-builder VMs would oversubscribe RAM).
 steps:
   - group: ":mac: mac-mini-macos CI"
     key: mac-mini-macos-ci
     <<: *branch-if
     steps:
-      - label: ":nix: flake check (native macOS)"
+      - label: ":nix: flake check"
         key: flake-check-mac-mini-macos
         command: .buildkite/scripts/flake-check.sh
-        <<: [*mac-mini-macos, *timeout-retry]
-
-      - label: ":docker: flake check (container / Podman)"
-        key: flake-check-mac-mini-container
-        command: .buildkite/scripts/flake-check.sh
-        plugins:
-          - docker#v5.14.0:
-              image: "nixos/nix:2.28.2"
-              mount-checkout: true
-              propagate-environment: true
-              environment:
-                - "NIX_CONFIG=experimental-features = nix-command flakes"
         <<: [*mac-mini-macos, *timeout-retry]
 
       - label: ":package: build packages"
         key: build-packages-mac-mini-macos
         command: .buildkite/scripts/build-packages.sh
+        depends_on: flake-check-mac-mini-macos
         <<: [*mac-mini-macos, *timeout-retry]
 
-      - label: ":nixos: build nixos (rpi-cluster-head)"
-        key: build-nixos-rpi-cluster-head
-        command: .buildkite/scripts/build-nixos.sh
+      - label: ":apple: build darwin closures (aarch64-darwin)"
+        key: build-darwin-mac-mini-macos
+        command: .buildkite/scripts/build-darwin.sh
+        depends_on: build-packages-mac-mini-macos
         <<: [*mac-mini-macos, *timeout-retry]
 
-  - label: ":nix: flake check (hosted backup)"
-    key: flake-check-hosted-linux-medium
-    <<: *branch-if
-    soft_fail: true
-    command: .buildkite/scripts/flake-check.sh
-    plugins:
-      - docker#v5.14.0:
-          image: "nixos/nix:2.28.2"
-          mount-checkout: true
-          propagate-environment: true
-          environment:
-            - "NIX_CONFIG=experimental-features = nix-command flakes"
-    agents:
-      queue: linux-medium
-    timeout_in_minutes: 90
-    retry:
-      automatic:
-        - exit_status: "*"
-          limit: 1
+      - label: ":house: build home-manager (aarch64-darwin)"
+        key: build-home-darwin-mac-mini-macos
+        command: .buildkite/scripts/build-home-darwin.sh
+        depends_on: build-darwin-mac-mini-macos
+        <<: [*mac-mini-macos, *timeout-retry]
