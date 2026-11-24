@@ -201,7 +201,7 @@ sudo darwin-rebuild switch --flake .#mac-mini
 | Origin SSH clone | `git@origin.cursor.com:connor-fuhrman/t-hex.git` (no `/git/` prefix) |
 | Origin private key | `/private/var/lib/buildkite-agent-macos/.ssh/origin_cursor` (600, agent-owned) |
 | Agent gitconfig | `/private/var/lib/buildkite-agent-macos/.gitconfig` (`GIT_CONFIG_GLOBAL` on launchd) |
-| Agent ssh config | Per-host `Host github.com` / `Host origin.cursor.com` blocks (`IdentitiesOnly yes`), written by `postActivation` |
+| Agent ssh config | Per-host `Host github.com` / `Host origin.cursor.com` blocks (`IdentitiesOnly yes`), mode **600**, written by `postActivation` |
 | Agent known_hosts | GitHub ed25519/ecdsa/rsa + `origin.cursor.com` (pinned in Nix; **not** Origin-only) |
 | Launchd | `HOME=/private/var/lib/buildkite-agent-macos`, **no** `GIT_SSH_COMMAND` |
 
@@ -230,6 +230,27 @@ sudo -u buildkite-agent-macos -H git ls-remote \
 ```
 
 Then re-run failing Buildkite builds on `cv` and `pi-config`.
+
+### cv pipeline repository URL
+
+The `cv` Buildkite pipeline must use **SSH**, not HTTPS — the agent has no
+credential helper:
+
+`git@github.com:connorfuhrman/cv.git`
+
+Update the pipeline repository setting in Buildkite if it still points at an
+`https://github.com/…` URL.
+
+### nixconfig CI chicken-and-egg
+
+`nixconfig`’s flake input `pi-config` is fetched as **`git+ssh`** during
+`nix flake check` on `mac-mini-macos`. That step will keep failing until this
+SSH layout is applied on the Mac (deploy keys + `darwin-rebuild` + agent
+verification) — e.g. Buildkite build **#285** is **expected** to fail until
+then. Merging the Nix PR alone does not unblock eval on hardware.
+
+This runbook supersedes the approach in unmerged PR **#32**
+(`side-agent/buildkite-ssh-keys`).
 
 ## Pipelines
 

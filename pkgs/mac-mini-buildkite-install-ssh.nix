@@ -42,12 +42,22 @@ writeShellScriptBin "mac-mini-buildkite-install-ssh" ''
     local op_password=$4
     local label=$5
 
+    local staged=$tmp/$(basename "$dest")
+    local staged_pub="$staged.pub"
+
+    ensure_agent_pubkey() {
+      sudo cat "$dest" > "$staged"
+      chmod 600 "$staged"
+      ssh-keygen -y -f "$staged" > "$staged_pub"
+      sudo install -m 644 -o "$AGENT_USER" -g "$AGENT_USER" "$staged_pub" "$dest.pub"
+    }
+
     if sudo test -f "$dest"; then
-      echo "Using existing $dest"
+      echo "Using existing $dest (refreshing .pub only)"
+      ensure_agent_pubkey
       return 0
     fi
 
-    local staged=$tmp/$(basename "$dest")
     local key=""
     if [[ -n "$op_primary" ]]; then
       key=$(read_op_secret "$op_primary" "$op_password" 2>/dev/null) || key=""
@@ -63,9 +73,9 @@ writeShellScriptBin "mac-mini-buildkite-install-ssh" ''
       echo "Generated new ed25519 key for $label (not in the Nix store or git)."
     fi
     chmod 600 "$staged"
-    ssh-keygen -y -f "$staged" > "$staged.pub"
+    ssh-keygen -y -f "$staged" > "$staged_pub"
     sudo install -m 600 -o "$AGENT_USER" -g "$AGENT_USER" "$staged" "$dest"
-    sudo install -m 644 -o "$AGENT_USER" -g "$AGENT_USER" "$staged.pub" "$dest.pub"
+    sudo install -m 644 -o "$AGENT_USER" -g "$AGENT_USER" "$staged_pub" "$dest.pub"
   }
 
   # GitHub deploy key for private repos (cv, pi-config, …).
