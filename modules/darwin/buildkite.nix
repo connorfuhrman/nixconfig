@@ -17,23 +17,48 @@
       # Must match modules/darwin/podman.nix agentCheckoutRoot. ExtraConfig
       # build-path last-wins over nix-darwin's dataDir/builds.
       agentCheckout = "/Users/Shared/${agentUser}";
+      githubSshKey = "${agentHome}/.ssh/github_buildkite";
       originSshKey = "${agentHome}/.ssh/origin_cursor";
-      # Public only — private key is installed by
-      # `nix run .#mac-mini-buildkite-install-origin-ssh`, never the Nix store.
+      agentKnownHostsPath = "${agentHome}/.ssh/known_hosts";
+      # Public only — private keys at githubSshKey / originSshKey are runtime
+      # files installed by `nix run .#mac-mini-buildkite-install-ssh`.
       originGitconfig = pkgs.writeText "buildkite-agent-gitconfig" ''
         [url "git@origin.cursor.com:"]
         	insteadOf = https://origin.cursor.com/git/
       '';
-      originSshConfig = pkgs.writeText "buildkite-agent-ssh-config" ''
+      # GitHub host keys: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+      agentKnownHosts = pkgs.writeText "buildkite-agent-ssh-known-hosts" ''
+        github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+        github.com ecdsa-sha2-nistp256 AAAAE2VjZHZhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87vR0dfdUVN7TZrl7U43MNB3eRlG66F7tYB3dFhdpmxv5c=
+        github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7bn1qTs9+Yc092s3G58IO6T9goTXyB3wEEA1t8QPLp0LVYNh3krxNLYlEo2bni0ejDvB2aDjK/GxQWo0cXAVrQMCNvxfx4v1C4FrRsuB9m7pKncM58MZt4J549yghChIKyCVMPfLYPdJRslqavTqupSZdxNnC7Y82oPbvl3r6Tpgsqu7JgEFg+grdbjjT0ROAJ6VAO7S8lKQ9WJN0x4x/Gb6IVh2jf+4+0H1giatIu8ZKUfQttXrT9WgYWw==
+        origin.cursor.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaMKo6HCtmngBwlSH2ATs8+A6eTr+cCON5RKZX/3/MO
+      '';
+      agentSshConfig = pkgs.writeText "buildkite-agent-ssh-config" ''
+        # Managed by nix-darwin (modules/darwin/buildkite.nix). Identity files
+        # are runtime secrets — install with mac-mini-buildkite-install-ssh.
+        Host github.com
+          User git
+          IdentityFile ${githubSshKey}
+          IdentitiesOnly yes
+          StrictHostKeyChecking yes
+          UserKnownHostsFile ${agentKnownHostsPath}
+
         Host origin.cursor.com
           User git
           IdentityFile ${originSshKey}
           IdentitiesOnly yes
           StrictHostKeyChecking yes
-          UserKnownHostsFile ${agentHome}/.ssh/known_hosts
+          UserKnownHostsFile ${agentKnownHostsPath}
       '';
-      originKnownHosts = pkgs.writeText "buildkite-agent-ssh-known-hosts" ''
-        origin.cursor.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaMKo6HCtmngBwlSH2ATs8+A6eTr+cCON5RKZX/3/MO
+      installRuntimeSshKeyPerms = keyPath: ''
+        if [ -f ${keyPath} ]; then
+          chown ${agentUser}:${agentUser} ${keyPath}
+          chmod 600 ${keyPath}
+        fi
+        if [ -f ${keyPath}.pub ]; then
+          chown ${agentUser}:${agentUser} ${keyPath}.pub
+          chmod 644 ${keyPath}.pub
+        fi
       '';
     in
     {
@@ -96,7 +121,9 @@
       launchd.daemons.buildkite-agent-macos = {
         # insteadOf HTTPS Origin clones → SSH. Store path is public (no secrets).
         environment.GIT_CONFIG_GLOBAL = "${originGitconfig}";
-        environment.GIT_SSH_COMMAND = "ssh -i ${originSshKey} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${originKnownHosts}";
+        # No GIT_SSH_COMMAND: HOME points at the agent home so git/OpenSSH read
+        # ~/.ssh/config and per-host IdentityFile entries (GitHub + Origin).
+        environment.HOME = agentHome;
         environment.DOCKER_HOST = "unix:///var/run/docker.sock";
         # Podman honors CONTAINER_HOST, not DOCKER_HOST.
         environment.CONTAINER_HOST = "unix:///var/run/docker.sock";
@@ -121,16 +148,10 @@
         chmod 755 "$checkout/plugins"
         chmod 700 "$agent_home/.ssh"
         install -m 644 -o ${agentUser} -g ${agentUser} ${originGitconfig} "$agent_home/.gitconfig"
-        install -m 644 -o ${agentUser} -g ${agentUser} ${originSshConfig} "$agent_home/.ssh/config"
-        install -m 644 -o ${agentUser} -g ${agentUser} ${originKnownHosts} "$agent_home/.ssh/known_hosts"
-        if [ -f ${originSshKey} ]; then
-          chown ${agentUser}:${agentUser} ${originSshKey}
-          chmod 600 ${originSshKey}
-        fi
-        if [ -f ${originSshKey}.pub ]; then
-          chown ${agentUser}:${agentUser} ${originSshKey}.pub
-          chmod 644 ${originSshKey}.pub
-        fi
+        install -m 644 -o ${agentUser} -g ${agentUser} ${agentSshConfig} "$agent_home/.ssh/config"
+        install -m 644 -o ${agentUser} -g ${agentUser} ${agentKnownHosts} "$agent_home/.ssh/known_hosts"
+        ${installRuntimeSshKeyPerms githubSshKey}
+        ${installRuntimeSshKeyPerms originSshKey}
 
         mkdir -p /etc/buildkite-agent
         chmod 755 /etc/buildkite-agent
