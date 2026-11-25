@@ -9,7 +9,7 @@
     let
       agentUser = "buildkite-agent-macos";
       # Existing dscl home. nix-darwin will not change it. /var is a symlink
-      # to /private/var on Darwin — keep the /private path the live user has.
+      # to /private/var on Darwin — keep the /private path the live host has.
       agentHome = "/private/var/lib/${agentUser}";
       # Checkout on applehv /Users virtiofs so docker -v $PWD works. Do not
       # put checkout under /var/lib (/private/var on Darwin): guest ls/umount
@@ -17,49 +17,6 @@
       # Must match modules/darwin/podman.nix agentCheckoutRoot. ExtraConfig
       # build-path last-wins over nix-darwin's dataDir/builds.
       agentCheckout = "/Users/Shared/${agentUser}";
-      githubSshKey = "${agentHome}/.ssh/github_buildkite";
-      originSshKey = "${agentHome}/.ssh/origin_cursor";
-      agentKnownHostsPath = "${agentHome}/.ssh/known_hosts";
-      # Public only — private keys at githubSshKey / originSshKey are runtime
-      # files installed by `nix run .#mac-mini-buildkite-install-ssh`.
-      originGitconfig = pkgs.writeText "buildkite-agent-gitconfig" ''
-        [url "git@origin.cursor.com:"]
-        	insteadOf = https://origin.cursor.com/git/
-      '';
-      # GitHub host keys: https://api.github.com/meta (ssh_keys) and GitHub docs
-      agentKnownHosts = pkgs.writeText "buildkite-agent-ssh-known-hosts" ''
-        github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
-        github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
-        github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
-        origin.cursor.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaMKo6HCtmngBwlSH2ATs8+A6eTr+cCON5RKZX/3/MO
-      '';
-      agentSshConfig = pkgs.writeText "buildkite-agent-ssh-config" ''
-        # Managed by nix-darwin (modules/darwin/buildkite.nix). Identity files
-        # are runtime secrets — install with mac-mini-buildkite-install-ssh.
-        Host github.com
-          User git
-          IdentityFile ${githubSshKey}
-          IdentitiesOnly yes
-          StrictHostKeyChecking yes
-          UserKnownHostsFile ${agentKnownHostsPath}
-
-        Host origin.cursor.com
-          User git
-          IdentityFile ${originSshKey}
-          IdentitiesOnly yes
-          StrictHostKeyChecking yes
-          UserKnownHostsFile ${agentKnownHostsPath}
-      '';
-      installRuntimeSshKeyPerms = keyPath: ''
-        if [ -f ${keyPath} ]; then
-          chown ${agentUser}:${agentUser} ${keyPath}
-          chmod 600 ${keyPath}
-        fi
-        if [ -f ${keyPath}.pub ]; then
-          chown ${agentUser}:${agentUser} ${keyPath}.pub
-          chmod 644 ${keyPath}.pub
-        fi
-      '';
     in
     {
       # nix-darwin only creates users/groups listed in knownUsers/knownGroups.
@@ -119,10 +76,9 @@
       ];
 
       launchd.daemons.buildkite-agent-macos = {
-        # insteadOf HTTPS Origin clones → SSH. Store path is public (no secrets).
-        environment.GIT_CONFIG_GLOBAL = "${originGitconfig}";
-        # No GIT_SSH_COMMAND: HOME points at the agent home so git/OpenSSH read
-        # ~/.ssh/config and per-host IdentityFile entries (GitHub + Origin).
+        # HOME so job bootstrap runs git/nix as the agent user. GitHub checkout
+        # uses Buildkite's GitHub App credential helper (queue setting) — do not
+        # set GIT_CONFIG_GLOBAL or GIT_SSH_COMMAND; do not manage ~/.gitconfig.
         environment.HOME = agentHome;
         environment.DOCKER_HOST = "unix:///var/run/docker.sock";
         # Podman honors CONTAINER_HOST, not DOCKER_HOST.
@@ -135,6 +91,8 @@
       # nix-darwin only runs hardcoded activation scripts (users, launchd,
       # postActivation, …). Custom script names are ignored; use postActivation
       # (after users) so buildkite-agent-macos exists before chgrp/chown.
+      # Intentionally does NOT install ~/.gitconfig, ~/.ssh/config, or
+      # known_hosts — Buildkite's GitHub App helper owns git config for checkouts.
       system.activationScripts.postActivation.text = lib.mkAfter ''
         agent_home=${agentHome}
         checkout=${agentCheckout}
@@ -147,11 +105,6 @@
         chmod 755 "$checkout/builds"
         chmod 755 "$checkout/plugins"
         chmod 700 "$agent_home/.ssh"
-        install -m 644 -o ${agentUser} -g ${agentUser} ${originGitconfig} "$agent_home/.gitconfig"
-        install -m 600 -o ${agentUser} -g ${agentUser} ${agentSshConfig} "$agent_home/.ssh/config"
-        install -m 644 -o ${agentUser} -g ${agentUser} ${agentKnownHosts} "$agent_home/.ssh/known_hosts"
-        ${installRuntimeSshKeyPerms githubSshKey}
-        ${installRuntimeSshKeyPerms originSshKey}
 
         mkdir -p /etc/buildkite-agent
         chmod 755 /etc/buildkite-agent
