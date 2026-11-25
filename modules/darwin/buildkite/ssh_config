@@ -1,0 +1,6 @@
+Host origin.cursor.com
+  User git
+  IdentityFile ~/.ssh/origin_cursor
+  IdentitiesOnly yes
+  StrictHostKeyChecking yes
+  UserKnownHostsFile ~/.ssh/known_hosts
