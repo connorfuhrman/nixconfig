@@ -54,8 +54,11 @@ sudo nixos-rebuild switch --flake .#nuc-cluster-worker
 sudo nixos-rebuild switch --flake .#rpi-cluster-head
 
 # nix-darwin (first bootstraps with `nix run nix-darwin -- …`)
-darwin-rebuild switch --flake .#macbook
-darwin-rebuild switch --flake .#mac-mini
+# Prefer `just switch` on Darwin: builds as your user so private flake inputs
+# (e.g. git+https pi-config) use Home Manager / gh credential helpers, not root's.
+just switch                  # current host
+just switch mac-mini
+just check                   # same as nix flake check
 
 # home-manager (first bootstraps with `nix run home-manager/master -- …`)
 home-manager switch --flake .#connorfuhrman@macbook

@@ -54,7 +54,7 @@ fi
 
 echo "Applying nix-darwin config (sudo required)…"
 cd "$REPO_ROOT"
-sudo darwin-rebuild switch --flake .#mac-mini
+just switch mac-mini
 
 echo "Buildkite launchd jobs (system domain — use sudo):"
 sudo launchctl list 2>/dev/null | grep buildkite || true
@@ -63,7 +63,7 @@ sudo launchctl print system/org.nixos.buildkite-agent-macos 2>/dev/null | head -
   || echo "  (org.nixos.buildkite-agent-macos not loaded yet)"
 echo "Token readable by buildkite-agent-macos?"
 sudo -u buildkite-agent-macos test -r "$TOKEN_PATH" \
-  && echo "  yes" || echo "  NO — re-run: sudo darwin-rebuild switch --flake .#mac-mini"
+  && echo "  yes" || echo "  NO — re-run: just switch mac-mini"
 
 echo "Done. Confirm agent at:"
 echo "  https://buildkite.com/organizations/$ORG/clusters/$CLUSTER_ID"
