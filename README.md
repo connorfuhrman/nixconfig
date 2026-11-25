@@ -9,6 +9,7 @@ pattern: features are modules under `modules/`, composed by name per host.
 [![Nix flake](https://img.shields.io/badge/nix-flake-5277C3?logo=nixos&logoColor=white)](./flake.nix)
 [![dendritic](https://img.shields.io/badge/structure-dendritic-2aa889)](https://github.com/mightyiam/dendritic)
 [![checks](https://img.shields.io/badge/checks-nix%20flake%20check-brightgreen)](./modules/checks.nix)
+[![Buildkite](https://badge.buildkite.com/2a49c0564b8ffe2426daa6bdf89cf8ab69acff6974fcd79fb0.svg?branch=main)](https://buildkite.com/connor-m-fuhrman/nixconfig)
 
 ## Hosts
 
