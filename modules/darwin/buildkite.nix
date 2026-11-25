@@ -20,26 +20,27 @@
       originSshKey = "${agentHome}/.ssh/origin_cursor";
       sshConfigSource = ./buildkite/ssh_config;
       knownHostsSource = ./buildkite/known_hosts;
-      postActivationBody = builtins.replaceStrings
-        [
-          "@agentHome@"
-          "@agentCheckout@"
-          "@agentUser@"
-          "@sshConfigSource@"
-          "@knownHostsSource@"
-          "@originSshKey@"
-          "@git@"
-        ]
-        [
-          agentHome
-          agentCheckout
-          agentUser
-          "${sshConfigSource}"
-          "${knownHostsSource}"
-          originSshKey
-          "${pkgs.git}/bin/git"
-        ]
-        (builtins.readFile ./buildkite/post-activation.sh);
+      postActivationBody =
+        builtins.replaceStrings
+          [
+            "@agentHome@"
+            "@agentCheckout@"
+            "@agentUser@"
+            "@sshConfigSource@"
+            "@knownHostsSource@"
+            "@originSshKey@"
+            "@git@"
+          ]
+          [
+            agentHome
+            agentCheckout
+            agentUser
+            "${sshConfigSource}"
+            "${knownHostsSource}"
+            originSshKey
+            "${pkgs.git}/bin/git"
+          ]
+          (builtins.readFile ./buildkite/post-activation.sh);
     in
     {
       # nix-darwin only creates users/groups listed in knownUsers/knownGroups.
@@ -87,6 +88,11 @@
           pkgs.git
           pkgs.bash
           pkgs.coreutils
+          pkgs.findutils
+          pkgs.gnugrep
+          pkgs.gnused
+          pkgs.gawk
+          pkgs.which
           pkgs.gnutar
           pkgs.gzip
           pkgs.podman
