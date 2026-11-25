@@ -28,6 +28,7 @@
           "@sshConfigSource@"
           "@knownHostsSource@"
           "@originSshKey@"
+          "@git@"
         ]
         [
           agentHome
@@ -36,6 +37,7 @@
           "${sshConfigSource}"
           "${knownHostsSource}"
           originSshKey
+          "${pkgs.git}/bin/git"
         ]
         (builtins.readFile ./buildkite/post-activation.sh);
     in
@@ -112,8 +114,8 @@
       # nix-darwin only runs hardcoded activation scripts (users, launchd,
       # postActivation, …). Custom script names are ignored; use postActivation
       # (after users) so buildkite-agent-macos exists before chgrp/chown.
-      # ~/.gitconfig: Buildkite's GitHub App helper writes it — create empty only
-      # if missing (never install from the Nix store or set GIT_CONFIG_GLOBAL).
+      # ~/.gitconfig: create if missing; set Origin url.insteadOf only (writable).
+      # Buildkite's GitHub App helper owns credential.* and github.com rewrites.
       # ~/.ssh: Origin-only config + pinned known_hosts; do not touch origin_cursor.
       system.activationScripts.postActivation.text = lib.mkAfter postActivationBody;
     };

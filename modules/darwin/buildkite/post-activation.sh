@@ -6,6 +6,9 @@ if [ ! -f "$agent_home/.gitconfig" ]; then
   chown @agentUser@:@agentUser@ "$agent_home/.gitconfig"
   chmod 644 "$agent_home/.gitconfig"
 fi
+# Origin HTTPS pipeline URLs → SSH; idempotent; only this url.insteadOf key.
+sudo -u @agentUser@ -H @git@ config --file "$agent_home/.gitconfig" \
+  url.git@origin.cursor.com:.insteadOf https://origin.cursor.com/git/
 install -m 600 -o @agentUser@ -g @agentUser@ @sshConfigSource@ "$agent_home/.ssh/config"
 install -m 644 -o @agentUser@ -g @agentUser@ @knownHostsSource@ "$agent_home/.ssh/known_hosts"
 if [ -f @originSshKey@ ]; then

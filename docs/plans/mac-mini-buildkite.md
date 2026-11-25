@@ -147,8 +147,9 @@ mac-mini:
 
 `postActivation` creates `/Users/Shared/buildkite-agent-macos` (`build-path`),
 fixes token permissions, and kickstarts the macOS Buildkite launchd daemon.
-It creates an empty `~/.gitconfig` only when missing; installs Origin-only
-`~/.ssh/config` and `known_hosts` (does not install `~/.gitconfig` from the store).
+It creates an empty `~/.gitconfig` only when missing, then idempotently sets
+the Origin `url…insteadOf` rule (writable file — not the store); installs
+Origin-only `~/.ssh/config` and `known_hosts`.
 
 **Token-only reinstall** (skip darwin-rebuild if config unchanged):
 
@@ -222,11 +223,11 @@ checkout setting first, then merge this flake and `darwin-rebuild switch`.
 The GitHub App helper does **not** cover `origin.cursor.com` (e.g. **t-hex**).
 `modules/darwin/buildkite.nix` installs a scoped `Host origin.cursor.com` block
 using the existing runtime key `~/.ssh/origin_cursor` (mode 600, never written
-by Nix) and a pinned `known_hosts` entry. It does **not** set `GIT_SSH_COMMAND`,
-`GIT_CONFIG_GLOBAL`, or a store `insteadOf` for Origin — use
-`git@origin.cursor.com:` remote URLs or configure `insteadOf` in the agent
-`~/.gitconfig` manually if needed (activation will not overwrite an existing
-`~/.gitconfig`).
+by Nix), a pinned `known_hosts` entry, and one writable gitconfig key:
+`url.git@origin.cursor.com:.insteadOf` → `https://origin.cursor.com/git/` (for
+**turing-pi**, **determinate-nix-container**, **t-hex** pipeline URLs). It does
+**not** set `GIT_SSH_COMMAND`, `GIT_CONFIG_GLOBAL`, or touch `credential.*` /
+github.com keys (Buildkite owns those during jobs).
 
 ## Pipelines
 
