@@ -13,25 +13,55 @@ source_nix_profile() {
   fi
 }
 
+systemd_is_usable() {
+  command -v systemctl >/dev/null 2>&1 \
+    && systemctl is-system-running --quiet 2>/dev/null
+}
+
+run_determinate_install() {
+  local args
+  if systemd_is_usable; then
+    args=(install linux --no-confirm)
+  else
+    # Cursor Cloud Agent VMs ship systemctl but systemd is offline; no units.
+    args=(install linux --init none --no-confirm)
+  fi
+  curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+    | sh -s -- "${args[@]}"
+}
+
 # Determinate's installer returns before nix-daemon is accepting connections.
 # A following `nix` as ubuntu then hits: opening lock file .../big-lock: Permission denied.
+# Snapshot restores also leave a stale socket with no live daemon process.
 ensure_nix_daemon() {
   local sock="/nix/var/nix/daemon-socket/socket"
 
-  nix_ok() {
-    [ -S "$sock" ] && nix-store --version >/dev/null 2>&1
+  nix_ping_ok() {
+    nix store ping >/dev/null 2>&1
   }
 
-  if nix_ok; then
+  clear_stale_socket() {
+    if [ -e "$sock" ] && ! nix_ping_ok; then
+      sudo rm -f "$sock"
+    fi
+  }
+
+  if nix_ping_ok; then
     return 0
   fi
 
-  if command -v systemctl >/dev/null 2>&1; then
+  clear_stale_socket
+
+  if systemd_is_usable; then
     sudo systemctl start nix-daemon.service 2>/dev/null || true
     sudo systemctl start determinate-nixd.service 2>/dev/null || true
+    if nix_ping_ok; then
+      return 0
+    fi
+    clear_stale_socket
   fi
 
-  if ! nix_ok; then
+  if ! nix_ping_ok; then
     local daemon=""
     if command -v nix-daemon >/dev/null 2>&1; then
       daemon="$(command -v nix-daemon)"
@@ -39,24 +69,36 @@ ensure_nix_daemon() {
       daemon=/nix/var/nix/profiles/default/bin/nix-daemon
     fi
     if [ -n "$daemon" ]; then
+      clear_stale_socket
       sudo "$daemon" --daemon >/tmp/nix-daemon.log 2>&1 &
     fi
   fi
 
   local i
   for i in $(seq 1 50); do
-    if nix_ok; then
+    if nix_ping_ok; then
       return 0
     fi
     sleep 0.2
   done
-  echo "nix-home.sh: nix-daemon is not accepting connections" >&2
+  echo "nix-home.sh: nix-daemon is not accepting connections (see /tmp/nix-daemon.log)" >&2
   return 1
 }
 
+case "${1:-}" in
+  start-daemon)
+    source_nix_profile
+    if ! command -v nix >/dev/null 2>&1; then
+      echo "nix-home.sh: nix not on PATH (run install first)" >&2
+      exit 1
+    fi
+    ensure_nix_daemon
+    exit 0
+    ;;
+esac
+
 if ! command -v nix >/dev/null 2>&1; then
-  curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
-    | sh -s -- install --no-confirm
+  run_determinate_install
 fi
 
 source_nix_profile

@@ -155,3 +155,12 @@ After `mbp14` is validated on hardware:
 - Cursor CLI agent / headless `cursor-agent` in Nix (evaluate separately if needed)
 - Replacing Emacs workflow
 - Installing on Linux servers without a desktop session
+
+## Related: Cursor Cloud VM Nix bootstrap
+
+Cloud Agent VMs use **home-manager** only (`ubuntu@cursor-cloud`), not this
+Cursor **app** module. Bootstrap is `pkgs/cursor-cloud/nix-home.sh`: Determinate
+`install linux --init none --no-confirm` on hosts without systemd, manual
+`nix-daemon` + `nix store ping`, and `start-daemon` on snapshot boot. See
+[`cursor-cloud-home.md`](cursor-cloud-home.md) and
+[`.cursor/AGENTS.md`](../../.cursor/AGENTS.md).

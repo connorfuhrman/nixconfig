@@ -17,12 +17,18 @@ App: `nix run .#cursor-cloud-setup`
 `.cursor/environment.json` and `.cursor/nix-home.sh` are already committed.
 **Do not re-run `init` here.**
 
-- VM **with** Nix: `nix run .#cursor-cloud-setup`
-- VM **without** Nix: `.cursor/nix-home.sh` (installs Determinate Nix, waits
-  until `nix-daemon` accepts connections, then the app). Do not `nix run`
-  until `nix` is on PATH and the daemon is up. The installer returning
-  success is not enough — a following `nix` as `ubuntu` fails with
-  `big-lock: Permission denied` if the daemon is not listening yet.
+- VM **with** Nix: `nix run .#cursor-cloud-setup` (daemon must still answer
+  `nix store ping`; use `.cursor/nix-home.sh start-daemon` on snapshot boot).
+- VM **without** Nix: `.cursor/nix-home.sh` (Determinate install, then the app).
+  Cursor VMs often have `systemctl` but **offline** systemd — install uses
+  `install linux --init none --no-confirm` unless
+  `systemctl is-system-running` succeeds (then `install linux --no-confirm`).
+  After install the script sources
+  `nix-daemon.sh`, clears a stale `/nix/var/nix/daemon-socket/socket` when
+  `nix store ping` fails, and starts `nix-daemon` in the background if needed.
+  Do not `nix run` until `nix` is on PATH and `nix store ping` succeeds.
+`environment.json` **`start`** runs `start-daemon` on each boot (snapshots do
+  not keep processes).
 
 ## Consumer repo (e.g. t-hex) — first time only when asked
 
