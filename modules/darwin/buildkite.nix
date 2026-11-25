@@ -17,6 +17,18 @@
       # Must match modules/darwin/podman.nix agentCheckoutRoot. ExtraConfig
       # build-path last-wins over nix-darwin's dataDir/builds.
       agentCheckout = "/Users/Shared/${agentUser}";
+      originSshKey = "${agentHome}/.ssh/origin_cursor";
+      originSshConfig = pkgs.writeText "buildkite-agent-ssh-config" ''
+        Host origin.cursor.com
+          User git
+          IdentityFile ${originSshKey}
+          IdentitiesOnly yes
+          StrictHostKeyChecking yes
+          UserKnownHostsFile ${agentHome}/.ssh/known_hosts
+      '';
+      originKnownHosts = pkgs.writeText "buildkite-agent-ssh-known-hosts" ''
+        origin.cursor.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaMKo6HCtmngBwlSH2ATs8+A6eTr+cCON5RKZX/3/MO
+      '';
     in
     {
       # nix-darwin only creates users/groups listed in knownUsers/knownGroups.
@@ -91,12 +103,28 @@
       # nix-darwin only runs hardcoded activation scripts (users, launchd,
       # postActivation, …). Custom script names are ignored; use postActivation
       # (after users) so buildkite-agent-macos exists before chgrp/chown.
-      # Intentionally does NOT install ~/.gitconfig, ~/.ssh/config, or
-      # known_hosts — Buildkite's GitHub App helper owns git config for checkouts.
+      # ~/.gitconfig: Buildkite's GitHub App helper writes it — create empty only
+      # if missing (never install from the Nix store or set GIT_CONFIG_GLOBAL).
+      # ~/.ssh: Origin-only config + pinned known_hosts; do not touch origin_cursor.
       system.activationScripts.postActivation.text = lib.mkAfter ''
         agent_home=${agentHome}
         checkout=${agentCheckout}
         mkdir -p "$agent_home/.ssh"
+        if [ ! -f "$agent_home/.gitconfig" ]; then
+          : > "$agent_home/.gitconfig"
+          chown ${agentUser}:${agentUser} "$agent_home/.gitconfig"
+          chmod 644 "$agent_home/.gitconfig"
+        fi
+        install -m 600 -o ${agentUser} -g ${agentUser} ${originSshConfig} "$agent_home/.ssh/config"
+        install -m 644 -o ${agentUser} -g ${agentUser} ${originKnownHosts} "$agent_home/.ssh/known_hosts"
+        if [ -f ${originSshKey} ]; then
+          chown ${agentUser}:${agentUser} ${originSshKey}
+          chmod 600 ${originSshKey}
+        fi
+        if [ -f ${originSshKey}.pub ]; then
+          chown ${agentUser}:${agentUser} ${originSshKey}.pub
+          chmod 644 ${originSshKey}.pub
+        fi
         mkdir -p "$checkout/builds" "$checkout/plugins"
         chown -R ${agentUser}:${agentUser} "$agent_home"
         chown -R ${agentUser}:docker "$checkout"
