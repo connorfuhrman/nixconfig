@@ -2,6 +2,7 @@
   "name": "nix-home",
   "user": "ubuntu",
   "install": ".cursor/nix-home.sh",
+  "start": ".cursor/nix-home.sh start-daemon",
   "repositoryDependencies": [
     "github.com/connorfuhrman/nixconfig"
   ],
