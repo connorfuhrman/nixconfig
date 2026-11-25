@@ -4,6 +4,7 @@
     devShells.default = pkgs.mkShellNoCC {
       packages = [
         pkgs.home-manager
+        pkgs.just
         (pkgs.writeShellApplication {
           name = "switch-darwin";
           text = ''

@@ -133,7 +133,7 @@ mac-mini:
 
    ```sh
    cd ~/nixconfig && git pull
-   sudo darwin-rebuild switch --flake .#mac-mini
+   just switch mac-mini
    ```
 
 4. Confirm **two** agents connected on queue `mac-mini-macos` in
@@ -155,7 +155,7 @@ Origin-only `~/.ssh/config` and `known_hosts`.
 
 ```sh
 nix run .#mac-mini-buildkite-install-token
-sudo darwin-rebuild switch --flake .#mac-mini   # re-applies permissions + kickstarts agent
+just switch mac-mini   # re-applies permissions + kickstarts agent
 ```
 
 Or use the bootstrap script:
@@ -181,7 +181,7 @@ printf '%s' "$token" | tr -d '[:space:]' > "$tmp"
 sudo install -m 600 -o root -g wheel "$tmp" /etc/buildkite-agent/cluster.token
 rm -f "$tmp"
 trap - EXIT
-sudo darwin-rebuild switch --flake .#mac-mini
+just switch mac-mini
 ```
 
 ## Git checkout for self-hosted jobs
@@ -279,14 +279,14 @@ also fail rootless.
 # as connorfuhrman
 podman machine stop podman-machine-default
 podman machine set --rootful podman-machine-default
-sudo darwin-rebuild switch --flake .#mac-mini   # kickstarts podman-machine launchd job
+just switch mac-mini   # kickstarts podman-machine launchd job
 ```
 
 If the machine does not exist yet, init rootful once (~500 MiB VM download):
 
 ```sh
 podman machine init --rootful podman-machine-default
-sudo darwin-rebuild switch --flake .#mac-mini
+just switch mac-mini
 ```
 
 Verify:
