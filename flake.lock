@@ -316,11 +316,11 @@
         "rev": "059221752b33c60ab044d45799f02c29cb455a53",
         "revCount": 28,
         "type": "git",
-        "url": "ssh://git@github.com/connorfuhrman/pi-config.git"
+        "url": "https://github.com/connorfuhrman/pi-config.git"
       },
       "original": {
         "type": "git",
-        "url": "ssh://git@github.com/connorfuhrman/pi-config.git"
+        "url": "https://github.com/connorfuhrman/pi-config.git"
       }
     },
     "root": {

@@ -23,10 +23,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # Dedicated pi coding agent configuration (home-manager module + overlay).
-    # Private repo: use git+ssh so authentication flows through the user's
-    # SSH agent (1Password SSH agent on macOS; deploy key on CI builders).
+    # Private repo: git+https so mac-mini CI fetches via the agent user's git
+    # (Buildkite GitHub App credential helper) rather than SSH deploy keys.
     pi-config = {
-      url = "git+ssh://git@github.com/connorfuhrman/pi-config.git";
+      url = "git+https://github.com/connorfuhrman/pi-config.git";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
       inputs.import-tree.follows = "import-tree";
