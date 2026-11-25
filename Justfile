@@ -16,6 +16,8 @@ build host=host *ARGS:
 
 # Depends on build, then registers the system profile and activates.
 switch host=host *ARGS: (build host ARGS)
+    #!/usr/bin/env bash
+    set -euo pipefail
     store_path="$(readlink -f ./result 2>/dev/null || nix path-info ./result)"
     sudo nix-env -p /nix/var/nix/profiles/system --set "$store_path"
     if [[ -x ./result/sw/bin/darwin-rebuild ]]; then
